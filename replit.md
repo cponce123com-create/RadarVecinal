@@ -15,7 +15,7 @@ pnpm workspace monorepo using TypeScript. Contains the **Radar Vecinal** citizen
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **Maps**: Mapbox-ready placeholder with react-map-gl
+- **Maps**: Leaflet + react-leaflet (OSM tiles, dark filter)
 - **Charts**: Recharts
 - **Animations**: Framer Motion
 - **Date formatting**: date-fns
@@ -59,6 +59,8 @@ artifacts-monorepo/
 - `GET /api/healthz` — Health check
 - `GET/POST /api/reports` — Incident reports
 - `GET/PATCH /api/reports/:id` — Single report
+- `DELETE /api/reports/:id` — Delete report (admin)
+- `POST /api/seed` — Auto-seed demo data if DB has < 10 reports
 - `GET/POST /api/panic-alerts` — Panic alerts
 - `GET/POST /api/missing-persons` — Missing person alerts
 - `PATCH /api/missing-persons/:id` — Update missing person
@@ -70,6 +72,24 @@ artifacts-monorepo/
 ### Database Schema (lib/db)
 Tables: `users`, `reports`, `panic_alerts`, `missing_persons`, `ad_slots`
 Enums: `report_category`, `urgency_level`, `report_status`, `user_role`, `panic_alert_type`, `missing_person_status`
+Notable fields: `contactPhone` (nullable) on reports — admin-only, used for calling reporters
+
+### Map Features (LeafletMap.tsx)
+- **Map mode**: Emoji DivIcon markers per category (last 15 days), category legend
+- **Radar mode**: Animated canvas radar sweep with blips and cardinal rings
+- **Heat mode**: Smoke heatmap — only robbery + fight (6-month window)
+- **Category filters**: 14 scrollable pills in MapPage
+- **User location**: Geolocation with simulated fallback to San Ramón centro
+- **Sensitive categories**: informal_commerce, prostitution, drug_point, bar_trouble → auto-anonymous
+
+### Admin Panel Features (Admin.tsx)
+- KPI cards: total reports, active alerts, resolved today, users
+- Report table: icon, title, category, sector, time, status badge, action buttons
+- Action buttons: resolve ✓, review 👁, archive 🕐, delete 🗑, call ☎ (when contactPhone exists)
+- Delete confirmation modal
+- "Cargar datos demo" button → POST /api/seed (fixes empty production DB)
+- Search/filter across reports and users
+- Users tab with roles
 
 ### Visual Identity
 - Dark carbon/navy backgrounds

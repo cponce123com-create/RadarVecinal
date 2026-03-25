@@ -408,6 +408,25 @@ export const updateReport = async (
   });
 };
 
+// ── Delete Report ──────────────────────────────────────────────────────────
+export const getDeleteReportUrl = (id: string) => `/api/reports/${id}`;
+
+export const deleteReport = async (id: string, options?: RequestInit): Promise<{ success: boolean; id: string }> => {
+  return customFetch<{ success: boolean; id: string }>(getDeleteReportUrl(id), { ...options, method: "DELETE" });
+};
+
+export const useDeleteReport = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteReport>>, TError, { id: string }, TContext> }
+): UseMutationResult<Awaited<ReturnType<typeof deleteReport>>, TError, { id: string }, TContext> => {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReport>>, { id: string }> = ({ id }) => deleteReport(id);
+  return useMutation({ mutationFn, ...options?.mutation });
+};
+
+// ── Seed endpoint ──────────────────────────────────────────────────────────
+export const seedDemoData = async (options?: RequestInit): Promise<{ seeded: boolean; message: string }> => {
+  return customFetch<{ seeded: boolean; message: string }>("/api/seed", { ...options, method: "POST" });
+};
+
 export const getUpdateReportMutationOptions = <
   TError = ErrorType<unknown>,
   TContext = unknown,

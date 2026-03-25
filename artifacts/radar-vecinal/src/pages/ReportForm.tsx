@@ -80,6 +80,7 @@ export default function ReportForm() {
     isAnonymous: false,
     sector: SECTORS[0],
     address: "",
+    contactPhone: "",
     latitude: DISTRICT.center.lat,
     longitude: DISTRICT.center.lng,
   });
@@ -132,6 +133,7 @@ export default function ReportForm() {
         longitude: formData.longitude,
         address: formData.address,
         sector: formData.sector,
+        contactPhone: formData.contactPhone || null,
         authorName: formData.isAnonymous ? "Anónimo" : "Vecino de San Ramón",
       }
     }, {
@@ -271,6 +273,18 @@ export default function ReportForm() {
                     rows={4}
                     className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors resize-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Teléfono de contacto <span className="text-muted-foreground font-normal">(opcional)</span>
+                  </label>
+                  <input
+                    type="tel" name="contactPhone" value={formData.contactPhone} onChange={handleChange}
+                    placeholder="Ej: 987 654 321 (para que la autoridad pueda confirmar)"
+                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                  />
+                  <p className="text-[10px] text-muted-foreground/50 mt-1.5">Solo visible para administradores verificados.</p>
                 </div>
 
                 <div>

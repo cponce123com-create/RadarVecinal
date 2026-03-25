@@ -33,7 +33,7 @@ async function seed() {
       category: "robbery", urgency: "critical", status: "active", isAnonymous: false,
       latitude: j(-11.1272), longitude: j(-75.3548),
       address: "Jr. Tarma cdra. 3, San Ramón Centro", sector: "San Ramón Centro",
-      authorName: "Carlos Quispe", confirmedCount: 8,
+      authorName: "Carlos Quispe", contactPhone: "987-654-321", confirmedCount: 8,
       createdAt: ts(0, 0, 25), updatedAt: ts(0, 0, 25),
     },
     {
@@ -42,7 +42,7 @@ async function seed() {
       category: "prostitution", urgency: "high", status: "reviewing", isAnonymous: true,
       latitude: j(-11.1285), longitude: j(-75.3545),
       address: "Jr. Lima cdra. 4, San Ramón", sector: "San Ramón Centro",
-      authorName: "Anónimo", confirmedCount: 6,
+      authorName: "Anónimo", contactPhone: null, confirmedCount: 6,
       createdAt: ts(0, 2), updatedAt: ts(0, 2),
     },
 
@@ -80,7 +80,7 @@ async function seed() {
       category: "fight", urgency: "high", status: "resolved", isAnonymous: false,
       latitude: j(-11.1265), longitude: j(-75.3558),
       address: "Jr. Progreso cdra. 2, San Ramón", sector: "San Ramón Centro",
-      authorName: "Rosa Huamán", confirmedCount: 12,
+      authorName: "Rosa Huamán", contactPhone: "943-221-100", confirmedCount: 12,
       createdAt: ts(3), updatedAt: ts(3),
     },
     {
@@ -116,7 +116,7 @@ async function seed() {
       category: "robbery", urgency: "critical", status: "active", isAnonymous: false,
       latitude: j(-11.1263), longitude: j(-75.3541),
       address: "Grifo Chanchamayo, Carretera Central PE-22B", sector: "San Ramón Centro",
-      authorName: "Carlos Quispe", confirmedCount: 20,
+      authorName: "Carlos Quispe", contactPhone: "976-334-889", confirmedCount: 20,
       createdAt: ts(7), updatedAt: ts(7),
     },
     {
@@ -161,7 +161,7 @@ async function seed() {
       category: "robbery", urgency: "high", status: "active", isAnonymous: false,
       latitude: j(-11.1275), longitude: j(-75.3560),
       address: "Jr. Junín cdra. 5, San Ramón", sector: "San Ramón Centro",
-      authorName: "Ana Tuesta", confirmedCount: 3,
+      authorName: "Ana Tuesta", contactPhone: "989-002-341", confirmedCount: 3,
       createdAt: ts(14), updatedAt: ts(14),
     },
 

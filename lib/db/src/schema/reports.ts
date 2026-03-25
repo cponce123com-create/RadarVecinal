@@ -62,6 +62,7 @@ export const reportsTable = pgTable("reports", {
   sector: text("sector").notNull(),
   imageUrl: text("image_url"),
   authorName: text("author_name").notNull(),
+  contactPhone: text("contact_phone"),
   confirmedCount: integer("confirmed_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

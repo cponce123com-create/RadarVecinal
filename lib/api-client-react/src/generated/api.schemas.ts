@@ -61,6 +61,7 @@ export interface Report {
   sector: string;
   imageUrl?: string | null;
   authorName: string;
+  contactPhone?: string | null;
   confirmedCount: number;
   createdAt: string;
   updatedAt: string;
@@ -78,6 +79,7 @@ export interface CreateReportInput {
   sector: string;
   imageUrl?: string | null;
   authorName: string;
+  contactPhone?: string | null;
 }
 
 export interface UpdateReportInput {

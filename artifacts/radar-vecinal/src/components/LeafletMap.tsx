@@ -1,29 +1,72 @@
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Report } from "@workspace/api-client-react";
-import { CAT_HEX, DISTRICT } from "@/lib/constants";
+import { Report, ReportCategory } from "@workspace/api-client-react";
+import { CAT_HEX, DISTRICT, CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { Locate, Loader2, MapPin } from "lucide-react";
 import { useGeolocation } from "@/lib/useGeolocation";
-import { CATEGORY_CONFIG } from "@/lib/constants";
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
+// ── Categories shown in the insecurity heatmap ────────────────────────────────
+const HEAT_CATEGORIES = new Set<ReportCategory>([
+  ReportCategory.robbery,
+  ReportCategory.fight,
+]);
 
-export type MapMode = "map" | "radar" | "heat";
+// ── SVG icons per category ───────────────────────────────────────────────────
+const CATEGORY_EMOJI: Record<string, string> = {
+  robbery:           "🔪",
+  fight:             "👊",
+  suspicious:        "👁️",
+  water_cut:         "💧",
+  garbage:           "🗑️",
+  informal_commerce: "🛒",
+  noise:             "🔊",
+  missing_person:    "🔍",
+  fire:              "🔥",
+  medical_emergency: "🚑",
+  prostitution:      "🏠",
+  drug_point:        "💊",
+  bar_trouble:       "🍺",
+  other:             "⚠️",
+};
 
-interface LeafletMapProps {
-  reports: Report[];
-  heatReports?: Report[];
-  mode?: MapMode;
-  className?: string;
+function makeCategoryIcon(category: string, urgency: string): L.DivIcon {
+  const color = CAT_HEX[category] ?? "#6b7280";
+  const emoji = CATEGORY_EMOJI[category] ?? "⚠️";
+  const isCrit = urgency === "critical";
+  const size = isCrit ? 36 : 30;
+  const pulse = isCrit ? `
+    <span style="
+      position:absolute;inset:-4px;border-radius:50%;
+      border:2px solid ${color};opacity:0.5;
+      animation:pulse 1.5s ease-out infinite;
+    "></span>` : "";
+
+  return L.divIcon({
+    className: "",
+    iconSize:  [size, size] as [number, number],
+    iconAnchor:[size / 2, size / 2] as [number, number],
+    popupAnchor:[0, -(size / 2)] as [number, number],
+    html: `
+      <div style="
+        position:relative;
+        width:${size}px;height:${size}px;
+        display:flex;align-items:center;justify-content:center;
+        border-radius:50%;
+        background:${color}22;
+        border:2px solid ${color}88;
+        font-size:${isCrit ? 16 : 13}px;
+        box-shadow:0 0 ${isCrit ? 14 : 8}px ${color}66;
+        cursor:pointer;
+      ">
+        ${pulse}
+        <span style="position:relative;z-index:1;line-height:1;">${emoji}</span>
+      </div>
+    `,
+  });
 }
 
 // ── Radar overlay on top of real map ─────────────────────────────────────────
@@ -53,7 +96,7 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
       const maxR = Math.sqrt(cx * cx + cy * cy) * 1.1;
       const innerR = Math.min(cx, cy) * 0.9;
 
-      // Dark translucent vignette — keeps map visible in center, darkens edges
+      // Vignette
       const vignette = ctx.createRadialGradient(cx, cy, innerR * 0.3, cx, cy, maxR);
       vignette.addColorStop(0, "rgba(4,8,22,0.18)");
       vignette.addColorStop(0.6, "rgba(4,8,22,0.4)");
@@ -70,8 +113,6 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
         ctx.strokeStyle = `rgba(0,210,80,${0.18 - i * 0.03})`;
         ctx.lineWidth = i === RINGS ? 1.5 : 1;
         ctx.stroke();
-
-        // Distance label at 3 o'clock
         const km = ((r / innerR) * 3).toFixed(1);
         ctx.fillStyle = "rgba(0,210,80,0.3)";
         ctx.font = "8px monospace";
@@ -79,12 +120,12 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
         ctx.fillText(`${km}km`, cx + r + 4, cy + 4);
       }
 
-      // Crosshair lines (dashed)
+      // Crosshair
       ctx.strokeStyle = "rgba(0,210,80,0.08)";
       ctx.lineWidth = 0.5;
       ctx.setLineDash([5, 5]);
-      ctx.beginPath(); ctx.moveTo(0, cy);    ctx.lineTo(width, cy);  ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx, 0);    ctx.lineTo(cx, height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, cy);   ctx.lineTo(width, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, 0);   ctx.lineTo(cx, height); ctx.stroke();
       ctx.setLineDash([]);
 
       // Cardinal labels
@@ -98,7 +139,7 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
       ctx.fillText("O", 16, cy + 4);
       ctx.textAlign = "left";
 
-      // Sweep — trailing sector with glow
+      // Sweep
       const sweep = sweepRef.current;
       const TAIL  = Math.PI / 2.2;
       const STEPS = 28;
@@ -118,7 +159,7 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
         ctx.fill();
       }
 
-      // Leading edge line
+      // Leading edge
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(sweep) * maxR, cy + Math.sin(sweep) * maxR);
@@ -126,7 +167,7 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Report blips — positioned at real geo coordinates
+      // Blips — use category emoji overlaid on canvas dot
       reportsRef.current.forEach(r => {
         try {
           const pt   = map.latLngToContainerPoint([r.latitude, r.longitude]);
@@ -134,7 +175,6 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
           const crit = r.urgency === "critical";
           const rad  = crit ? 18 : 12;
 
-          // Outer glow
           const glow = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, rad);
           glow.addColorStop(0,   col + "cc");
           glow.addColorStop(0.4, col + "66");
@@ -144,7 +184,6 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
           ctx.fillStyle = glow;
           ctx.fill();
 
-          // Core dot
           ctx.beginPath();
           ctx.arc(pt.x, pt.y, crit ? 5 : 3.5, 0, Math.PI * 2);
           ctx.fillStyle = col;
@@ -152,10 +191,16 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
           ctx.strokeStyle = "rgba(255,255,255,0.85)";
           ctx.lineWidth = 1;
           ctx.stroke();
-        } catch { /* off-map point */ }
+
+          // Category emoji on blip
+          ctx.font = `${crit ? 11 : 9}px serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(CATEGORY_EMOJI[r.category] ?? "⚠️", pt.x, pt.y - (crit ? 10 : 8));
+          ctx.textAlign = "left";
+        } catch { /* off-map */ }
       });
 
-      // System label
+      // Label
       ctx.fillStyle = "rgba(0,200,80,0.2)";
       ctx.font = "8px monospace";
       ctx.textAlign = "center";
@@ -173,10 +218,12 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
   return null;
 }
 
-// ── Smoke heatmap — 6-month historical view ───────────────────────────────────
+// ── Smoke heatmap — only insecurity events (robbery / fight) ─────────────────
 function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
   const map = useMap();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const heatOnly = reports.filter(r => HEAT_CATEGORIES.has(r.category as ReportCategory));
 
   useEffect(() => {
     canvasRef.current?.remove();
@@ -193,11 +240,10 @@ function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
       if (!ctx) return;
       ctx.clearRect(0, 0, width, height);
 
-      // Age-based weight: older = less intense
       const now = Date.now();
       const SIX_MONTHS = 180 * 24 * 3600000;
 
-      reports.forEach(r => {
+      heatOnly.forEach(r => {
         try {
           const pt  = map.latLngToContainerPoint([r.latitude, r.longitude]);
           const age = now - new Date(r.createdAt).getTime();
@@ -207,8 +253,6 @@ function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
           if (w < 0.02) return;
 
           const rad = 90 * w + 40;
-
-          // Multiple smoke blobs per point for diffuse effect — deterministic jitter
           const seed = r.id.charCodeAt(0) + r.id.charCodeAt(r.id.length - 1);
           for (let i = 0; i < 3; i++) {
             const angle = (seed * (i + 1) * 137.5) % 360 * (Math.PI / 180);
@@ -236,6 +280,62 @@ function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
     draw();
     map.on("move zoom resize", draw);
     return () => { map.off("move zoom resize", draw); canvas.remove(); };
+  }, [map, heatOnly.length]);
+
+  return null;
+}
+
+// ── Category marker layer ─────────────────────────────────────────────────────
+function CategoryMarkers({ reports }: { reports: Report[] }) {
+  const map = useMap();
+  const markersRef = useRef<L.Marker[]>([]);
+
+  useEffect(() => {
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    reports.forEach(r => {
+      const icon = makeCategoryIcon(r.category, r.urgency);
+      const catConfig = CATEGORY_CONFIG[r.category as ReportCategory];
+      const color = CAT_HEX[r.category] ?? "#6b7280";
+      const emoji = CATEGORY_EMOJI[r.category] ?? "⚠️";
+      const timeAgo = formatDistanceToNow(new Date(r.createdAt), { locale: es, addSuffix: true });
+
+      const marker = L.marker([r.latitude, r.longitude], { icon }).addTo(map);
+
+      const popupHtml = `
+        <div style="
+          background:#0f1219;border:1px solid ${color}44;
+          border-radius:10px;padding:10px 12px;min-width:190px;
+          font-family:system-ui,sans-serif;
+        ">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <span style="font-size:16px;">${emoji}</span>
+            <span style="font-weight:700;font-size:13px;color:#fff;">${r.title}</span>
+          </div>
+          <div style="border-top:1px solid ${color}22;padding-top:6px;display:flex;flex-direction:column;gap:3px;">
+            <span style="font-size:11px;color:#9ca3af;">📍 ${r.address || r.sector}</span>
+            <span style="font-size:11px;color:#9ca3af;">🕐 ${timeAgo}</span>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              <span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${color}22;color:${color};">
+                ${catConfig?.label ?? r.category}
+              </span>
+              <span style="font-size:10px;padding:2px 7px;border-radius:100px;
+                background:${r.status === "active" ? "#ef444422" : "#22c55e22"};
+                color:${r.status === "active" ? "#f87171" : "#4ade80"};">
+                ${r.status === "active" ? "Activo" : r.status === "resolved" ? "Resuelto" : "En revisión"}
+              </span>
+            </div>
+            ${r.confirmedCount > 0 ? `<span style="font-size:10px;color:#6b7280;margin-top:2px;">✓ ${r.confirmedCount} confirmaciones</span>` : ""}
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml, { closeButton: false, className: "radar-popup", maxWidth: 250 });
+      markersRef.current.push(marker);
+    });
+
+    return () => { markersRef.current.forEach(m => m.remove()); markersRef.current = []; };
   }, [map, reports]);
 
   return null;
@@ -308,6 +408,16 @@ function LocateControl({ onLocate, simulated }: {
   );
 }
 
+// ── Public types ──────────────────────────────────────────────────────────────
+export type MapMode = "map" | "radar" | "heat";
+
+interface LeafletMapProps {
+  reports: Report[];
+  heatReports?: Report[];
+  mode?: MapMode;
+  className?: string;
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 export function LeafletMap({
   reports,
@@ -328,7 +438,6 @@ export function LeafletMap({
         zoomControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117" }}
       >
-        {/* OSM tiles — free, no API key */}
         <TileLayer
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -344,66 +453,13 @@ export function LeafletMap({
 
         <UserMarker position={userPos} simulated={simulated} />
 
-        {/* ── MAP mode: incident markers ── */}
-        {mode === "map" && reports.map(r => {
-          const color  = CAT_HEX[r.category] ?? "#6b7280";
-          const config = CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
-          const isCrit = r.urgency === "critical";
-          const isAct  = r.status === "active";
-          return (
-            <CircleMarker
-              key={r.id}
-              center={[r.latitude, r.longitude]}
-              radius={isCrit ? 11 : isAct ? 9 : 7}
-              pathOptions={{
-                fillColor: color, fillOpacity: 0.9,
-                color: isCrit ? "#fff" : "rgba(0,0,0,0.4)",
-                weight: isCrit ? 2 : 1,
-              }}
-            >
-              <Popup closeButton={false} className="radar-popup">
-                <div style={{
-                  background: "#0f1219", border: `1px solid ${color}44`,
-                  borderRadius: 10, padding: "10px 12px", minWidth: 180,
-                  fontFamily: "system-ui, sans-serif",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-                    <span style={{ fontWeight: 700, fontSize: 13, color: "#fff" }}>{r.title}</span>
-                  </div>
-                  <div style={{ borderTop: `1px solid ${color}22`, paddingTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
-                    <span style={{ fontSize: 11, color: "#9ca3af" }}>📍 {r.address || r.sector}</span>
-                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                      🕐 {formatDistanceToNow(new Date(r.createdAt), { locale: es, addSuffix: true })}
-                    </span>
-                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 100, background: `${color}22`, color }}>
-                        {config?.label ?? r.category}
-                      </span>
-                      <span style={{
-                        fontSize: 10, padding: "2px 6px", borderRadius: 100,
-                        background: r.status === "active" ? "#ef444422" : r.status === "resolved" ? "#22c55e22" : "#f59e0b22",
-                        color: r.status === "active" ? "#f87171" : r.status === "resolved" ? "#4ade80" : "#fbbf24",
-                      }}>
-                        {r.status === "active" ? "Activo" : r.status === "resolved" ? "Resuelto" : "En revisión"}
-                      </span>
-                    </div>
-                    {r.confirmedCount > 0 && (
-                      <span style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
-                        ✓ {r.confirmedCount} confirmaciones
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </CircleMarker>
-          );
-        })}
+        {/* ── MAP mode: category-icon markers ── */}
+        {mode === "map" && <CategoryMarkers reports={reports} />}
 
-        {/* ── RADAR mode: animated overlay on real map ── */}
+        {/* ── RADAR mode: animated overlay ── */}
         {mode === "radar" && <RadarOverlay reports={reports} />}
 
-        {/* ── HEAT mode: smoke heatmap ── */}
+        {/* ── HEAT mode: robbery/fight smoke heatmap ── */}
         {mode === "heat" && <SmokeHeatCanvas reports={heatData} />}
       </MapContainer>
 

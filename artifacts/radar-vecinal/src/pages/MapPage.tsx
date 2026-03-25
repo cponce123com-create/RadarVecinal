@@ -1,46 +1,50 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Thermometer, Radar, RotateCcw, Map as MapIcon, Clock, Flame } from "lucide-react";
+import { Thermometer, Radar, RotateCcw, Map as MapIcon } from "lucide-react";
 import { LeafletMap, MapMode } from "@/components/LeafletMap";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
-import { CAT_HEX, DISTRICT } from "@/lib/constants";
+import { CAT_HEX, CATEGORY_CONFIG, DISTRICT } from "@/lib/constants";
 import { subDays, subMonths, isAfter } from "date-fns";
 
-const FILTERS: { id: string; label: string }[] = [
-  { id: "all",                                  label: "Todos" },
-  { id: ReportCategory.robbery,                 label: "Robos" },
-  { id: ReportCategory.suspicious,              label: "Sospechosos" },
-  { id: ReportCategory.fight,                   label: "Peleas" },
-  { id: ReportCategory.missing_person,          label: "Extraviados" },
-  { id: ReportCategory.medical_emergency,       label: "Emergencias" },
+const ALL_CATEGORY_FILTERS: { id: string; label: string }[] = [
+  { id: "all",                                      label: "Todos" },
+  { id: ReportCategory.robbery,                     label: "Robo / Asalto" },
+  { id: ReportCategory.fight,                       label: "Peleas" },
+  { id: ReportCategory.suspicious,                  label: "Sospechosos" },
+  { id: ReportCategory.prostitution,                label: "Prostíbulos" },
+  { id: ReportCategory.drug_point,                  label: "Drogas" },
+  { id: ReportCategory.bar_trouble,                 label: "Bares" },
+  { id: ReportCategory.missing_person,              label: "Extraviados" },
+  { id: ReportCategory.medical_emergency,           label: "Emergencias" },
+  { id: ReportCategory.fire,                        label: "Incendios" },
+  { id: ReportCategory.noise,                       label: "Ruidos" },
+  { id: ReportCategory.water_cut,                   label: "Agua" },
+  { id: ReportCategory.garbage,                     label: "Basura" },
+  { id: ReportCategory.informal_commerce,           label: "Com. Ilícito" },
+  { id: ReportCategory.other,                       label: "Otros" },
 ];
 
 const VIEW_MODES: { id: MapMode; label: string; Icon: React.ElementType; sub: string }[] = [
   { id: "map",   label: "Mapa",  Icon: MapIcon,     sub: "Últimos 15 días" },
-  { id: "radar", label: "Radar", Icon: Radar,       sub: "En vivo" },
-  { id: "heat",  label: "Calor", Icon: Thermometer, sub: "Últimos 6 meses" },
+  { id: "radar", label: "Radar", Icon: Radar,       sub: "Activos en vivo" },
+  { id: "heat",  label: "Calor", Icon: Thermometer, sub: "6 meses · Robos y peleas" },
 ];
 
 export default function MapPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [viewMode, setViewMode] = useState<MapMode>("map");
 
-  // Fetch all reports (large limit for heatmap)
   const { data, isLoading } = useGetReports();
   const allReports = data?.reports ?? [];
 
-  // Map view: last 15 days
   const cutoff15d   = subDays(new Date(), 15);
   const last15d     = allReports.filter(r => isAfter(new Date(r.createdAt), cutoff15d));
 
-  // Heatmap: last 6 months
   const cutoff6m    = subMonths(new Date(), 6);
   const last6m      = allReports.filter(r => isAfter(new Date(r.createdAt), cutoff6m));
 
-  // Radar: all active reports
   const radarReports = allReports.filter(r => r.status === "active");
 
-  // Apply category filter
   const applyFilter = (arr: typeof allReports) =>
     activeCategory === "all" ? arr : arr.filter(r => r.category === activeCategory);
 
@@ -51,13 +55,12 @@ export default function MapPage() {
   );
 
   const heatReports = applyFilter(last6m);
-
   const currentMode = VIEW_MODES.find(v => v.id === viewMode)!;
 
   return (
     <div className="flex flex-col gap-3 h-[calc(100dvh-5rem)] md:h-[calc(100dvh-3rem)] pb-1">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex-shrink-0 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -94,11 +97,13 @@ export default function MapPage() {
           </div>
         </div>
 
-        {/* Category filter pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
-          {FILTERS.map(f => {
+        {/* Category filter pills — scrollable, all categories */}
+        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
+          {ALL_CATEGORY_FILTERS.map(f => {
             const active = activeCategory === f.id;
-            const color  = f.id !== "all" ? CAT_HEX[f.id] : undefined;
+            const color  = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
+            const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
+            const Icon = catConf?.icon;
             return (
               <motion.button
                 key={f.id}
@@ -113,7 +118,8 @@ export default function MapPage() {
                   color: color ?? "hsl(217 100% 75%)",
                 } : {}}
               >
-                {color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+                {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
+                {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
                 {f.label}
               </motion.button>
             );
@@ -129,7 +135,7 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* ── Map area ── */}
+      {/* Map area */}
       <div className="flex-1 relative rounded-2xl overflow-hidden border border-white/8 shadow-2xl min-h-0">
         {isLoading ? (
           <div className="w-full h-full bg-[#060810] flex items-center justify-center">
@@ -146,8 +152,9 @@ export default function MapPage() {
           />
         )}
 
-        {/* Mode info badge (top-left) */}
-        <div className="absolute top-3 left-3 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-xl backdrop-blur-md border shadow-lg"
+        {/* Mode info badge */}
+        <div
+          className="absolute top-3 left-3 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-xl backdrop-blur-md border shadow-lg"
           style={{
             background: "rgba(10,14,23,0.85)",
             borderColor: viewMode === "radar" ? "rgba(0,200,80,0.35)"
@@ -158,18 +165,28 @@ export default function MapPage() {
           {viewMode === "map"   && <MapIcon     className="w-3.5 h-3.5 text-primary" />}
           {viewMode === "radar" && <Radar       className="w-3.5 h-3.5" style={{ color: "#00c853" }} />}
           {viewMode === "heat"  && <Thermometer className="w-3.5 h-3.5 text-red-400" />}
-          <span className="text-xs font-semibold"
-            style={{ color: viewMode === "radar" ? "#00c853" : viewMode === "heat" ? "#f87171" : "#fff" }}
-          >
+          <span className="text-xs font-semibold" style={{ color: viewMode === "radar" ? "#00c853" : viewMode === "heat" ? "#f87171" : "#fff" }}>
             {currentMode.sub}
           </span>
           <span className="text-[10px] text-muted-foreground">
-            · {displayReports.length} incidentes
+            · {displayReports.length}
           </span>
         </div>
 
-        {/* Legend — shown in map and heat modes */}
-        {viewMode !== "radar" && (
+        {/* Heat mode info notice */}
+        {viewMode === "heat" && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute top-3 right-3 z-[500] px-3 py-1.5 rounded-xl backdrop-blur-md border shadow-lg"
+            style={{ background: "rgba(10,14,23,0.90)", borderColor: "rgba(239,68,68,0.3)" }}
+          >
+            <span className="text-[10px] text-red-400 font-medium">🔥 Solo robos y peleas</span>
+          </motion.div>
+        )}
+
+        {/* Category icon legend — map mode */}
+        {viewMode === "map" && (
           <motion.div
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
@@ -180,18 +197,17 @@ export default function MapPage() {
             <h4 className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-2">Leyenda</h4>
             <div className="space-y-1.5">
               {[
-                { label: "Robo / Asalto",  color: "#ef4444" },
-                { label: "Pelea",          color: "#f97316" },
-                { label: "Sospechoso",     color: "#eab308" },
-                { label: "Servicios",      color: "#3b82f6" },
-                { label: "Extraviados",    color: "#f59e0b" },
-                { label: "Otros",          color: "#6b7280" },
+                { label: "Robo / Asalto",  color: "#ef4444", emoji: "🔪" },
+                { label: "Pelea",          color: "#f97316", emoji: "👊" },
+                { label: "Sospechoso",     color: "#eab308", emoji: "👁️" },
+                { label: "Prostíbulo",     color: "#ec4899", emoji: "🏠" },
+                { label: "Drogas",         color: "#84cc16", emoji: "💊" },
+                { label: "Bar / Cantina",  color: "#f59e0b", emoji: "🍺" },
+                { label: "Emergencia",     color: "#ef4444", emoji: "🚑" },
+                { label: "Otros",          color: "#6b7280", emoji: "⚠️" },
               ].map(item => (
                 <div key={item.label} className="flex items-center gap-2">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: item.color, boxShadow: `0 0 5px ${item.color}88` }}
-                  />
+                  <span className="text-sm">{item.emoji}</span>
                   <span className="text-[10px] text-muted-foreground">{item.label}</span>
                 </div>
               ))}

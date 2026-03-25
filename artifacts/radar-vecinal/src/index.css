@@ -165,23 +165,25 @@
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .hide-scrollbar::-webkit-scrollbar { display: none; }
 
-  /* Map radar sweep animation */
+  /* Map radar sweep animation — circular radar style */
   @keyframes radar-sweep {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
 
   .radar-sweep {
     background: conic-gradient(
-      from 0deg,
+      from 270deg at center,
       transparent 0deg,
-      transparent 310deg,
-      hsl(217 100% 55% / 0.05) 320deg,
-      hsl(217 100% 55% / 0.25) 340deg,
-      hsl(217 100% 55% / 0.08) 355deg,
+      transparent 270deg,
+      hsl(217 100% 55% / 0.02) 290deg,
+      hsl(217 100% 55% / 0.08) 310deg,
+      hsl(190 100% 60% / 0.20) 338deg,
+      hsl(140 80%  55% / 0.45) 354deg,
+      hsl(140 80%  55% / 0.10) 359deg,
       transparent 360deg
     );
-    animation: radar-sweep 4s linear infinite;
+    animation: radar-sweep 5s linear infinite;
     transform-origin: center;
   }
 

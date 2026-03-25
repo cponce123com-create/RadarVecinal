@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle } from "lucide-react";
+import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff } from "lucide-react";
 import { ReportCategory, ReportUrgency, useCreateReport } from "@workspace/api-client-react";
-import { CATEGORY_CONFIG, SECTORS } from "@/lib/constants";
+import { CATEGORY_CONFIG, SECTORS, SENSITIVE_CATEGORIES, DISTRICT } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
 const URGENCY_CONFIG: Record<ReportUrgency, { label: string; color: string; dot: string }> = {
@@ -45,12 +45,29 @@ export default function ReportForm() {
     address: "",
   });
 
+  const isSensitiveCategory = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
-    }));
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      };
+      // Category change: auto-enforce anonymous for sensitive categories
+      if (name === "category") {
+        const newCat = value as ReportCategory;
+        if (SENSITIVE_CATEGORIES.has(newCat)) {
+          updated.isAnonymous = true;
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleCategorySelect = (key: ReportCategory) => {
+    const isSensitive = SENSITIVE_CATEGORIES.has(key);
+    setFormData(prev => ({ ...prev, category: key, isAnonymous: isSensitive ? true : prev.isAnonymous }));
   };
 
   const canAdvanceStep1 = !!formData.category;
@@ -78,8 +95,8 @@ export default function ReportForm() {
         category: formData.category as ReportCategory,
         urgency: formData.urgency,
         isAnonymous: formData.isAnonymous,
-        latitude: -12.0784,
-        longitude: -77.0852,
+        latitude: DISTRICT.center.lat,
+        longitude: DISTRICT.center.lng,
         address: formData.address,
         sector: formData.sector,
         authorName: formData.isAnonymous ? "Anónimo" : "Usuario Local",
@@ -155,7 +172,7 @@ export default function ReportForm() {
                           key={key}
                           type="button"
                           whileTap={{ scale: 0.97 }}
-                          onClick={() => setFormData(prev => ({ ...prev, category: key }))}
+                          onClick={() => handleCategorySelect(key)}
                           className="flex flex-col items-center gap-2 p-3.5 rounded-xl border transition-all text-center"
                           style={{
                             background: isSelected ? colors.bg : "transparent",
@@ -172,6 +189,12 @@ export default function ReportForm() {
                           >
                             {config.label}
                           </span>
+                          {SENSITIVE_CATEGORIES.has(key) && (
+                            <span className="text-[9px] font-semibold text-purple-400/70 flex items-center gap-0.5">
+                              <ShieldOff className="w-2.5 h-2.5" />
+                              Anónimo
+                            </span>
+                          )}
                         </motion.button>
                       );
                     })}
@@ -288,19 +311,34 @@ export default function ReportForm() {
                   </div>
                 )}
 
-                <label className="flex items-start gap-3 p-4 rounded-xl bg-white/3 border border-white/8 cursor-pointer hover:border-white/15 transition-colors">
-                  <input
-                    type="checkbox"
-                    name="isAnonymous"
-                    checked={formData.isAnonymous}
-                    onChange={handleChange}
-                    className="mt-0.5 accent-primary"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-white">Enviar anónimamente</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Tu nombre no será visible para vecinos, solo para autoridades verificadas.</p>
+                {/* Sensitive category enforcement notice */}
+                {isSensitiveCategory ? (
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/8 border border-purple-500/30">
+                    <ShieldOff className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-purple-300">Reporte siempre anónimo</p>
+                      <p className="text-xs text-purple-400/70 mt-0.5">
+                        Esta categoría es delicada. Tu identidad está protegida y solo la verán los administradores. La comunidad solo verá el reporte sin datos de autor.
+                      </p>
+                    </div>
                   </div>
-                </label>
+                ) : (
+                  <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+                    formData.isAnonymous ? "bg-blue-500/8 border-blue-500/30" : "bg-white/3 border-white/8 hover:border-white/15"
+                  }`}>
+                    <input
+                      type="checkbox"
+                      name="isAnonymous"
+                      checked={formData.isAnonymous}
+                      onChange={handleChange}
+                      className="mt-0.5 accent-primary"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-white">Enviar anónimamente</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Tu nombre no será visible para vecinos, solo para administradores verificados.</p>
+                    </div>
+                  </label>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

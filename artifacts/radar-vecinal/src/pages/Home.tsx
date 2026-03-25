@@ -85,7 +85,7 @@ export default function Home() {
           </h2>
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <span className="w-2 h-2 rounded-full bg-green-400 status-blink inline-block" />
-            Conectado — Distrito San Miguel, Lima
+            Conectado — San Ramón, Chanchamayo
           </p>
         </div>
 

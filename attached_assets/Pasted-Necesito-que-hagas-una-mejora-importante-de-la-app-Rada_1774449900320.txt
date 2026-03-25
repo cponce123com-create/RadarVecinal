@@ -1,0 +1,150 @@
+Necesito que hagas una mejora importante de la app Radar Vecinal, tanto a nivel de interfaz como de lógica de negocio y geolocalización. Quiero que revises y apliques los siguientes cambios:
+
+1. OPTIMIZACIÓN MOBILE
+En la vista móvil hay partes de la interfaz que se ven contraídas, mal distribuidas o no justificadas correctamente al ancho de la pantalla.
+Quiero que revises toda la app en mobile-first y corrijas:
+- contenedores comprimidos
+- secciones que no ocupan bien el ancho disponible
+- cards mal alineadas
+- textos cortados
+- overflow horizontal
+- botones pegados o desproporcionados
+- componentes que no se adaptan correctamente a celular
+
+Toda la app debe verse limpia, expandida correctamente y bien ajustada al ancho de la pantalla en dispositivos móviles.
+
+2. MEJORA DEL MAPA Y DEL RADAR
+En la pestaña del mapa y radar quiero que el mapa sea mucho más funcional y útil para ubicarme.
+
+Necesito:
+- opción de zoom in y zoom out visible
+- que se muestren las calles y nombres de vías tanto en la vista radar como en la vista normal
+- mejor nivel de detalle cartográfico para ubicar referencias reales
+- botón de “mi ubicación”
+- centrar mapa según ubicación del usuario
+- que el mapa se sienta interactivo y útil, no solo visual
+
+También quiero que en la vista normal del mapa se vean claramente las calles, para que el usuario pueda orientarse mejor.
+
+3. MAPA DE CALOR DE INSEGURIDAD
+Quiero que agregues una opción para cambiar la visualización del mapa a un “mapa de calor” basado en estadísticas de inseguridad.
+Este heatmap debe construirse usando la densidad de reportes e incidencias por zona.
+
+Debe permitir:
+- cambiar entre vista normal y vista heatmap
+- mostrar zonas de mayor riesgo con intensidad de color
+- considerar categorías de inseguridad como robo, asalto, ataque armado, peleas, actividad sospechosa, etc.
+- estar integrado dentro de la pestaña mapa/radar
+
+4. REPORTES SENSIBLES ANÓNIMOS
+Los reportes sobre lugares indeseados o delicados deben ser anónimos para la comunidad.
+Ejemplos:
+- prostíbulos
+- bares conflictivos
+- lugares de venta de droga
+- puntos de actividad ilícita
+
+Regla:
+- esos reportes deben mostrarse como anónimos públicamente
+- solo los administradores podrán conocer la identidad real del usuario que hizo el reporte
+- en la base de datos debe quedar trazabilidad interna para admin, pero nunca mostrarse públicamente
+
+5. VALIDACIÓN DE USUARIOS POR DNI
+Quiero que los vecinos se validen con su número de DNI y que este sea el identificador único del usuario dentro de la base de datos.
+
+Reglas:
+- el DNI debe ser obligatorio para registro
+- no se pueden crear dos usuarios con el mismo DNI
+- el DNI debe ser único
+- usar el DNI como identificador fuerte del ciudadano dentro del sistema
+- agregar validación de duplicados
+- mostrar errores claros si el DNI ya existe
+
+6. VALIDACIÓN DE REPORTES POR VECINOS
+Los reportes normales sí deben poder ser validados por otros vecinos.
+Agregar funcionalidad para que los vecinos puedan:
+- confirmar que el hecho también fue visto
+- validar que el reporte es real
+- aumentar el nivel de confianza del incidente
+- mostrar cantidad de validaciones por reporte
+
+Esto no aplica a la identidad del usuario, sino al reporte.
+
+7. HISTORIAL Y ESTADÍSTICAS
+Necesito agregar accesos claros y visibles para:
+- historial de reportes
+- estadísticas
+- reportes por categoría
+- evolución de incidencias
+- zonas más críticas
+
+Debe existir un botón o sección clara en la navegación para historial y estadísticas.
+
+8. ESTRUCTURA POR DISTRITOS
+Como Radar Vecinal es una plataforma vecinal, por ahora solo debe mostrar información del distrito correspondiente.
+Necesito separar la lógica y la base de datos por distritos.
+
+Reglas:
+- cada distrito debe tener su propia segmentación de información
+- los usuarios deben ver solo los reportes y alertas de su distrito
+- no mezclar reportes de distintos distritos en la misma vista general
+- preparar arquitectura para escalar luego a provincias y departamentos
+
+9. ESCALABILIDAD TERRITORIAL
+Aunque inicialmente la app será distrital, quiero que quede preparada para crecer después a:
+- provincias
+- departamentos
+
+Por ahora la operación piloto será distrital, pero quiero la arquitectura pensada para escalar sin rehacer todo.
+
+10. UBICACIÓN PILOTO EN SAN RAMÓN, CHANCHAMAYO
+Por ahora el piloto será en San Ramón, Chanchamayo.
+Quiero que el sistema esté configurado inicialmente para testear en esa ubicación.
+
+Necesito:
+- tomar San Ramón, Chanchamayo como distrito piloto principal
+- configurar mapas, datos de prueba y referencias en esa zona
+- solicitar permiso de ubicación al usuario
+- usar la ubicación del usuario para detectar y mostrar el distrito correspondiente
+- si el usuario no activa ubicación, mostrar mensaje para habilitarla y mejorar la experiencia
+
+11. ALERTAS SONORAS POR DISTANCIA
+Quiero agregar sonidos de alerta según el tipo de incidente y la distancia del usuario respecto al evento.
+
+Ejemplos:
+- robo: alertar a usuarios en un radio de 1 km
+- ataque a mano armada: alertar a usuarios en un radio de 2 km
+- incendio: alertar a usuarios en un radio de 3 km
+
+Requisitos:
+- cada tipo de incidente debe tener un sonido identificable distinto
+- el sistema debe calcular proximidad del usuario respecto al incidente
+- las alertas sonoras deben activarse solo para usuarios dentro del radio definido
+- agregar configuración futura para personalizar sonidos o radios
+- si no se puede implementar sonido real de inmediato, deja la arquitectura preparada y usa placeholders funcionales
+
+12. EXPERIENCIA GENERAL
+Quiero que estas mejoras no se agreguen de forma improvisada.
+Necesito que revises la experiencia completa y mantengas coherencia en:
+- diseño
+- usabilidad
+- responsive
+- lógica de geolocalización
+- flujos de usuario
+- panel de administración
+- seguridad y privacidad
+
+PRIORIDADES
+Quiero que priorices en este orden:
+1. corregir problemas de mobile responsive
+2. mejorar mapa y radar con calles + zoom + ubicación
+3. agregar heatmap de inseguridad
+4. implementar reglas de anonimato para reportes sensibles
+5. agregar validación por DNI único
+6. agregar historial y estadísticas
+7. preparar segmentación por distrito y escalabilidad territorial
+8. preparar alertas sonoras por cercanía
+
+IMPORTANTE
+No quiero solo cambios visuales. Quiero que estas reglas queden bien integradas a nivel de producto, lógica y arquitectura.
+Si alguna parte no puede quedar completa en esta iteración, deja la estructura preparada y un fallback visual/funcional claro.

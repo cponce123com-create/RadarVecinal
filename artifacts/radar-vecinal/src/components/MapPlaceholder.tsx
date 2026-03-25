@@ -12,8 +12,8 @@ interface MapPlaceholderProps {
   className?: string;
 }
 
-// San Miguel, Lima bounding box → percentages (0–100)
-const BOUNDS = { latMin: -12.105, latMax: -12.055, lngMin: -77.125, lngMax: -77.065 };
+// San Ramón, Chanchamayo, Junín — bounding box → percentages (0–100)
+const BOUNDS = { latMin: -11.165, latMax: -11.095, lngMin: -75.395, lngMax: -75.315 };
 
 function latToY(lat: number) {
   return ((lat - BOUNDS.latMax) / (BOUNDS.latMin - BOUNDS.latMax)) * 100;
@@ -29,15 +29,16 @@ const CAT_COLORS: Record<string, string> = {
   medical_emergency: "#ef4444", other: "#6b7280",
 };
 
+// San Ramón, Chanchamayo demo blips
 const DEMO: Omit<Report, "updatedAt">[] = [
-  { id: "d1", title: "Robo en bodega",        category: "robbery"           as any, urgency: "critical" as any, status: "active"   as any, isAnonymous: false, latitude: -12.0777, longitude: -77.0921, address: "Av. La Marina 1245",   sector: "San Miguel Centro", authorName: "Carlos Q.", confirmedCount: 8,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 30*60000).toISOString() },
-  { id: "d2", title: "Actitud sospechosa",    category: "suspicious"        as any, urgency: "medium"   as any, status: "reviewing" as any, isAnonymous: true,  latitude: -12.0812, longitude: -77.0889, address: "Parque San Miguel",     sector: "San Miguel Centro", authorName: "Anónimo",   confirmedCount: 4,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 2*3600000).toISOString() },
-  { id: "d3", title: "Pelea callejera",       category: "fight"             as any, urgency: "high"     as any, status: "resolved"  as any, isAnonymous: false, latitude: -12.0756, longitude: -77.0865, address: "Jr. Bolognesi 456",     sector: "Pueblo Libre",      authorName: "María G.",  confirmedCount: 12, imageUrl: null, description: "", createdAt: new Date(Date.now() - 5*3600000).toISOString() },
-  { id: "d4", title: "Corte de agua",         category: "water_cut"         as any, urgency: "medium"   as any, status: "active"   as any, isAnonymous: false, latitude: -12.0834, longitude: -77.0812, address: "Calle Las Gardenias",   sector: "Magdalena",         authorName: "Luis M.",   confirmedCount: 15, imageUrl: null, description: "", createdAt: new Date(Date.now() - 6*3600000).toISOString() },
-  { id: "d5", title: "Basura acumulada",      category: "garbage"           as any, urgency: "low"      as any, status: "active"   as any, isAnonymous: false, latitude: -12.0791, longitude: -77.0934, address: "Av. Brasil 567",        sector: "Breña",             authorName: "Ana T.",    confirmedCount: 7,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 16*3600000).toISOString() },
-  { id: "d6", title: "Emergencia médica",     category: "medical_emergency" as any, urgency: "critical" as any, status: "resolved" as any, isAnonymous: false, latitude: -12.0823, longitude: -77.0856, address: "Av. Salaverry 890",     sector: "Jesús María",       authorName: "Luis M.",   confirmedCount: 3,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 18*3600000).toISOString() },
-  { id: "d7", title: "Asalto en grifo",       category: "robbery"           as any, urgency: "critical" as any, status: "active"   as any, isAnonymous: false, latitude: -12.0745, longitude: -77.0902, address: "Av. La Marina 567",     sector: "San Miguel Centro", authorName: "Carlos Q.", confirmedCount: 20, imageUrl: null, description: "", createdAt: new Date(Date.now() - 7*3600000).toISOString() },
-  { id: "d8", title: "Incendio en vivienda",  category: "fire"              as any, urgency: "critical" as any, status: "resolved" as any, isAnonymous: false, latitude: -12.0789, longitude: -77.0923, address: "Jr. Huánuco 123",       sector: "Breña",             authorName: "Ana T.",    confirmedCount: 18, imageUrl: null, description: "", createdAt: new Date(Date.now() - 20*3600000).toISOString() },
+  { id: "d1", title: "Robo en bodega",        category: "robbery"           as any, urgency: "critical" as any, status: "active"   as any, isAnonymous: false, latitude: -11.130, longitude: -75.357, address: "Jr. Junín 245",        sector: "San Ramón Centro", authorName: "Carlos Q.", confirmedCount: 8,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 30*60000).toISOString() },
+  { id: "d2", title: "Actitud sospechosa",    category: "suspicious"        as any, urgency: "medium"   as any, status: "reviewing" as any, isAnonymous: true,  latitude: -11.120, longitude: -75.350, address: "Plaza de Armas",       sector: "San Ramón Centro", authorName: "Anónimo",   confirmedCount: 4,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 2*3600000).toISOString() },
+  { id: "d3", title: "Pelea callejera",       category: "fight"             as any, urgency: "high"     as any, status: "resolved"  as any, isAnonymous: false, latitude: -11.110, longitude: -75.362, address: "Jr. Progreso 456",     sector: "La Merced",        authorName: "María G.",  confirmedCount: 12, imageUrl: null, description: "", createdAt: new Date(Date.now() - 5*3600000).toISOString() },
+  { id: "d4", title: "Corte de agua",         category: "water_cut"         as any, urgency: "medium"   as any, status: "active"   as any, isAnonymous: false, latitude: -11.140, longitude: -75.340, address: "Calle Los Álamos",     sector: "Pampa del Carmen", authorName: "Luis M.",   confirmedCount: 15, imageUrl: null, description: "", createdAt: new Date(Date.now() - 6*3600000).toISOString() },
+  { id: "d5", title: "Basura acumulada",      category: "garbage"           as any, urgency: "low"      as any, status: "active"   as any, isAnonymous: false, latitude: -11.148, longitude: -75.375, address: "Av. Circunvalación",   sector: "Los Ángeles",      authorName: "Ana T.",    confirmedCount: 7,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 16*3600000).toISOString() },
+  { id: "d6", title: "Emergencia médica",     category: "medical_emergency" as any, urgency: "critical" as any, status: "resolved" as any, isAnonymous: false, latitude: -11.125, longitude: -75.348, address: "Av. Chanchamayo 890",  sector: "San Ramón Centro", authorName: "Luis M.",   confirmedCount: 3,  imageUrl: null, description: "", createdAt: new Date(Date.now() - 18*3600000).toISOString() },
+  { id: "d7", title: "Asalto en grifo",       category: "robbery"           as any, urgency: "critical" as any, status: "active"   as any, isAnonymous: false, latitude: -11.135, longitude: -75.355, address: "Jr. Tarma 567",        sector: "San Ramón Centro", authorName: "Carlos Q.", confirmedCount: 20, imageUrl: null, description: "", createdAt: new Date(Date.now() - 7*3600000).toISOString() },
+  { id: "d8", title: "Incendio en vivienda",  category: "fire"              as any, urgency: "critical" as any, status: "resolved" as any, isAnonymous: false, latitude: -11.115, longitude: -75.370, address: "Jr. Huánuco 123",      sector: "San Luis",         authorName: "Ana T.",    confirmedCount: 18, imageUrl: null, description: "", createdAt: new Date(Date.now() - 20*3600000).toISOString() },
 ];
 
 interface MarkerInfo extends Omit<Report, "updatedAt"> { xPct: number; yPct: number; }
@@ -357,7 +358,7 @@ export function MapPlaceholder({ reports = [], interactive = false, className = 
         >
           <div className="flex flex-col items-center gap-1">
             <span className="text-[8px] tracking-[0.25em] font-mono text-blue-400/40 uppercase">
-              RADAR_SYS · SAN MIGUEL · LIMA
+              RADAR_SYS · SAN RAMÓN · CHANCHAMAYO
             </span>
           </div>
         </div>

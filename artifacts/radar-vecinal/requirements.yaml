@@ -1,0 +1,19 @@
+packages:
+  "framer-motion": "For smooth micro-interactions, panic modal transitions, and layout animations"
+  "recharts": "For the statistics dashboard charts (bar, line, etc.)"
+  "date-fns": "For elegant relative time formatting in the activity feed and history"
+  "react-map-gl": "For Mapbox integration as requested in implementation notes"
+  "mapbox-gl": "Required peer dependency for react-map-gl"
+
+images:
+  - path: "artifacts/radar-vecinal/public/images/radar-bg.png"
+    description: "Dark, premium technology background with subtle geometric grid lines, deep carbon black with very faint electric blue glowing nodes, abstract noir cyberpunk feel, sophisticated."
+    aspect_ratio: "16:9"
+  - path: "artifacts/radar-vecinal/public/images/avatar-placeholder.png"
+    description: "Minimalist geometric avatar placeholder, dark graphite background with a sleek glowing electric blue outline of a person, neon noir style."
+    aspect_ratio: "1:1"
+
+notes:
+  - "Assuming @workspace/api-client-react exports all React Query hooks directly based on the provided api.ts file."
+  - "App is strictly dark mode (Noir tech aesthetic). All :root variables are configured for this dark theme."
+  - "PWA manifest is assumed to be handled externally, but UI is built mobile-first."

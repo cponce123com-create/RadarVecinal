@@ -1,0 +1,269 @@
+Quiero que diseñes y construyas un MVP funcional y visualmente premium de una plataforma web PWA llamada “Radar Vecinal”.
+
+OBJETIVO DEL PRODUCTO
+Radar Vecinal es una plataforma de reportes ciudadanos, alertas urgentes, mapa de incidencias y memoria distrital. No debe verse como una app genérica de dashboard. Debe sentirse como una mezcla entre seguridad comunitaria, mapa interactivo, red vecinal y sistema de inteligencia territorial.
+
+STACK OBLIGATORIO
+- Next.js con App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Prisma ORM
+- PostgreSQL preparado para Neon
+- Auth.js / NextAuth para autenticación
+- Mapbox para el mapa
+- Cloudinary para imágenes
+- Firebase Cloud Messaging preparado para notificaciones push
+- Resend preparado para correos
+- Arquitectura lista para desplegar en Render
+
+REQUISITOS GENERALES
+- Diseño mobile-first pero que se vea excelente en desktop
+- Debe funcionar como PWA
+- UI moderna, elegante, oscura y tecnológica
+- Nada de apariencia infantil o de plantilla genérica
+- Debe tener componentes reutilizables
+- Código limpio, estructurado y escalable
+- Crear datos mock iniciales para demostrar funcionamiento
+- Usar buenas prácticas de estructura de carpetas
+- Preparar variables de entorno en .env.example
+- Preparar README con pasos de instalación y despliegue
+
+IDENTIDAD VISUAL
+Quiero un estilo premium y tecnológico:
+- Fondo negro carbón / azul muy oscuro
+- Detalles azul eléctrico y gris grafito
+- Rojo intenso para alertas críticas
+- Verde controlado para estados resueltos
+- Tipografía moderna tipo Inter / Geist / Satoshi
+- Bordes redondeados modernos
+- Sombras suaves y profundidad elegante
+- Microinteracciones discretas
+- Sensación de producto tipo startup seria, no app municipal antigua
+
+MÓDULOS A CONSTRUIR
+
+1. AUTENTICACIÓN
+- Login
+- Registro
+- Recuperar contraseña
+- Selección de distrito y sector en onboarding
+- Perfil básico
+- Preparado para verificación por correo
+
+2. HOME PRINCIPAL
+El home debe ser la pantalla más importante. Debe ser altamente intuitivo, visual e interactivo.
+
+Estructura exacta del home:
+- Header sticky con logo Radar Vecinal, ubicación actual, notificaciones y perfil
+- Tarjeta superior con resumen:
+  - alertas activas
+  - incidentes de hoy
+  - zona más crítica
+  - botón ver todo
+- Mapa principal interactivo grande en el centro
+- Botón de pánico flotante fijo y muy visible
+- Bloque de acciones rápidas:
+  - Reportar incidente
+  - Ver alertas activas
+  - Menor perdido
+  - Historial
+- Feed de actividad reciente
+- Resumen estadístico de hoy en tu zona
+- Un espacio sutil para publicidad local no invasiva
+
+3. MAPA INTERACTIVO
+- Integrar Mapbox
+- Mostrar pines por categoría:
+  - robo/asalto
+  - pelea/disturbio
+  - actividad sospechosa
+  - servicios
+  - limpieza
+  - menor perdido
+  - emergencia
+- Preparar vista para heatmap futuro
+- Filtros por categoría
+- Botón de mi ubicación
+- Capas de mapa
+- Cards flotantes con detalle rápido al tocar un punto
+- Vista atractiva en móvil y desktop
+
+4. CREAR REPORTE
+Flujo paso a paso:
+- Elegir categoría
+- Definir urgencia
+- Elegir si es anónimo o visible
+- Título
+- Descripción
+- Subir imagen
+- Elegir ubicación en mapa
+- Confirmar y enviar
+
+Categorías:
+- Robo / Asalto
+- Pelea / Disturbio
+- Actividad sospechosa
+- Corte de agua / luz
+- Basura / limpieza
+- Comercio informal
+- Ruidos molestos
+- Menor perdido
+- Incendio
+- Emergencia médica
+- Otro
+
+5. BOTÓN DE PÁNICO
+Debe ser una experiencia rápida y clara:
+- Botón rojo flotante siempre visible
+- Al pulsar, abrir modal full-screen con selección de emergencia:
+  - Asalto / hurto
+  - Emergencia médica
+  - Pelea
+  - Incendio
+  - Menor perdido
+  - Otro
+- Confirmación con cuenta regresiva breve
+- Guardar alerta
+- Mostrar alerta en feed y mapa
+- Preparar integración para push notifications
+
+6. MENOR PERDIDO
+Crear una pantalla especial para este caso:
+- Nombre o alias
+- Edad aproximada
+- Ropa
+- Foto
+- Última ubicación
+- Hora
+- Contacto
+- Estado de la alerta
+Debe verse destacada y prioritaria en el home cuando exista una activa.
+
+7. HISTORIAL
+- Lista cronológica de incidencias
+- Filtros por fecha, categoría, estado y sector
+- Vista mapa / lista
+- Búsqueda
+- Estados:
+  - activo
+  - en revisión
+  - resuelto
+  - archivado
+
+8. ESTADÍSTICAS
+- Tarjetas KPI
+- Reportes por categoría
+- Tendencia semanal
+- Zona más crítica
+- Incidentes por sector
+- Estructura preparada para gráficos
+
+9. PANEL ADMIN
+Crear una sección admin protegida con:
+- Dashboard general
+- Gestión de reportes
+- Gestión de alertas
+- Gestión de usuarios
+- Gestión de anuncios/publicidad
+- Configuración básica
+- Cambiar estado de reportes
+- Ocultar contenido
+- Ver actividad reciente del sistema
+
+BASE DE DATOS
+Crear esquema Prisma preparado para PostgreSQL con estas entidades:
+- User
+- District
+- Sector
+- ReportCategory
+- Report
+- ReportMedia
+- PanicAlert
+- MissingPersonAlert
+- ReportConfirmation
+- Comment
+- Notification
+- AdSlot
+- AuditLog
+
+Definir relaciones correctamente.
+Agregar enums para:
+- roles
+- urgencia
+- estado de reporte
+- tipo de alerta
+
+COMPONENTES UI NECESARIOS
+- AppShell
+- Header
+- Sidebar o bottom nav según viewport
+- MapView
+- IncidentCard
+- AlertBanner
+- QuickActions
+- PanicButton
+- StatCard
+- ReportForm
+- MissingPersonForm
+- AdminTable
+- EmptyState
+- LoadingState
+- FiltersBar
+- NotificationBell
+
+NAVEGACIÓN
+Crear estas rutas:
+- /
+- /login
+- /register
+- /home
+- /mapa
+- /reportar
+- /alertas
+- /historial
+- /estadisticas
+- /perfil
+- /menor-perdido
+- /admin
+- /admin/reportes
+- /admin/usuarios
+- /admin/anuncios
+
+EXPERIENCIA DE USUARIO
+Quiero que el producto se sienta:
+- rápido
+- moderno
+- claro
+- seguro
+- intuitivo
+- usable por vecinos no técnicos
+
+No quiero un diseño frío de panel administrativo tradicional. Quiero una experiencia viva, con mapa, estado del distrito y sensación de utilidad inmediata.
+
+PUBLICIDAD
+Agregar un componente preparado para publicidad local:
+- banner o card patrocinada
+- diseño elegante
+- no invasivo
+- integrado solo en zonas no críticas del home
+
+MOCK DATA
+Crear seed con:
+- 1 distrito
+- varios sectores
+- usuarios demo
+- reportes demo
+- alertas demo
+- menor perdido demo
+- anuncios demo
+
+RESULTADO ESPERADO
+Quiero que entregues:
+- proyecto funcional
+- UI premium
+- estructura escalable
+- código bien organizado
+- base sólida para seguir construyendo Radar Vecinal como producto real
+
+Prioriza muchísimo el home, el mapa interactivo y el botón de pánico, porque son el corazón del producto.

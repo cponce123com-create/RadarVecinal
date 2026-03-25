@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Radar Vecinal API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: reports
+    description: Incident reports
+  - name: alerts
+    description: Panic alerts
+  - name: missing
+    description: Missing person alerts
+  - name: stats
+    description: Statistics
+  - name: users
+    description: User management
+  - name: admin
+    description: Admin operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,301 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /reports:
+    get:
+      operationId: getReports
+      tags: [reports]
+      summary: Get all reports
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: urgency
+          in: query
+          schema:
+            type: string
+        - name: sector
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: number
+        - name: offset
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Report"
+                  total:
+                    type: number
+                required:
+                  - reports
+                  - total
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Create a new report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportInput"
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a report by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+    patch:
+      operationId: updateReport
+      tags: [reports]
+      summary: Update a report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReportInput"
+      responses:
+        "200":
+          description: Report updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /panic-alerts:
+    get:
+      operationId: getPanicAlerts
+      tags: [alerts]
+      summary: Get all panic alerts
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of panic alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PanicAlert"
+                required:
+                  - alerts
+    post:
+      operationId: createPanicAlert
+      tags: [alerts]
+      summary: Create a panic alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePanicAlertInput"
+      responses:
+        "201":
+          description: Panic alert created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PanicAlert"
+
+  /missing-persons:
+    get:
+      operationId: getMissingPersons
+      tags: [missing]
+      summary: Get missing person alerts
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of missing person alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MissingPerson"
+                required:
+                  - alerts
+    post:
+      operationId: createMissingPerson
+      tags: [missing]
+      summary: Create a missing person alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMissingPersonInput"
+      responses:
+        "201":
+          description: Missing person alert created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingPerson"
+
+  /missing-persons/{id}:
+    patch:
+      operationId: updateMissingPerson
+      tags: [missing]
+      summary: Update a missing person alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMissingPersonInput"
+      responses:
+        "200":
+          description: Alert updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingPerson"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get statistics
+      responses:
+        "200":
+          description: Statistics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+
+  /activity:
+    get:
+      operationId: getActivity
+      tags: [reports]
+      summary: Get recent activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActivityItem"
+                required:
+                  - items
+
+  /users:
+    get:
+      operationId: getUsers
+      tags: [users]
+      summary: Get all users (admin)
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                required:
+                  - users
+
+  /ad-slots:
+    get:
+      operationId: getAdSlots
+      tags: [admin]
+      summary: Get advertisement slots
+      responses:
+        "200":
+          description: List of ad slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ads:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdSlot"
+                required:
+                  - ads
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +340,448 @@ components:
       required:
         - status
 
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum:
+            - robbery
+            - fight
+            - suspicious
+            - water_cut
+            - garbage
+            - informal_commerce
+            - noise
+            - missing_person
+            - fire
+            - medical_emergency
+            - other
+        urgency:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+        status:
+          type: string
+          enum:
+            - active
+            - reviewing
+            - resolved
+            - archived
+        isAnonymous:
+          type: boolean
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        sector:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        authorName:
+          type: string
+        confirmedCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - description
+        - category
+        - urgency
+        - status
+        - isAnonymous
+        - latitude
+        - longitude
+        - sector
+        - authorName
+        - confirmedCount
+        - createdAt
+        - updatedAt
+
+    CreateReportInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        urgency:
+          type: string
+        isAnonymous:
+          type: boolean
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        sector:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        authorName:
+          type: string
+      required:
+        - title
+        - description
+        - category
+        - urgency
+        - isAnonymous
+        - latitude
+        - longitude
+        - sector
+        - authorName
+
+    UpdateReportInput:
+      type: object
+      properties:
+        status:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+
+    PanicAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - robbery
+            - medical
+            - fight
+            - fire
+            - missing_person
+            - other
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        authorName:
+          type: string
+        sector:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - latitude
+        - longitude
+        - authorName
+        - sector
+        - isActive
+        - createdAt
+
+    CreatePanicAlertInput:
+      type: object
+      properties:
+        type:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        authorName:
+          type: string
+        sector:
+          type: string
+      required:
+        - type
+        - latitude
+        - longitude
+        - authorName
+        - sector
+
+    MissingPerson:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        age:
+          type: number
+          nullable: true
+        clothing:
+          type: string
+        photoUrl:
+          type: string
+          nullable: true
+        lastSeenLatitude:
+          type: number
+        lastSeenLongitude:
+          type: number
+        lastSeenAddress:
+          type: string
+        lastSeenAt:
+          type: string
+        contactInfo:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - found
+            - archived
+        reportedBy:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - clothing
+        - lastSeenLatitude
+        - lastSeenLongitude
+        - lastSeenAddress
+        - lastSeenAt
+        - contactInfo
+        - status
+        - reportedBy
+        - createdAt
+
+    CreateMissingPersonInput:
+      type: object
+      properties:
+        name:
+          type: string
+        age:
+          type: number
+          nullable: true
+        clothing:
+          type: string
+        photoUrl:
+          type: string
+          nullable: true
+        lastSeenLatitude:
+          type: number
+        lastSeenLongitude:
+          type: number
+        lastSeenAddress:
+          type: string
+        lastSeenAt:
+          type: string
+        contactInfo:
+          type: string
+        reportedBy:
+          type: string
+      required:
+        - name
+        - clothing
+        - lastSeenLatitude
+        - lastSeenLongitude
+        - lastSeenAddress
+        - lastSeenAt
+        - contactInfo
+        - reportedBy
+
+    UpdateMissingPersonInput:
+      type: object
+      properties:
+        status:
+          type: string
+        clothing:
+          type: string
+        photoUrl:
+          type: string
+          nullable: true
+
+    Stats:
+      type: object
+      properties:
+        totalReports:
+          type: number
+        activeAlerts:
+          type: number
+        todayIncidents:
+          type: number
+        resolvedToday:
+          type: number
+        criticalZone:
+          type: string
+        reportsByCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: number
+            required:
+              - category
+              - count
+        reportsByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: number
+            required:
+              - status
+              - count
+        weeklyTrend:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+              count:
+                type: number
+            required:
+              - day
+              - count
+        topSectors:
+          type: array
+          items:
+            type: object
+            properties:
+              sector:
+                type: string
+              count:
+                type: number
+            required:
+              - sector
+              - count
+      required:
+        - totalReports
+        - activeAlerts
+        - todayIncidents
+        - resolvedToday
+        - criticalZone
+        - reportsByCategory
+        - reportsByStatus
+        - weeklyTrend
+        - topSectors
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - report
+            - panic
+            - missing
+            - resolved
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          nullable: true
+        urgency:
+          type: string
+          nullable: true
+        sector:
+          type: string
+        authorName:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - title
+        - description
+        - sector
+        - authorName
+        - createdAt
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - admin
+            - moderator
+            - user
+        sector:
+          type: string
+        district:
+          type: string
+        isActive:
+          type: boolean
+        reportsCount:
+          type: number
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - role
+        - sector
+        - district
+        - isActive
+        - reportsCount
+        - createdAt
+
+    AdSlot:
+      type: object
+      properties:
+        id:
+          type: string
+        businessName:
+          type: string
+        tagline:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        targetUrl:
+          type: string
+        isActive:
+          type: boolean
+        sector:
+          type: string
+          nullable: true
+      required:
+        - id
+        - businessName
+        - tagline
+        - targetUrl
+        - isActive

@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { autoSeedIfEmpty } from "./lib/autoSeed";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Seed demo data automatically if DB is empty (production cold start)
+  autoSeedIfEmpty().catch((e) => logger.error({ e }, "autoSeed failed"));
 });

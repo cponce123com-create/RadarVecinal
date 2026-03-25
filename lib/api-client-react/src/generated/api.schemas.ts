@@ -23,6 +23,9 @@ export const ReportCategory = {
   missing_person: "missing_person",
   fire: "fire",
   medical_emergency: "medical_emergency",
+  prostitution: "prostitution",
+  drug_point: "drug_point",
+  bar_trouble: "bar_trouble",
   other: "other",
 } as const;
 

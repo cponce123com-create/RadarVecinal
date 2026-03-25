@@ -13,6 +13,9 @@ export const reportCategoryEnum = pgEnum("report_category", [
   "missing_person",
   "fire",
   "medical_emergency",
+  "prostitution",
+  "drug_point",
+  "bar_trouble",
   "other",
 ]);
 

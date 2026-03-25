@@ -24,6 +24,15 @@ const PANIC_TYPE_ICONS: Record<string, any> = {
   other: Zap,
 };
 
+const PANIC_TYPE_ES: Record<string, string> = {
+  robbery:        "Asalto en Progreso",
+  medical:        "Emergencia Médica",
+  fight:          "Violencia Física",
+  fire:           "Incendio",
+  missing_person: "Persona Extraviada",
+  other:          "Otra Emergencia",
+};
+
 const CATEGORY_DOT_COLORS: Record<string, string> = {
   robbery: "#ef4444", fight: "#f97316", suspicious: "#eab308",
   water_cut: "#3b82f6", garbage: "#6b7280", informal_commerce: "#a855f7",
@@ -263,7 +272,7 @@ export default function Home() {
                   <div key={alert.id} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-destructive/8 border border-destructive/15">
                     <Icon className="w-4 h-4 text-red-400 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-red-300 capitalize">{alert.type.replace("_", " ")}</p>
+                      <p className="text-xs font-semibold text-red-300">{PANIC_TYPE_ES[alert.type] ?? "Emergencia"}</p>
                       <p className="text-[10px] text-red-400/60 truncate">{alert.address || alert.sector}</p>
                     </div>
                     <span className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0 status-blink" />

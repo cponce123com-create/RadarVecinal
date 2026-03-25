@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, ShieldAlert } from "lucide-react";
-import { PANIC_TYPES } from "@/lib/constants";
+import { AlertTriangle, X, ShieldAlert, Heart, Users, Flame, UserX, Zap } from "lucide-react";
 import { PanicAlertType, useCreatePanicAlert } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -10,57 +9,71 @@ interface PanicModalProps {
   onClose: () => void;
 }
 
+const PANIC_OPTIONS: { type: PanicAlertType; icon: any; label: string; sub: string; color: string; bg: string }[] = [
+  { type: PanicAlertType.robbery, icon: AlertTriangle, label: "Asalto", sub: "Robo en progreso", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  { type: PanicAlertType.medical, icon: Heart, label: "Emergencia médica", sub: "Necesito ambulancia", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  { type: PanicAlertType.fight, icon: Users, label: "Violencia física", sub: "Pelea o agresión", color: "#f97316", bg: "rgba(249,115,22,0.12)" },
+  { type: PanicAlertType.fire, icon: Flame, label: "Incendio", sub: "Fuego fuera de control", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  { type: PanicAlertType.missing_person, icon: UserX, label: "Persona extraviada", sub: "Menor o adulto mayor", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  { type: PanicAlertType.other, icon: Zap, label: "Otra emergencia", sub: "Describir luego", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
+];
+
 export function PanicModal({ isOpen, onClose }: PanicModalProps) {
-  const [selectedType, setSelectedType] = useState<PanicAlertType | null>(null);
+  const [selected, setSelected] = useState<(typeof PANIC_OPTIONS)[0] | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const { toast } = useToast();
-  
   const createAlert = useCreatePanicAlert();
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown !== null && countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    } else if (countdown === 0) {
-      triggerAlert();
-    }
-    return () => clearTimeout(timer);
+    if (countdown === null) return;
+    if (countdown === 0) { triggerAlert(); return; }
+    const t = setTimeout(() => setCountdown(c => (c ?? 1) - 1), 1000);
+    return () => clearTimeout(t);
   }, [countdown]);
 
-  const handleSelect = (type: PanicAlertType) => {
-    setSelectedType(type);
+  const handleSelect = (opt: (typeof PANIC_OPTIONS)[0]) => {
+    setSelected(opt);
     setCountdown(3);
   };
 
   const cancelAlert = () => {
-    setSelectedType(null);
+    setSelected(null);
     setCountdown(null);
   };
 
+  const handleClose = () => {
+    cancelAlert();
+    onClose();
+  };
+
   const triggerAlert = () => {
-    if (!selectedType) return;
-    
+    if (!selected) return;
     createAlert.mutate({
       data: {
-        type: selectedType,
-        latitude: -12.0784, // Mock location
+        type: selected.type,
+        latitude: -12.0784,
         longitude: -77.0852,
         address: "Av. de la Marina 2000, San Miguel",
-        authorName: "Usuario Local",
-        sector: "San Miguel Centro"
+        authorName: "Usuario",
+        sector: "San Miguel Centro",
       }
     }, {
       onSuccess: () => {
         toast({
-          title: "ALERTA ENVIADA",
-          description: "Las autoridades y vecinos cercanos han sido notificados.",
+          title: "⚠ ALERTA ENVIADA",
+          description: "Serenazgo y vecinos cercanos han sido notificados.",
           variant: "destructive",
         });
+        handleClose();
+      },
+      onError: () => {
+        toast({ title: "Error al enviar alerta", description: "Intenta de nuevo.", variant: "destructive" });
         cancelAlert();
-        onClose();
       }
     });
   };
+
+  const circumference = 2 * Math.PI * 54; // r=54
 
   return (
     <AnimatePresence>
@@ -69,99 +82,153 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-background/95 backdrop-blur-xl"
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4"
+          style={{ background: "hsl(224 15% 4% / 0.97)", backdropFilter: "blur(24px)" }}
         >
-          {/* Animated Background Warning */}
-          <div className="absolute inset-0 bg-destructive/5 animate-pulse" />
-          
-          <button 
-            onClick={onClose}
-            className="absolute top-6 right-6 p-3 rounded-full bg-card border border-white/10 text-muted-foreground hover:text-white transition-colors z-10"
+          {/* Animated red vignette when counting down */}
+          <AnimatePresence>
+            {countdown !== null && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.15, 0.05, 0.15, 0.05] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 pointer-events-none"
+                style={{ background: "radial-gradient(ellipse at center, hsl(0 90% 55% / 0.15) 0%, transparent 70%)" }}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/6 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all z-10"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
 
-          <div className="relative z-10 w-full max-w-md flex flex-col items-center">
+          {/* ── Selection State ── */}
+          <AnimatePresence mode="wait">
             {countdown === null ? (
-              <>
-                <motion.div
-                  initial={{ scale: 0.8, y: 20 }}
-                  animate={{ scale: 1, y: 0 }}
-                  className="w-24 h-24 rounded-full bg-destructive/20 text-destructive flex items-center justify-center mb-6 neon-glow-destructive"
-                >
-                  <ShieldAlert className="w-12 h-12" />
-                </motion.div>
-                
-                <h2 className="text-3xl font-display font-bold text-white mb-2 text-center text-glow">
-                  BOTÓN DE PÁNICO
-                </h2>
-                <p className="text-muted-foreground text-center mb-8">
-                  Selecciona el tipo de emergencia. Esto notificará inmediatamente a serenazgo y vecinos.
+              <motion.div
+                key="select"
+                initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: -16 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-sm flex flex-col items-center"
+              >
+                {/* Icon */}
+                <div className="relative mb-5">
+                  <div className="w-20 h-20 rounded-full bg-destructive/15 border-2 border-destructive/40 flex items-center justify-center">
+                    <ShieldAlert className="w-10 h-10 text-destructive" />
+                  </div>
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-destructive"
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                </div>
+
+                <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">BOTÓN DE PÁNICO</h2>
+                <p className="text-sm text-muted-foreground text-center mb-6 max-w-xs">
+                  Selecciona la emergencia. Se enviará una alerta inmediata a serenazgo y vecinos cercanos.
                 </p>
 
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  {(Object.entries(PANIC_TYPES) as [PanicAlertType, any][]).map(([type, config]) => {
-                    const Icon = config.icon;
+                {/* Emergency type grid */}
+                <div className="grid grid-cols-2 gap-2.5 w-full">
+                  {PANIC_OPTIONS.map(opt => {
+                    const Icon = opt.icon;
                     return (
-                      <button
-                        key={type}
-                        onClick={() => handleSelect(type)}
-                        className={`flex flex-col items-center p-4 rounded-2xl border border-white/5 bg-card/50 hover:bg-card hover:border-${config.color.split('-')[1]}-500/50 transition-all duration-300 group`}
+                      <motion.button
+                        key={opt.type}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleSelect(opt)}
+                        className="flex items-center gap-3 p-3.5 rounded-xl border border-white/6 hover:border-white/15 transition-all text-left"
+                        style={{ background: opt.bg }}
                       >
-                        <div className={`p-3 rounded-xl mb-3 ${config.color} text-white shadow-lg`}>
-                          <Icon className="w-6 h-6" />
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: `${opt.color}20` }}
+                        >
+                          <Icon className="w-5 h-5" style={{ color: opt.color }} />
                         </div>
-                        <span className="text-sm font-medium text-center group-hover:text-white transition-colors text-muted-foreground">
-                          {config.label}
-                        </span>
-                      </button>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-white leading-tight">{opt.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{opt.sub}</p>
+                        </div>
+                      </motion.button>
                     );
                   })}
                 </div>
-              </>
+              </motion.div>
             ) : (
+              /* ── Countdown State ── */
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                key="countdown"
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.94 }}
+                transition={{ duration: 0.2 }}
                 className="flex flex-col items-center text-center"
               >
-                <div className="text-destructive mb-6">
-                  <AlertTriangle className="w-20 h-20 animate-pulse" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Enviando Alerta...</h3>
-                <p className="text-muted-foreground mb-12">
-                  {PANIC_TYPES[selectedType!].label}
-                </p>
-                
-                <div className="relative flex items-center justify-center w-48 h-48 mb-12">
-                  <svg className="absolute inset-0 w-full h-full -rotate-90">
-                    <circle 
-                      cx="96" cy="96" r="88" 
-                      className="stroke-muted fill-none" strokeWidth="8"
-                    />
-                    <motion.circle 
-                      cx="96" cy="96" r="88" 
-                      className="stroke-destructive fill-none" strokeWidth="8"
-                      strokeDasharray="553"
-                      initial={{ strokeDashoffset: 553 }}
+                {selected && (() => {
+                  const Icon = selected.icon;
+                  return (
+                    <>
+                      <div
+                        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 border border-white/10"
+                        style={{ background: selected.bg }}
+                      >
+                        <Icon className="w-7 h-7" style={{ color: selected.color }} />
+                      </div>
+                      <p className="text-muted-foreground text-base font-medium mb-1">{selected.label}</p>
+                    </>
+                  );
+                })()}
+
+                <h3 className="text-2xl font-bold text-white mb-8">Enviando alerta...</h3>
+
+                {/* SVG Countdown ring */}
+                <div className="relative w-44 h-44 mb-8">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(220 14% 14%)" strokeWidth="8" />
+                    <motion.circle
+                      cx="60" cy="60" r="54"
+                      fill="none"
+                      stroke="hsl(0 90% 55%)"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      initial={{ strokeDashoffset: circumference }}
                       animate={{ strokeDashoffset: 0 }}
                       transition={{ duration: 3, ease: "linear" }}
                     />
                   </svg>
-                  <span className="text-7xl font-display font-bold text-destructive text-glow">
-                    {countdown}
-                  </span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <motion.span
+                      key={countdown}
+                      initial={{ scale: 1.3, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="text-6xl font-bold text-destructive text-glow-red"
+                    >
+                      {countdown}
+                    </motion.span>
+                    <span className="text-xs text-muted-foreground mt-1">segundos</span>
+                  </div>
                 </div>
 
                 <button
                   onClick={cancelAlert}
-                  className="px-8 py-4 rounded-full bg-card border-2 border-white/10 text-white font-bold tracking-widest hover:bg-white/5 transition-colors"
+                  className="px-8 py-3 rounded-full border-2 border-white/12 bg-white/4 text-white font-bold text-sm tracking-wider hover:bg-white/8 hover:border-white/20 transition-all"
                 >
                   CANCELAR ALERTA
                 </button>
               </motion.div>
             )}
-          </div>
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>

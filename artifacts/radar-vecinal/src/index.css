@@ -277,3 +277,8 @@
 }
 .leaflet-control-attribution a { color: rgba(59,130,246,0.5) !important; }
 
+/* Night-mode filter — applied ONLY to the tile pane, markers are unaffected */
+.leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(200deg) brightness(87%) contrast(82%) sepia(25%);
+}
+

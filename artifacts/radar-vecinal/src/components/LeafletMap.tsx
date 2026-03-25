@@ -163,11 +163,11 @@ export function LeafletMap({ reports, showHeatmap = false, className = "" }: Lea
         zoomControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117" }}
       >
-        {/* ── Night-mode map tiles (Stadia Maps dark) ── */}
+        {/* ── OSM tiles (no auth required) ── */}
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-          maxZoom={20}
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          maxZoom={19}
         />
 
         {/* Zoom controls */}

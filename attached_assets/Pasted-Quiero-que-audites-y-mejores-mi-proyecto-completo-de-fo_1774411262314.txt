@@ -1,0 +1,115 @@
+Quiero que audites y mejores mi proyecto completo de forma integral, con enfoque en funcionalidad, experiencia de usuario, consistencia visual y optimización mobile-first.
+
+OBJETIVO PRINCIPAL
+Necesito que revises toda la app y corrijas cualquier parte incompleta, rota o visualmente inconsistente. Hay botones en blanco, pantallas con huecos, posibles conflictos de lógica o navegación, y necesito una interfaz mucho más pulida, moderna y totalmente usable en móvil.
+
+TAREAS PRIORITARIAS
+
+1. AUDITORÍA GENERAL COMPLETA
+- Revisa todas las rutas, pantallas, componentes y flujos.
+- Detecta botones vacíos, botones sin acción, botones invisibles, botones mal alineados o con texto en blanco.
+- Detecta cards vacías, contenedores rotos, secciones sin contenido, loaders infinitos y errores visuales.
+- Identifica cualquier conflicto de estados, props, imports, dependencias o componentes duplicados.
+- Revisa warnings y errores del build.
+- Revisa si hay problemas de hidratación, render, navegación, responsive o datos mock inconsistentes.
+- Entrega un listado claro de problemas encontrados y corrige los más importantes directamente.
+
+2. BOTONES EN BLANCO O ROTOS
+- Encuentra todos los botones que aparezcan en blanco, sin texto, sin icono o sin acción clara.
+- Corrige estilos, contraste, labels y estados hover/active/disabled.
+- Si un botón no tiene funcionalidad real todavía, asígnale una acción temporal coherente o desactívalo visualmente con texto claro.
+- Ningún botón debe quedar sin propósito visible.
+- Verifica que todos tengan buen padding, jerarquía visual, alineación y accesibilidad.
+
+3. PULIR CONFLICTOS Y FLUJOS
+- Revisa conflictos entre componentes, layouts, formularios y navegación.
+- Corrige rutas mal conectadas, enlaces que no responden, formularios incompletos y acciones que llevan a pantallas vacías.
+- Si hay modales, drawers, tabs o dropdowns, asegúrate de que funcionen bien.
+- Elimina comportamiento inconsistente entre desktop y mobile.
+- Unifica estados y comportamiento en toda la app.
+
+4. MEJORA DE INTERFAZ
+Quiero una interfaz más profesional, coherente y premium.
+- Mejora la jerarquía visual.
+- Corrige espaciados, márgenes, padding, tamaños de tipografía y contraste.
+- Unifica botones, cards, inputs, badges, headers, tablas, filtros y modales.
+- Asegúrate de que toda la app se sienta parte del mismo sistema visual.
+- Elimina estilos improvisados o inconsistentes.
+- Haz que la app se vea moderna, clara, tecnológica y más confiable.
+- Si hay pantallas débiles visualmente, rediseñalas para que se vean terminadas.
+
+5. OPTIMIZACIÓN MOBILE-FIRST
+Esto es muy importante.
+- Revisa toda la app en vista móvil primero.
+- Corrige overflow horizontal, textos cortados, botones pegados, cards demasiado anchas, tablas rotas y modales incómodos.
+- Asegúrate de que navegación, formularios, mapas, paneles y listados funcionen perfectamente en celular.
+- Usa layouts responsivos reales, no solo escalado.
+- Mejora tamaños táctiles: botones, inputs, tabs, iconos y acciones rápidas deben ser fáciles de tocar.
+- Reduce ruido visual en móvil.
+- Si alguna tabla no funciona en móvil, conviértela a cards responsivas o vista adaptable.
+- Optimiza headers, bottom navigation, floating buttons y paneles laterales para pantallas pequeñas.
+
+6. UX Y CLARIDAD
+- Cada pantalla debe dejar claro qué hace y qué puede hacer el usuario.
+- Añade empty states elegantes cuando no haya data.
+- Añade loading states consistentes.
+- Añade mensajes de error claros y visualmente correctos.
+- Mejora feedback visual después de acciones importantes.
+- Asegúrate de que el usuario nunca se pierda ni quede en una pantalla “muerta”.
+
+7. CONSISTENCIA VISUAL
+- Define un solo sistema de estilos para:
+  - botones primarios
+  - botones secundarios
+  - inputs
+  - cards
+  - badges
+  - headers
+  - modales
+  - alertas
+- Mantén una paleta coherente.
+- Mantén radios, sombras, tamaños y espaciados consistentes.
+- Mejora contraste y legibilidad general.
+
+8. LIMPIEZA TÉCNICA
+- Refactoriza componentes repetidos si hace falta.
+- Elimina código muerto o estilos redundantes.
+- Corrige imports innecesarios.
+- Ordena mejor la estructura si detectas caos.
+- No rompas funcionalidades existentes.
+- Prioriza estabilidad, claridad y mantenibilidad.
+
+9. RESULTADO ESPERADO
+Quiero una app:
+- sin botones en blanco
+- sin pantallas a medio hacer
+- sin conflictos visibles
+- visualmente pulida
+- coherente en toda la experiencia
+- muy bien optimizada para móvil
+- más profesional y lista para seguir creciendo
+
+FORMA DE TRABAJO
+- Primero haz una auditoría real.
+- Luego corrige problemas por prioridad.
+- Después pule la interfaz global.
+- Finalmente optimiza responsive/mobile.
+- No dejes cambios a medias.
+- Si falta alguna funcionalidad, deja fallback visual elegante en vez de huecos o botones vacíos.
+
+IMPORTANTE
+No quiero solo cambios estéticos superficiales.
+Quiero una mejora real de producto:
+- mejor UX
+- mejor UI
+- mejor consistencia
+- mejor navegación
+- mejor versión móvil
+- mejor sensación general de calidad
+
+Al final:
+- resume qué problemas encontraste
+- qué corregiste
+- qué mejoraste visualmente
+- qué optimizaste para móvil
+- qué quedó preparado para seguir desarrollando

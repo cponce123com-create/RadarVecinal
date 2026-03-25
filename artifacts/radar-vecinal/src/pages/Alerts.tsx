@@ -1,78 +1,151 @@
-import { ShieldAlert, MapPin, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { ShieldAlert, MapPin, Clock, CheckCircle2, AlertTriangle, Heart, Users, Flame, UserX, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGetPanicAlerts } from "@workspace/api-client-react";
-import { PANIC_TYPES } from "@/lib/constants";
+
+const PANIC_META: Record<string, { icon: any; label: string; color: string; bg: string }> = {
+  robbery:        { icon: AlertTriangle, label: "Asalto en Progreso",       color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  medical:        { icon: Heart,         label: "Emergencia Médica",         color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  fight:          { icon: Users,         label: "Violencia Física",          color: "#f97316", bg: "rgba(249,115,22,0.12)" },
+  fire:           { icon: Flame,         label: "Incendio",                  color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  missing_person: { icon: UserX,         label: "Persona Extraviada",        color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  other:          { icon: Zap,           label: "Otra Emergencia",           color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
+};
 
 export default function Alerts() {
   const { data, isLoading } = useGetPanicAlerts();
+  const alerts = data?.alerts ?? [];
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-3xl font-display font-bold text-white flex items-center gap-3">
-          <ShieldAlert className="w-8 h-8 text-destructive" />
-          Alertas Críticas
+    <div className="max-w-3xl mx-auto pb-8 flex flex-col gap-5">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-1">
+          <ShieldAlert className="w-6 h-6 text-destructive" />
+          Alertas de Pánico
         </h2>
-        <p className="text-muted-foreground mt-2">Emergencias activas en tu zona que requieren atención inmediata.</p>
+        <p className="text-sm text-muted-foreground">Emergencias activadas por vecinos en tiempo real.</p>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-4">
-          {[1, 2].map(i => (
-            <div key={i} className="h-40 rounded-2xl bg-card animate-pulse border border-white/5" />
+      {/* Loading */}
+      {isLoading && (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-28 rounded-xl bg-card animate-pulse border border-white/5" />
           ))}
         </div>
-      ) : data?.alerts.length === 0 ? (
-        <div className="p-12 text-center rounded-3xl bg-card border border-white/5 flex flex-col items-center">
-          <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center text-success mb-4">
-            <ShieldAlert className="w-10 h-10" />
+      )}
+
+      {/* Empty state */}
+      {!isLoading && alerts.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="py-20 flex flex-col items-center text-center"
+        >
+          <div className="w-20 h-20 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-4">
+            <CheckCircle2 className="w-10 h-10 text-green-400" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Todo tranquilo</h3>
-          <p className="text-muted-foreground">No hay alertas críticas activas en este momento.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {data?.alerts.map(alert => {
-            const config = PANIC_TYPES[alert.type] || PANIC_TYPES.other;
-            const Icon = config.icon;
-            
+          <h3 className="text-xl font-bold text-white mb-2">Sin alertas activas</h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Todo tranquilo en el distrito. Cuando un vecino active el botón de pánico, aparecerá aquí.
+          </p>
+        </motion.div>
+      )}
+
+      {/* Alert cards */}
+      {!isLoading && alerts.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {/* Active first */}
+          {alerts.filter(a => a.isActive).map((alert, i) => {
+            const meta = PANIC_META[alert.type] ?? PANIC_META.other;
+            const Icon = meta.icon;
             return (
-              <div 
-                key={alert.id} 
-                className="relative overflow-hidden p-6 rounded-2xl bg-card border border-destructive/30 shadow-[0_0_20px_rgba(220,38,38,0.1)] group"
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="relative overflow-hidden rounded-xl border"
+                style={{ borderColor: `${meta.color}40`, background: `${meta.color}08` }}
               >
-                <div className={`absolute top-0 left-0 w-2 h-full ${config.color}`} />
-                <div className="absolute top-0 right-0 w-64 h-64 bg-destructive/5 rounded-full blur-3xl pointer-events-none group-hover:bg-destructive/10 transition-colors" />
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${config.color} text-white shadow-lg shadow-black/50`}>
-                      <Icon className="w-8 h-8" />
+                {/* Left accent bar */}
+                <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: meta.color }} />
+
+                <div className="pl-4 pr-4 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                  {/* Icon + Type */}
+                  <div className="flex items-center gap-3 flex-1">
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: meta.bg }}
+                    >
+                      <Icon className="w-6 h-6" style={{ color: meta.color }} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-xl font-bold text-white">{config.label}</h3>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-destructive text-white animate-pulse">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <h3 className="text-base font-bold text-white">{meta.label}</h3>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full status-blink"
+                          style={{ color: meta.color, background: meta.bg }}
+                        >
                           EN PROGRESO
                         </span>
                       </div>
-                      <p className="text-muted-foreground">Reportado por: {alert.authorName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Reportado por: <span className="text-white/70">{alert.authorName}</span>
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 md:items-end bg-background/50 p-3 rounded-xl border border-white/5">
-                    <div className="flex items-center gap-2 text-sm text-white/90">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      {alert.address || alert.sector}
+                  {/* Location + Time */}
+                  <div className="flex flex-row sm:flex-col gap-3 sm:gap-1.5 sm:items-end text-xs text-muted-foreground ml-11 sm:ml-0">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate max-w-[180px]">{alert.address || alert.sector}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-white/90">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                       {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true, locale: es })}
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
+            );
+          })}
+
+          {/* Separator for inactive */}
+          {alerts.filter(a => !a.isActive).length > 0 && (
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex-1 h-px bg-white/5" />
+              <span className="text-[10px] text-muted-foreground/50 uppercase tracking-widest">Historial</span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+          )}
+
+          {/* Inactive alerts */}
+          {alerts.filter(a => !a.isActive).map((alert, i) => {
+            const meta = PANIC_META[alert.type] ?? PANIC_META.other;
+            const Icon = meta.icon;
+            return (
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.06 }}
+                className="flex items-center gap-3.5 p-3.5 rounded-xl bg-card border border-white/5 opacity-60"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: meta.bg }}>
+                  <Icon className="w-4.5 h-4.5" style={{ color: meta.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">{meta.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{alert.address || alert.sector}</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {formatDistanceToNow(new Date(alert.createdAt), { locale: es })}
+                </span>
+              </motion.div>
             );
           })}
         </div>

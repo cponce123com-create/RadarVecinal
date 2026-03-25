@@ -17,6 +17,11 @@ import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
 
+// Ensure dark class is always on html
+if (typeof document !== "undefined") {
+  document.documentElement.classList.add("dark");
+}
+
 // A simple landing redirector 
 function Landing() {
   if (typeof window !== 'undefined') {

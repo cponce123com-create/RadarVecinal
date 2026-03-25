@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Shield, Award, Settings, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff } from "lucide-react";
+import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings } from "lucide-react";
 
 const user = {
   name: "Carlos Mendoza",
@@ -34,30 +34,30 @@ const MENU_ITEMS = [
     accentBg: "bg-green-500/12",
   },
   {
+    href: "/notificaciones",
+    icon: Bell,
+    label: "Notificaciones",
+    sub: "Alertas, avisos y actualizaciones",
+    accent: "text-yellow-400",
+    accentBg: "bg-yellow-500/12",
+    badge: "3",
+    badgeColor: "bg-red-500 text-white",
+  },
+  {
+    href: "/configuracion",
+    icon: SlidersHorizontal,
+    label: "Configuración",
+    sub: "Privacidad, alertas y preferencias",
+    accent: "text-violet-400",
+    accentBg: "bg-violet-500/12",
+  },
+  {
     href: "/admin",
-    icon: Shield,
+    icon: Settings,
     label: "Panel de Control",
     sub: "Administración (demo)",
     accent: "text-accent",
     accentBg: "bg-accent/12",
-  },
-  {
-    href: null,
-    icon: Bell,
-    label: "Notificaciones",
-    sub: "Alertas sonoras y avisos",
-    accent: "text-yellow-400",
-    accentBg: "bg-yellow-500/12",
-    badge: "Próximamente",
-  },
-  {
-    href: null,
-    icon: Settings,
-    label: "Configuración",
-    sub: "Privacidad y preferencias",
-    accent: "text-muted-foreground",
-    accentBg: "bg-white/6",
-    badge: "Próximamente",
   },
 ];
 
@@ -272,7 +272,7 @@ export default function Profile() {
                 <p className="text-xs text-muted-foreground">{item.sub}</p>
               </div>
               {item.badge ? (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/6 text-muted-foreground border border-white/8 flex-shrink-0">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${(item as any).badgeColor ?? "bg-white/6 text-muted-foreground border border-white/8"}`}>
                   {item.badge}
                 </span>
               ) : (

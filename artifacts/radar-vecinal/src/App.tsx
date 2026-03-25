@@ -13,6 +13,8 @@ import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
 import MissingPerson from "@/pages/MissingPerson";
 import Admin from "@/pages/Admin";
+import Notifications from "@/pages/Notifications";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -62,6 +64,12 @@ function Router() {
       </Route>
       <Route path="/admin">
         {() => <Layout><Admin /></Layout>}
+      </Route>
+      <Route path="/notificaciones">
+        {() => <Layout><Notifications /></Layout>}
+      </Route>
+      <Route path="/configuracion">
+        {() => <Layout><Settings /></Layout>}
       </Route>
       
       <Route component={NotFound} />

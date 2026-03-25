@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Map as MapIcon, PlusCircle, Bell, User, Menu, X,
-  Shield, Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight
+  Shield, Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight, SlidersHorizontal
 } from "lucide-react";
 import { PanicModal } from "./PanicModal";
 
@@ -20,14 +20,16 @@ const MAIN_NAV = [
 ];
 
 const SIDE_NAV = [
-  { href: "/home", icon: Home, label: "Inicio" },
-  { href: "/mapa", icon: MapIcon, label: "Mapa" },
-  { href: "/alertas", icon: Bell, label: "Alertas" },
-  { href: "/perfil", icon: User, label: "Perfil" },
-  { href: "/historial", icon: Clock, label: "Historial" },
-  { href: "/menor-perdido", icon: UserX, label: "Personas Extraviadas" },
-  { href: "/estadisticas", icon: BarChart3, label: "Estadísticas" },
-  { href: "/admin", icon: Settings, label: "Administración" },
+  { href: "/home",           icon: Home,           label: "Inicio" },
+  { href: "/mapa",           icon: MapIcon,         label: "Mapa" },
+  { href: "/alertas",        icon: Bell,            label: "Alertas" },
+  { href: "/perfil",         icon: User,            label: "Perfil" },
+  { href: "/notificaciones", icon: Bell,            label: "Notificaciones" },
+  { href: "/historial",      icon: Clock,           label: "Historial" },
+  { href: "/menor-perdido",  icon: UserX,           label: "Personas Extraviadas" },
+  { href: "/estadisticas",   icon: BarChart3,       label: "Estadísticas" },
+  { href: "/configuracion",  icon: SlidersHorizontal, label: "Configuración" },
+  { href: "/admin",          icon: Settings,        label: "Administración" },
 ];
 
 export function Layout({ children }: LayoutProps) {
@@ -50,7 +52,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div>
             <h1 className="font-bold text-[17px] text-white leading-none">Radar Vecinal</h1>
-            <p className="text-[11px] text-primary/80 font-medium mt-0.5">San Miguel, Lima</p>
+            <p className="text-[11px] text-primary/80 font-medium mt-0.5">San Ramón, Chanchamayo</p>
           </div>
         </div>
 

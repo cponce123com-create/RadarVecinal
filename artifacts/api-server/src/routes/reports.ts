@@ -184,6 +184,19 @@ router.post("/seed", async (req, res) => {
       { title: "Bar problemático — vecinos hartos de 3 meses de quejas", description: "Bar sin habilitación hace 3 meses. 7 denuncias ante municipalidad y PNP. Peleas cada viernes. Exigimos cierre.", category: "bar_trouble" as const, urgency: "high" as const, status: "archived" as const, isAnonymous: true, latitude: j(LAT), longitude: j(LNG), address: "Jr. Junín cdra. 2, esquina con Jr. Callao, San Ramón Centro", sector: "San Ramón Centro", authorName: "Anónimo", contactPhone: null, confirmedCount: 28, createdAt: ts(89, 18) },
     ];
 
+    await db.insert(usersTable).values([
+      { name: "Admin Radar",         email: "admin@radarvecinal.pe",     role: "admin"     as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0  },
+      { name: "Rosa Huamán Torres",  email: "rosa.huaman@gmail.com",     role: "moderator" as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 8  },
+      { name: "Carlos Quispe",       email: "c.quispe@outlook.com",      role: "user"      as const, sector: "Pampa del Carmen", district: "San Ramón", reportsCount: 5  },
+      { name: "Ana Tuesta Valles",   email: "ana.tuesta@hotmail.com",    role: "user"      as const, sector: "San Luis",         district: "San Ramón", reportsCount: 12 },
+      { name: "Jorge Suárez",        email: "jorge.suarez@gmail.com",    role: "user"      as const, sector: "Los Ángeles",      district: "San Ramón", reportsCount: 7  },
+      { name: "María Flores",        email: "mflores@gmail.com",         role: "user"      as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 4  },
+      { name: "Pedro Campos",        email: "pedrocampos@hotmail.com",   role: "user"      as const, sector: "Pampa del Carmen", district: "San Ramón", reportsCount: 6  },
+      { name: "Cecilia Ríos",        email: "crios@gmail.com",           role: "user"      as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 3  },
+      { name: "Luis Asto",           email: "l.asto@gmail.com",          role: "user"      as const, sector: "El Milagro",       district: "San Ramón", reportsCount: 5  },
+      { name: "Delia Solís",         email: "delia.solis@gmail.com",     role: "user"      as const, sector: "Los Ángeles",      district: "San Ramón", reportsCount: 2  },
+    ]).onConflictDoNothing();
+
     await db.insert(reportsTable).values(seedReports.map(r => ({ ...r, updatedAt: r.createdAt })));
 
     await db.insert(panicAlertsTable).values([

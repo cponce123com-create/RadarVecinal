@@ -6,6 +6,9 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Disable ETag so API responses are never cached as stale empty data
+app.set("etag", false);
+
 app.use(
   pinoHttp({
     logger,
@@ -28,6 +31,13 @@ app.use(
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Force fresh responses — prevent stale cached empty data in browsers
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
 
 app.use("/api", router);
 

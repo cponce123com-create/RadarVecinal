@@ -46,31 +46,51 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
     onClose();
   };
 
+  const [locating, setLocating] = useState(false);
+
+  const SAN_RAMON_LAT = -11.1213;
+  const SAN_RAMON_LNG = -75.3498;
+
   const triggerAlert = () => {
     if (!selected) return;
-    createAlert.mutate({
-      data: {
-        type: selected.type,
-        latitude: -12.0784,
-        longitude: -77.0852,
-        address: "Av. de la Marina 2000, San Miguel",
-        authorName: "Usuario",
-        sector: "San Miguel Centro",
-      }
-    }, {
-      onSuccess: () => {
-        toast({
-          title: "⚠ ALERTA ENVIADA",
-          description: "Serenazgo y vecinos cercanos han sido notificados.",
-          variant: "destructive",
-        });
-        handleClose();
-      },
-      onError: () => {
-        toast({ title: "Error al enviar alerta", description: "Intenta de nuevo.", variant: "destructive" });
-        cancelAlert();
-      }
-    });
+    setLocating(true);
+
+    const sendAlert = (lat: number, lng: number, address: string) => {
+      setLocating(false);
+      createAlert.mutate({
+        data: {
+          type: selected.type,
+          latitude: lat,
+          longitude: lng,
+          address,
+          authorName: "Usuario",
+          sector: "San Ramón",
+        }
+      }, {
+        onSuccess: () => {
+          toast({
+            title: "⚠ ALERTA ENVIADA",
+            description: "Serenazgo y vecinos cercanos han sido notificados.",
+            variant: "destructive",
+          });
+          handleClose();
+        },
+        onError: () => {
+          toast({ title: "Error al enviar alerta", description: "Intenta de nuevo.", variant: "destructive" });
+          cancelAlert();
+        }
+      });
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => sendAlert(pos.coords.latitude, pos.coords.longitude, "Ubicación actual del usuario"),
+        () => sendAlert(SAN_RAMON_LAT, SAN_RAMON_LNG, "San Ramón, Chanchamayo"),
+        { timeout: 6000, maximumAge: 30000 }
+      );
+    } else {
+      sendAlert(SAN_RAMON_LAT, SAN_RAMON_LNG, "San Ramón, Chanchamayo");
+    }
   };
 
   const circumference = 2 * Math.PI * 54; // r=54
@@ -189,7 +209,14 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                   );
                 })()}
 
-                <h3 className="text-2xl font-bold text-white mb-8">Enviando alerta...</h3>
+                <h3 className="text-2xl font-bold text-white mb-2">Enviando alerta...</h3>
+                {locating && (
+                  <p className="text-xs text-primary/80 mb-6 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    Obteniendo ubicación...
+                  </p>
+                )}
+                {!locating && <div className="mb-6" />}
 
                 {/* SVG Countdown ring */}
                 <div className="relative w-44 h-44 mb-8">

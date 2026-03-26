@@ -18,13 +18,26 @@ import MissingPerson from "@/pages/MissingPerson";
 import Admin from "@/pages/Admin";
 import Notifications from "@/pages/Notifications";
 import Settings from "@/pages/Settings";
+import Emergencias from "@/pages/Emergencias";
 import NotFound from "@/pages/not-found";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000,
+      gcTime: 5 * 60 * 1000,
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-// Ensure dark class is always on html
+// Apply theme from localStorage (defaults to dark)
 if (typeof document !== "undefined") {
-  document.documentElement.classList.add("dark");
+  const savedTheme = localStorage.getItem("rvs_theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = savedTheme ? savedTheme === "dark" : prefersDark !== false;
+  document.documentElement.classList.toggle("dark", isDark);
 }
 
 // A simple landing redirector 
@@ -79,6 +92,9 @@ function Router() {
       </Route>
       <Route path="/configuracion">
         {() => <Layout><Settings /></Layout>}
+      </Route>
+      <Route path="/emergencias">
+        {() => <Layout><Emergencias /></Layout>}
       </Route>
       
       <Route component={NotFound} />

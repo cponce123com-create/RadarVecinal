@@ -89,8 +89,25 @@ const INCIDENT_CATEGORIES = [
   { id: "water_cut",         label: "Corte de agua",         color: "#3b82f6" },
 ];
 
+function applyTheme(dark: boolean) {
+  document.documentElement.classList.toggle("dark", dark);
+  localStorage.setItem("rvs_theme", dark ? "dark" : "light");
+}
+
 export default function Settings() {
   const { toast } = useToast();
+
+  // Theme
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem("rvs_theme");
+    if (saved) return saved === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches !== false;
+  });
+
+  const toggleDarkMode = (v: boolean) => {
+    setDarkMode(v);
+    applyTheme(v);
+  };
 
   // Notification prefs
   const [pushEnabled,     setPushEnabled]     = useSetting("push",          true);
@@ -146,8 +163,20 @@ export default function Settings() {
         </button>
       </div>
 
-      {/* ── Notificaciones ── */}
+      {/* ── Apariencia ── */}
       <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
+        <SettingSection title="Apariencia" icon={darkMode ? Moon : SunMedium} iconColor={darkMode ? "text-blue-400" : "text-yellow-400"}>
+          <SettingRow
+            label="Modo oscuro"
+            sub={darkMode ? "Modo oscuro activo — diseñado para usar de noche" : "Modo claro activo — mejor visibilidad de día"}
+          >
+            <Toggle checked={darkMode} onChange={toggleDarkMode} />
+          </SettingRow>
+        </SettingSection>
+      </motion.div>
+
+      {/* ── Notificaciones ── */}
+      <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible">
         <SettingSection title="Notificaciones" icon={Bell}>
           <SettingRow
             label="Notificaciones push"

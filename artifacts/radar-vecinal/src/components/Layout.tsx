@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Map as MapIcon, PlusCircle, Bell, User, Menu, X,
   Shield, Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight,
-  SlidersHorizontal, LogIn, LogOut, MapPin, ChevronDown
+  SlidersHorizontal, LogIn, LogOut, MapPin, ChevronDown, Phone
 } from "lucide-react";
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
@@ -20,13 +20,14 @@ const MAIN_NAV = [
   { href: "/mapa", icon: MapIcon, label: "Mapa" },
   { href: "/reportar", icon: PlusCircle, label: "Reportar", isPrimary: true },
   { href: "/alertas", icon: Bell, label: "Alertas" },
-  { href: "/perfil", icon: User, label: "Perfil" },
+  { href: "/emergencias", icon: Phone, label: "Emergencias" },
 ];
 
 const SIDE_NAV = [
   { href: "/home",           icon: Home,              label: "Inicio" },
   { href: "/mapa",           icon: MapIcon,            label: "Mapa" },
   { href: "/alertas",        icon: Bell,               label: "Alertas" },
+  { href: "/emergencias",    icon: Phone,              label: "Emergencias" },
   { href: "/perfil",         icon: User,               label: "Perfil" },
   { href: "/notificaciones", icon: Bell,               label: "Notificaciones" },
   { href: "/historial",      icon: Clock,              label: "Historial" },

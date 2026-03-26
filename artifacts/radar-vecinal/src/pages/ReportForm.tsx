@@ -85,6 +85,7 @@ export default function ReportForm() {
     sector: SECTORS[0],
     address: "",
     contactPhone: "",
+    authorName: "",
     latitude: DISTRICT.center.lat,
     longitude: DISTRICT.center.lng,
   });
@@ -192,7 +193,7 @@ export default function ReportForm() {
         address: formData.address,
         sector: formData.sector,
         contactPhone: formData.contactPhone || null,
-        authorName: formData.isAnonymous ? "Anónimo" : (isLoggedIn && user?.name ? user.name : "Vecino de San Ramón"),
+        authorName: formData.isAnonymous ? "Anónimo" : (isLoggedIn && user?.name ? user.name : (formData.authorName.trim() || "Vecino de San Ramón")),
         district: selectedDistrict,
         imageUrl: imageUrl ?? null,
       }
@@ -314,6 +315,31 @@ export default function ReportForm() {
                     <span className="font-semibold text-white">Tu reporte es muy valioso</span> para la seguridad de San Ramón.
                     Recuerda que puedes enviarlo de forma <span className="font-semibold text-primary">completamente anónima</span> si lo prefieres.
                   </p>
+                </div>
+
+                {/* Nombre del autor */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Tu nombre{" "}
+                    {isLoggedIn && <span className="text-xs text-primary font-normal ml-1">· Sesión iniciada</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={isLoggedIn && user?.name ? user.name : formData.authorName ?? ""}
+                    onChange={e => !isLoggedIn && setFormData(prev => ({ ...prev, authorName: e.target.value }))}
+                    readOnly={!!isLoggedIn}
+                    placeholder="Tu nombre o alias (opcional)"
+                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none transition-colors ${
+                      isLoggedIn
+                        ? "border-white/5 text-muted-foreground cursor-not-allowed opacity-70"
+                        : "border-white/10 text-white focus:border-primary"
+                    }`}
+                  />
+                  {isLoggedIn && (
+                    <p className="text-[10px] text-muted-foreground/50 mt-1.5">
+                      Se usará el nombre de tu cuenta. Puedes marcar anónimo si prefieres.
+                    </p>
+                  )}
                 </div>
 
                 {/* B-08: Title with inline validation */}

@@ -1,0 +1,118 @@
+Necesito que implementes las siguientes mejoras en RadarVecinal. 
+Hazlas todas en orden, una por una, sin romper lo que ya funciona.
+
+---
+
+## 1. NUEVA PÁGINA: Números de Emergencia
+
+Crea el archivo `artifacts/radar-vecinal/src/pages/Emergencias.tsx`
+
+Debe tener:
+- Cards por categoría con nombre, número, ícono y color
+- Los siguientes contactos:
+  * Policía Nacional — 105 — ícono Shield — color azul
+  * Bomberos — 116 — ícono Flame — color rojo
+  * SAMU / Ambulancia — 106 — ícono Heart — color verde
+  * Serenazgo — 0800-00-968 — ícono ShieldAlert — color naranja
+  * Defensa Civil — 115 — ícono AlertTriangle — color amarillo
+  * Línea de la Mujer — 100 — ícono Phone — color rosa
+  * Niños y Adolescentes — 137 — ícono UserX — color púrpura
+  * Bomberos Voluntarios — 116 — ícono Zap — color rojo claro
+- Cada card debe tener un botón "Llamar" que use href="tel:NUMERO"
+- Sección de búsqueda/filtro por tipo de emergencia
+- Diseño consistente con el resto de la app (dark mode, colores actuales)
+
+Agrega la ruta `/emergencias` en `App.tsx`
+
+Agrega el link en el sidebar de `Layout.tsx` con ícono Phone y label "Emergencias", 
+justo después de "Alertas" en SIDE_NAV y en MAIN_NAV del bottom bar móvil.
+
+---
+
+## 2. FIX CRÍTICO: Coordenadas reales en el botón de pánico
+
+En `artifacts/radar-vecinal/src/components/PanicModal.tsx`,
+dentro de la función `triggerAlert()`, reemplaza las coordenadas 
+hardcodeadas (-12.0784, -77.0852) por la ubicación real del usuario:
+
+- Antes de hacer el mutate, llama a navigator.geolocation.getCurrentPosition()
+- Mientras obtiene la ubicación, muestra un pequeño texto "Obteniendo ubicación..."
+- Si el usuario deniega el permiso, usa las coordenadas hardcodeadas como fallback
+- El campo address también debe actualizarse con "Ubicación actual del usuario"
+
+---
+
+## 3. FIX UX: Auto-completar nombre del autor en el formulario de reporte
+
+En `artifacts/radar-vecinal/src/pages/ReportForm.tsx`:
+
+- Si el usuario está logueado (useAuth), el campo authorName debe 
+  pre-llenarse automáticamente con user.name o user.username
+- El campo debe quedar deshabilitado (readOnly) si el usuario está logueado
+- Si no está logueado, el campo sigue siendo editable como ahora
+
+---
+
+## 4. MEJORA DE RENDIMIENTO: Configurar QueryClient con caché
+
+En `artifacts/radar-vecinal/src/App.tsx`, reemplaza:
+  const queryClient = new QueryClient();
+
+Por:
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30000,
+        gcTime: 5 * 60 * 1000,
+        retry: 2,
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
+
+---
+
+## 5. MEJORA UX: Botón "Yo también lo vi" en las cards de reporte
+
+En `artifacts/radar-vecinal/src/components/ReportCard.tsx`:
+
+- Agrega un botón pequeño con ícono ThumbsUp al footer de cada card
+- Debe mostrar el número actual de confirmedCount
+- Al hacer click, llama al endpoint PATCH /api/reports/:id/confirm
+- Muestra animación de confirmación al presionar
+
+En `artifacts/api-server/src/routes/reports.ts`:
+- Agrega el endpoint: PATCH /reports/:id/confirm
+- Incrementa confirmedCount en 1 para ese reporte
+- Devuelve el reporte actualizado
+
+---
+
+## 6. MEJORA UX: Respetar preferencia de modo claro/oscuro del sistema
+
+En `artifacts/radar-vecinal/src/App.tsx`, elimina estas líneas:
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.add("dark");
+  }
+
+Y en `artifacts/radar-vecinal/src/pages/Settings.tsx`, asegúrate de que 
+ya exista (o agrega) un toggle para modo claro / oscuro que guarde la 
+preferencia en localStorage y la aplique al cargar la app.
+
+---
+
+## 7. MEJORA: Filtros visuales en el mapa
+
+En `artifacts/radar-vecinal/src/pages/MapPage.tsx` o `LeafletMap.tsx`:
+
+- Agrega una barra de filtros encima del mapa con botones por categoría:
+  Todos | Robo | Pelea | Sospechoso | Basura | Agua | Ruido | Incendio
+- Al seleccionar una categoría, filtra los marcadores del mapa en tiempo real
+- El botón activo debe resaltarse con el color de esa categoría
+- Diseño compacto tipo chip/pill, scrolleable horizontalmente en móvil
+
+---
+
+Cuando termines cada cambio, confirma qué archivo modificaste.
+No cambies el sistema de autenticación, la base de datos ni los 
+estilos globales de Tailwind.

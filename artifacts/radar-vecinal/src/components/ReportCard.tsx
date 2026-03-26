@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Clock, CheckSquare } from "lucide-react";
+import { MapPin, Clock, CheckSquare, ThumbsUp } from "lucide-react";
 import { Report } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 
@@ -33,6 +34,25 @@ const URGENCY_META: Record<string, { label: string; color: string }> = {
 export function ReportCard({ report, compact = false }: ReportCardProps) {
   const config = CATEGORY_CONFIG[report.category as keyof typeof CATEGORY_CONFIG] ?? CATEGORY_CONFIG.other;
   const color = CATEGORY_COLORS[report.category] ?? "#6b7280";
+  const [confirmed, setConfirmed] = useState(false);
+  const [confirmCount, setConfirmCount] = useState(report.confirmedCount ?? 0);
+  const [confirming, setConfirming] = useState(false);
+
+  const handleConfirm = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirmed || confirming) return;
+    setConfirming(true);
+    try {
+      const res = await fetch(`/api/reports/${report.id}/confirm`, { method: "POST" });
+      if (res.ok) {
+        setConfirmCount(c => c + 1);
+        setConfirmed(true);
+      }
+    } catch {
+    } finally {
+      setConfirming(false);
+    }
+  };
   const status = STATUS_META[report.status] ?? STATUS_META.active;
   const urgency = URGENCY_META[report.urgency] ?? URGENCY_META.medium;
   const Icon = config.icon;
@@ -116,12 +136,20 @@ export function ReportCard({ report, compact = false }: ReportCardProps) {
               {formatDistanceToNow(new Date(report.createdAt), { locale: es })}
             </span>
           </div>
-          {report.confirmedCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] text-primary/70">
-              <CheckSquare className="w-3 h-3" />
-              {report.confirmedCount}
-            </span>
-          )}
+          <button
+            onClick={handleConfirm}
+            disabled={confirmed || confirming}
+            title="Yo también lo vi"
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
+              confirmed
+                ? "bg-primary/15 text-primary border border-primary/30"
+                : "bg-white/5 text-muted-foreground border border-white/8 hover:bg-primary/10 hover:text-primary hover:border-primary/25"
+            } ${confirming ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+          >
+            <ThumbsUp className={`w-3 h-3 ${confirmed ? "fill-primary" : ""}`} />
+            {confirmCount > 0 ? confirmCount : ""}
+            <span className="hidden sm:inline">{confirmed ? "Lo vi" : "Yo lo vi"}</span>
+          </button>
         </div>
       </div>
     </div>

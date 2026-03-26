@@ -42,5 +42,7 @@ export * from "./statsWeeklyTrendItem";
 export * from "./updateMissingPersonInput";
 export * from "./updateReportInput";
 export * from "./updateUserInput";
+export * from "./uploadUrlRequest";
+export * from "./uploadUrlResponse";
 export * from "./user";
 export * from "./userRole";

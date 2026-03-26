@@ -6,6 +6,7 @@ import alertsRouter from "./alerts";
 import statsRouter from "./stats";
 import activityRouter from "./activity";
 import usersRouter from "./users";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(alertsRouter);
 router.use(statsRouter);
 router.use(activityRouter);
 router.use(usersRouter);
+router.use(storageRouter);
 
 export default router;

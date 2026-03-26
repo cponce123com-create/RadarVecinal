@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Report, ReportCategory } from "@workspace/api-client-react";
 import { CAT_HEX, DISTRICT, CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { Locate, Loader2, MapPin } from "lucide-react";
+import { Locate, Loader2, MapPin, Plus, Minus } from "lucide-react";
 import { useGeolocation } from "@/lib/useGeolocation";
 
 // ── Categories shown in the insecurity heatmap ────────────────────────────────
@@ -365,15 +365,15 @@ function UserMarker({ position, simulated }: { position: { lat: number; lng: num
   return null;
 }
 
-// ── Locate button ─────────────────────────────────────────────────────────────
-function LocateControl({ onLocate, simulated }: {
+// ── F-10: Custom map controls (locate + zoom) — all grouped top-right ─────────
+function MapControls({ onLocate, simulated }: {
   onLocate: (lat: number, lng: number, sim: boolean) => void;
   simulated: boolean;
 }) {
   const map = useMap();
   const geo = useGeolocation();
 
-  const handleClick = () => {
+  const handleLocate = () => {
     if (geo.position) {
       map.flyTo([geo.position.lat, geo.position.lng], 16, { duration: 1.2 });
       onLocate(geo.position.lat, geo.position.lng, false);
@@ -387,22 +387,52 @@ function LocateControl({ onLocate, simulated }: {
     }
   }, [geo.position]);
 
-  const border = simulated ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.15)";
-  const icon   = geo.position ? "#22c55e" : simulated ? "#f59e0b" : "#6b7280";
+  const locateBorder = simulated ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.15)";
+  const locateIcon   = geo.position ? "#22c55e" : simulated ? "#f59e0b" : "#6b7280";
+
+  const btnBase: React.CSSProperties = {
+    width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+    background: "#0d1117", border: "1.5px solid rgba(255,255,255,0.12)",
+    cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+    color: "#e2e8f0", fontSize: 18, fontWeight: 700, lineHeight: 1,
+    transition: "background 0.15s",
+  };
 
   return (
     <div className="leaflet-top leaflet-right" style={{ top: "10px" }}>
       <div className="leaflet-control" style={{ border: "none", margin: "10px 10px 0 0" }}>
-        <button onClick={handleClick} title="Mi ubicación" style={{
-          width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-          background: "#0d1117", border: `1.5px solid ${border}`,
-          borderRadius: 10, cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
-        }}>
-          {geo.loading
-            ? <Loader2 style={{ width: 15, height: 15, color: "#3b82f6" }} className="animate-spin" />
-            : <Locate  style={{ width: 15, height: 15, color: icon }} />
-          }
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {/* Zoom in */}
+          <button
+            onClick={() => map.zoomIn()}
+            title="Acercar"
+            aria-label="Acercar mapa"
+            style={{ ...btnBase, borderRadius: "10px 10px 4px 4px" }}
+          >
+            <Plus style={{ width: 16, height: 16 }} />
+          </button>
+          {/* Zoom out */}
+          <button
+            onClick={() => map.zoomOut()}
+            title="Alejar"
+            aria-label="Alejar mapa"
+            style={{ ...btnBase, borderRadius: "4px 4px 10px 10px" }}
+          >
+            <Minus style={{ width: 16, height: 16 }} />
+          </button>
+          {/* Locate */}
+          <button
+            onClick={handleLocate}
+            title="Mi ubicación"
+            aria-label="Centrar en mi ubicación"
+            style={{ ...btnBase, marginTop: 4, borderRadius: 10, border: `1.5px solid ${locateBorder}` }}
+          >
+            {geo.loading
+              ? <Loader2 style={{ width: 15, height: 15, color: "#3b82f6" }} className="animate-spin" />
+              : <Locate  style={{ width: 15, height: 15, color: locateIcon }} />
+            }
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -444,10 +474,8 @@ export function LeafletMap({
           maxZoom={19}
         />
 
-        {/* B-09: bottomright keeps zoom buttons visible on mobile (top area covered by filter pills) */}
-        <ZoomControl position="bottomright" />
-
-        <LocateControl
+        {/* F-10: Custom zoom + locate controls grouped at top-right */}
+        <MapControls
           simulated={simulated}
           onLocate={(lat, lng, sim) => { setUserPos({ lat, lng }); setSimulated(sim); }}
         />

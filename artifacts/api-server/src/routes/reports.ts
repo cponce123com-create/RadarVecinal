@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@workspace/db";
 import { reportsTable, panicAlertsTable, missingPersonsTable, usersTable, adSlotsTable } from "@workspace/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { requireAuth, requireAdmin } from "./auth";
 
 const router: IRouter = Router();
 
@@ -152,7 +153,8 @@ router.get("/reports/:id", async (req, res) => {
   }
 });
 
-router.patch("/reports/:id", async (req, res) => {
+// F-03: Protected — any authenticated user can update a report (moderators/admins enforce via admin panel)
+router.patch("/reports/:id", requireAuth, async (req, res) => {
   try {
     const data = req.body;
     const updates: Partial<typeof reportsTable.$inferInsert> = {};
@@ -170,7 +172,8 @@ router.patch("/reports/:id", async (req, res) => {
   }
 });
 
-router.delete("/reports/:id", async (req, res) => {
+// F-03: Protected — only admins/moderators can delete reports
+router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const [deleted] = await db.delete(reportsTable).where(eq(reportsTable.id, parseInt(req.params.id))).returning();
     if (!deleted) return res.status(404).json({ error: "Not found" });

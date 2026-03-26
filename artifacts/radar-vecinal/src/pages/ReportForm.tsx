@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Info } from "lucide-react";
+import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Info, Loader2, X, ImageIcon } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -89,6 +89,51 @@ export default function ReportForm() {
     longitude: DISTRICT.center.lng,
   });
 
+  // F-06: Image upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl]         = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading]       = useState(false);
+  const [uploadErr, setUploadErr]       = useState<string | null>(null);
+
+  const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setUploadErr("Solo se permiten imágenes."); return; }
+    if (file.size > 8 * 1024 * 1024)     { setUploadErr("Imagen demasiado grande (máx. 8 MB)."); return; }
+
+    setUploadErr(null);
+    setUploading(true);
+    setImagePreview(URL.createObjectURL(file));
+
+    try {
+      // Step 1: Get presigned upload URL
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!urlRes.ok) throw new Error("Error al obtener URL de subida.");
+      const { uploadURL, objectPath } = await urlRes.json();
+
+      // Step 2: PUT file directly to GCS presigned URL
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("Error al subir la imagen.");
+
+      // Store the serving URL — strip leading /objects/ then prefix with /api/storage/objects/
+      setImageUrl(`/api/storage/objects/${objectPath.replace(/^\/objects\//, "")}`);
+    } catch (err: any) {
+      setUploadErr(err.message ?? "Error al subir imagen.");
+      setImagePreview(null);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
   const isSensitive = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -149,6 +194,7 @@ export default function ReportForm() {
         contactPhone: formData.contactPhone || null,
         authorName: formData.isAnonymous ? "Anónimo" : (isLoggedIn && user?.name ? user.name : "Vecino de San Ramón"),
         district: selectedDistrict,
+        imageUrl: imageUrl ?? null,
       }
     }, {
       onSuccess: () => {
@@ -341,12 +387,43 @@ export default function ReportForm() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Foto (opcional)</label>
-                  <button type="button"
-                    className="w-full h-24 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-white/20 hover:bg-white/[0.02] transition-all">
-                    <Camera className="w-6 h-6 opacity-40" />
-                    <span className="text-xs">Toca para subir evidencia fotográfica</span>
-                  </button>
+                  <label className="block text-sm font-semibold text-white mb-2">Foto de evidencia (opcional)</label>
+                  {/* F-06: Real image upload via presigned URL */}
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                  {imagePreview ? (
+                    <div className="relative w-full rounded-xl overflow-hidden border border-white/10" style={{ maxHeight: 200 }}>
+                      <img src={imagePreview} alt="Vista previa" className="w-full object-cover" style={{ maxHeight: 200 }} />
+                      {uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                          <span className="text-white text-sm ml-2">Subiendo...</span>
+                        </div>
+                      )}
+                      {!uploading && (
+                        <button
+                          type="button"
+                          onClick={() => { setImagePreview(null); setImageUrl(null); setUploadErr(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center hover:bg-black/90"
+                        >
+                          <X className="w-4 h-4 text-white" />
+                        </button>
+                      )}
+                      {imageUrl && !uploading && (
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-green-500/20 border border-green-500/30 rounded-lg px-2 py-1">
+                          <ImageIcon className="w-3 h-3 text-green-400" />
+                          <span className="text-xs text-green-400">Imagen subida</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      className="w-full h-24 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/40 hover:bg-white/[0.02] transition-all">
+                      <Camera className="w-6 h-6 opacity-50" />
+                      <span className="text-xs">Toca para subir evidencia fotográfica</span>
+                      <span className="text-[10px] opacity-40">JPG, PNG o WEBP · máx. 8 MB</span>
+                    </button>
+                  )}
+                  {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr}</p>}
                 </div>
               </motion.div>
             )}

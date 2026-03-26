@@ -18,7 +18,7 @@ import { useGetStats } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 
 const seedDemoData = async (): Promise<{ seeded: boolean; message: string }> => {
-  const res = await fetch("/api/reports/seed", { method: "POST" });
+  const res = await fetch("/api/seed", { method: "POST" });
   if (!res.ok) throw new Error("seed failed");
   return res.json();
 };

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DistrictProvider } from "@/contexts/DistrictContext";
+import { usePanicAlertStream } from "@/lib/usePanicAlertStream";
 
 import { Layout } from "@/components/Layout";
 import Home from "@/pages/Home";
@@ -31,6 +32,12 @@ function Landing() {
   if (typeof window !== 'undefined') {
     window.location.replace('/home');
   }
+  return null;
+}
+
+// F-07: Global panic alert SSE listener — renders nothing, just subscribes for toasts + F-09 sounds
+function GlobalPanicStream() {
+  usePanicAlertStream();
   return null;
 }
 
@@ -88,6 +95,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>
+            <GlobalPanicStream />
             <Toaster />
           </DistrictProvider>
         </AuthProvider>

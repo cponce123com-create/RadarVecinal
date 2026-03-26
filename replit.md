@@ -32,7 +32,8 @@ artifacts-monorepo/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
+│   ├── db/                 # Drizzle ORM schema + DB connection
+│   └── object-storage-web/ # Replit object storage web client (upload hook)
 ├── scripts/                # Utility scripts
 │   └── src/seed.ts         # Database seed script
 ├── pnpm-workspace.yaml
@@ -85,13 +86,14 @@ Notable fields: `contactPhone` (nullable) on reports — admin-only, used for ca
 - **Category filters**: 14 scrollable pills in MapPage
 - **User location**: Geolocation with simulated fallback to San Ramón centro
 - **Sensitive categories**: informal_commerce, prostitution, drug_point, bar_trouble → auto-anonymous
+- **F-10 Zoom controls**: Custom `MapControls` component — +/- zoom buttons + locate button grouped at top-right (dark-themed, mobile-friendly; replaced Leaflet's default ZoomControl)
 
 ### Admin Panel Features (Admin.tsx)
 - KPI cards: total reports, active alerts, resolved today, users
 - Report table: icon, title, category, sector, time, status badge, action buttons
 - Action buttons: resolve ✓, review 👁, archive 🕐, delete 🗑, call ☎ (when contactPhone exists)
 - Delete confirmation modal
-- "Cargar datos demo" button → POST /api/reports/seed (fixes empty production DB)
+- "Cargar datos demo" button → POST /api/seed (fixes empty production DB)
 - Search/filter across reports and users
 - Users tab with roles
 - **Publicidad tab (B-26)**: Ad slots management — toggle active/inactive, CTR metrics (impressions, clicks), inline edit modal with all slot fields
@@ -146,8 +148,24 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `artifacts/api-server/src/routes/auth.ts` — JWT auth routes (register/login/me); secret from JWT_SECRET env or fallback dev secret
 - `artifacts/api-server/src/routes/` — All API route handlers
 
+### Real-time Features (F-07, F-09)
+- **Global SSE hook** (`usePanicAlertStream.ts`): Mounts in App.tsx via `<GlobalPanicStream />`, subscribes to `/api/panic-alerts/stream` from any page, shows toast notifications for every new panic alert, includes haversine distance to user
+- **Sound alerts** (F-09): Web Audio API tones generated in `usePanicAlertStream.ts` — robbery/fight: triple high beep (1200Hz); fire: siren sweep; medical: double low beep; other: single sine tone. AudioContext resumes on interaction before playing.
+
+### Image Upload (F-06)
+- **Replit Object Storage** (GCS-backed): Provisioned bucket `replit-objstore-861d06e1-9251-4c59-8628-adc0c0d3fdc9`
+- **API routes**: `POST /api/storage/uploads/request-url` (presigned URL), `GET /api/storage/objects/*` (serve objects)
+- **Frontend**: Two-step upload in ReportForm step 2 — POST metadata → get presigned URL → PUT file to GCS → store `/api/storage/objects/{path}` as imageUrl
+- **Preview**: shows local blob URL immediately while uploading; shows green "Imagen subida" badge on success; X button to remove
+
+### Route Security (F-03)
+- `PATCH /api/reports/:id` → `requireAuth` (any authenticated user)
+- `DELETE /api/reports/:id` → `requireAuth` + `requireAdmin` (admin/moderator only)
+- `requireAuth`/`requireAdmin` middleware in `artifacts/api-server/src/routes/auth.ts`
+
 ## Security Notes
 
 - Admin PIN: `"admin2024"` stored in sessionStorage key `radar_admin_unlocked`
 - Sensitive categories (prostitution, drug_point, bar_trouble, informal_commerce) are forced anonymous server-side
 - JWT expires in 30 days; secret from JWT_SECRET env variable (falls back to dev secret if unset)
+- PATCH/DELETE /api/reports require valid JWT; DELETE also requires admin/moderator role

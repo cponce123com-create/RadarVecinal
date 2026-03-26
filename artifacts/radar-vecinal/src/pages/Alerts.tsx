@@ -1,8 +1,10 @@
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldAlert, MapPin, Clock, CheckCircle2, AlertTriangle, Heart, Users, Flame, UserX, Zap } from "lucide-react";
+import { ShieldAlert, MapPin, Clock, CheckCircle2, AlertTriangle, Heart, Users, Flame, UserX, Zap, Wifi, WifiOff } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGetPanicAlerts } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PANIC_META: Record<string, { icon: any; label: string; color: string; bg: string }> = {
   robbery:        { icon: AlertTriangle, label: "Asalto en Progreso",       color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
@@ -14,19 +16,84 @@ const PANIC_META: Record<string, { icon: any; label: string; color: string; bg: 
 };
 
 export default function Alerts() {
-  const { data, isLoading } = useGetPanicAlerts();
+  const { data, isLoading, refetch } = useGetPanicAlerts();
+  const queryClient = useQueryClient();
   const alerts = data?.alerts ?? [];
+  const [sseConnected, setSseConnected] = useState(false);
+  const [newAlertFlash, setNewAlertFlash] = useState(false);
+  const esRef = useRef<EventSource | null>(null);
+
+  // B-13: Connect to SSE stream for real-time panic alerts
+  useEffect(() => {
+    const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    const url = `${BASE}/api/panic-alerts/stream`;
+
+    function connect() {
+      const es = new EventSource(url);
+      esRef.current = es;
+
+      es.onopen = () => setSseConnected(true);
+
+      es.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "new_alert") {
+            queryClient.invalidateQueries({ queryKey: ["panic-alerts"] });
+            setNewAlertFlash(true);
+            setTimeout(() => setNewAlertFlash(false), 3000);
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      es.onerror = () => {
+        setSseConnected(false);
+        es.close();
+        // Reconnect after 5 s
+        setTimeout(connect, 5000);
+      };
+    }
+
+    connect();
+    return () => { esRef.current?.close(); };
+  }, [queryClient]);
 
   return (
     <div className="max-w-3xl mx-auto pb-8 flex flex-col gap-5">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-1">
-          <ShieldAlert className="w-6 h-6 text-destructive" />
-          Alertas de Pánico
-        </h2>
-        <p className="text-sm text-muted-foreground">Emergencias activadas por vecinos en tiempo real.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-1">
+            <ShieldAlert className="w-6 h-6 text-destructive" />
+            Alertas de Pánico
+          </h2>
+          <p className="text-sm text-muted-foreground">Emergencias activadas por vecinos en tiempo real.</p>
+        </div>
+
+        {/* B-13: SSE connection indicator */}
+        <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+          sseConnected
+            ? "bg-green-500/10 text-green-400 border border-green-500/20"
+            : "bg-white/5 text-muted-foreground border border-white/8"
+        }`}>
+          {sseConnected
+            ? <><Wifi className="w-3 h-3" /> En vivo</>
+            : <><WifiOff className="w-3 h-3" /> Conectando...</>
+          }
+        </div>
       </div>
+
+      {/* New alert flash banner */}
+      {newAlertFlash && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/40 text-red-300 text-sm font-semibold"
+        >
+          <span className="w-2 h-2 rounded-full bg-destructive status-blink" />
+          ¡Nueva alerta de pánico recibida!
+        </motion.div>
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -49,7 +116,7 @@ export default function Alerts() {
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Sin alertas activas</h3>
           <p className="text-sm text-muted-foreground max-w-xs">
-            Todo tranquilo en el distrito. Cuando un vecino active el botón de pánico, aparecerá aquí.
+            Todo tranquilo en el distrito. Cuando un vecino active el botón de pánico, aparecerá aquí automáticamente.
           </p>
         </motion.div>
       )}
@@ -70,25 +137,18 @@ export default function Alerts() {
                 className="relative overflow-hidden rounded-xl border"
                 style={{ borderColor: `${meta.color}40`, background: `${meta.color}08` }}
               >
-                {/* Left accent bar */}
                 <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: meta.color }} />
 
                 <div className="pl-4 pr-4 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                  {/* Icon + Type */}
                   <div className="flex items-center gap-3 flex-1">
-                    <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: meta.bg }}
-                    >
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: meta.bg }}>
                       <Icon className="w-6 h-6" style={{ color: meta.color }} />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <h3 className="text-base font-bold text-white">{meta.label}</h3>
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full status-blink"
-                          style={{ color: meta.color, background: meta.bg }}
-                        >
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full status-blink"
+                          style={{ color: meta.color, background: meta.bg }}>
                           EN PROGRESO
                         </span>
                       </div>
@@ -98,7 +158,6 @@ export default function Alerts() {
                     </div>
                   </div>
 
-                  {/* Location + Time */}
                   <div className="flex flex-row sm:flex-col gap-3 sm:gap-1.5 sm:items-end text-xs text-muted-foreground ml-11 sm:ml-0">
                     <div className="flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
@@ -114,7 +173,6 @@ export default function Alerts() {
             );
           })}
 
-          {/* Separator for inactive */}
           {alerts.filter(a => !a.isActive).length > 0 && (
             <div className="flex items-center gap-3 py-1">
               <div className="flex-1 h-px bg-white/5" />
@@ -123,7 +181,6 @@ export default function Alerts() {
             </div>
           )}
 
-          {/* Inactive alerts */}
           {alerts.filter(a => !a.isActive).map((alert, i) => {
             const meta = PANIC_META[alert.type] ?? PANIC_META.other;
             const Icon = meta.icon;

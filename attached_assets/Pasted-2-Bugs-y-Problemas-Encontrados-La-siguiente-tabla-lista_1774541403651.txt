@@ -1,0 +1,17 @@
+2. Bugs y Problemas Encontrados
+La siguiente tabla lista todos los problemas detectados durante la auditoria del codigo fuente. Se incluyen bugs funcionales, problemas de seguridad, errores de UX y deuda tecnica.
+
+ID	Area	Severidad	Descripcion del Problema
+B-01	Seguridad / Auth	CRITICO	No existe sistema de autenticacion. Cualquier usuario puede hacer POST /api/reports, PATCH, DELETE sin ninguna verificacion de identidad. El campo authorName es un string libre sin validacion.
+B-02	Schema DB / DNI	CRITICO	El campo dni no existe en la tabla users del schema Drizzle. La funcionalidad de validacion por DNI unico (requerimiento clave del producto) esta completamente ausente a nivel de base de datos y API.
+B-03	Seguridad / SQL	CRITICO	Los filtros de query en GET /api/reports usan eq() con strings directamente del req.query sin validacion de enum. Un valor invalido como category='; DROP TABLE' puede causar errores inesperados o comportamiento inseguro.
+B-04	Admin / Auth	CRITICO	El panel de administracion en /admin no tiene ninguna proteccion de ruta. Cualquier usuario puede acceder, ver y modificar todos los reportes, cambiar estados y eliminar registros.
+B-05	Multitenancy	CRITICO	No existe segmentacion por distrito en ninguna query de la API. Todos los reportes de todos los distritos se mezclan en la misma respuesta. Esto es incompatible con el modelo de negocio B2B para municipalidades.
+B-06	Mobile / Responsive	ALTO	La tabla de reportes en /admin y /historial no adapta a mobile. Genera overflow horizontal visible en pantallas menores a 400px. Debe convertirse en tarjetas responsivas en breakpoints pequenos.
+B-07	Mobile / Layout	ALTO	En /home el grid de stats cards usa grid-cols-2 fijo sin ajuste para pantallas muy pequenas (320px). Los numeros de estadisticas se cortan. Necesita grid responsive con min-width apropiado.
+B-08	UX / Formulario	ALTO	El formulario de /reportar no valida campos en el frontend antes de enviar. Si la API falla, el usuario no recibe feedback claro. No hay estado de loading en el boton de submit ni manejo de errores de red.
+B-09	Mapa / UX	ALTO	El mapa en /mapa no muestra controles de zoom visibles en mobile. Los controles de Leaflet quedan fuera del viewport en pantallas pequenas. Falta boton de 'centrar en mi ubicacion' accesible.
+B-10	API / Validacion	ALTO	POST /api/reports no valida el body con Zod antes de insertar. Si llegan campos nulos o tipos incorrectos, Drizzle lanza un error 500 generico en lugar de un 400 con mensaje descriptivo para el usuario.
+B-11	Mapa / Tiles	ALTO	El modo radar usa canvas animado pero no muestra nombres de calles ni referencias geograficas reales. El usuario no puede orientarse. Debe integrar tiles de OSM con mayor nivel de detalle (zoom 15+).
+B-12	Anonimato / Logica	ALTO	Las categorias sensibles (prostitution, drug_point, bar_trouble, informal_commerce) tienen la logica de auto-anonimato mencionada en el replit.md, pero no se verifica server-side. Un cliente malicioso puede enviar isAnonymous=false para exponer al reportador.
+B-13	Alertas / Tiempo real	ALTO	Las alertas de panico en /alertas usan polling o carga inicial sin actualizacion en tiempo real. En una emergencia, los vecinos no veran nuevas alertas sin recargar la pagina. Falta WebSocket o SSE.

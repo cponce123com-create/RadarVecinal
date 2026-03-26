@@ -40,6 +40,7 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
+  dni: text("dni").unique(),
   role: userRoleEnum("role").notNull().default("user"),
   sector: text("sector").notNull().default(""),
   district: text("district").notNull().default("San Miguel"),

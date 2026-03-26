@@ -1,9 +1,34 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import { reportsTable, panicAlertsTable, missingPersonsTable, usersTable, adSlotsTable } from "@workspace/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// ── Allowed enum values (B-03: whitelist query params) ─────────────────────
+const VALID_CATEGORIES = new Set(["robbery","fight","suspicious","water_cut","garbage","informal_commerce","noise","missing_person","fire","medical_emergency","prostitution","drug_point","bar_trouble","other"]);
+const VALID_STATUSES   = new Set(["active","reviewing","resolved","archived"]);
+const VALID_URGENCIES  = new Set(["low","medium","high","critical"]);
+
+// ── B-12: categories that must always be anonymous ─────────────────────────
+const SENSITIVE_CATEGORIES = new Set(["prostitution","drug_point","bar_trouble","informal_commerce"]);
+
+// ── B-10: Zod schema for creating a report ─────────────────────────────────
+const createReportSchema = z.object({
+  title:       z.string().min(5, "Título demasiado corto").max(160),
+  description: z.string().min(10, "Descripción demasiado corta").max(2000),
+  category:    z.string().refine(v => VALID_CATEGORIES.has(v), "Categoría inválida"),
+  urgency:     z.string().refine(v => VALID_URGENCIES.has(v),  "Urgencia inválida"),
+  isAnonymous: z.boolean().optional().default(false),
+  latitude:    z.number().min(-90).max(90),
+  longitude:   z.number().min(-180).max(180),
+  address:     z.string().max(500).optional().default(""),
+  sector:      z.string().min(1, "Sector requerido").max(100),
+  imageUrl:    z.string().url().optional().nullable(),
+  authorName:  z.string().min(1).max(100),
+  contactPhone:z.string().max(20).optional().nullable(),
+});
 
 function formatReport(r: typeof reportsTable.$inferSelect) {
   return {
@@ -29,18 +54,29 @@ function formatReport(r: typeof reportsTable.$inferSelect) {
 
 router.get("/reports", async (req, res) => {
   try {
-    const conditions = [];
-    if (req.query.category) conditions.push(eq(reportsTable.category, req.query.category as string));
-    if (req.query.status) conditions.push(eq(reportsTable.status, req.query.status as string));
-    if (req.query.urgency) conditions.push(eq(reportsTable.urgency, req.query.urgency as string));
-    if (req.query.sector) conditions.push(eq(reportsTable.sector, req.query.sector as string));
+    // B-03: Validate enum query params against whitelist
+    const category = req.query.category as string | undefined;
+    const status   = req.query.status   as string | undefined;
+    const urgency  = req.query.urgency  as string | undefined;
 
-    const limit = parseInt(req.query.limit as string) || 200;
-    const offset = parseInt(req.query.offset as string) || 0;
+    if (category && !VALID_CATEGORIES.has(category)) return res.status(400).json({ error: `Categoría inválida: "${category}"` });
+    if (status   && !VALID_STATUSES.has(status))     return res.status(400).json({ error: `Estado inválido: "${status}"` });
+    if (urgency  && !VALID_URGENCIES.has(urgency))   return res.status(400).json({ error: `Urgencia inválida: "${urgency}"` });
+
+    const limitRaw  = parseInt(req.query.limit  as string);
+    const offsetRaw = parseInt(req.query.offset as string);
+    const limit  = isNaN(limitRaw)  || limitRaw  <= 0 ? 200 : Math.min(limitRaw, 500);
+    const offset = isNaN(offsetRaw) || offsetRaw < 0   ? 0   : offsetRaw;
+
+    const conditions = [];
+    if (category) conditions.push(eq(reportsTable.category, category as any));
+    if (status)   conditions.push(eq(reportsTable.status,   status   as any));
+    if (urgency)  conditions.push(eq(reportsTable.urgency,  urgency  as any));
+    if (req.query.sector) conditions.push(eq(reportsTable.sector, req.query.sector as string));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const reports = await db.select().from(reportsTable).where(where).orderBy(desc(reportsTable.createdAt)).limit(limit).offset(offset);
-    const total = await db.select({ count: sql<number>`count(*)` }).from(reportsTable).where(where);
+    const total   = await db.select({ count: sql<number>`count(*)` }).from(reportsTable).where(where);
 
     res.json({ reports: reports.map(formatReport), total: Number(total[0]?.count ?? 0) });
   } catch (err) {
@@ -51,19 +87,30 @@ router.get("/reports", async (req, res) => {
 
 router.post("/reports", async (req, res) => {
   try {
-    const data = req.body;
+    // B-10: Validate body with Zod — return 400 with descriptive errors
+    const parsed = createReportSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const messages = parsed.error.issues.map(i => i.message).join("; ");
+      return res.status(400).json({ error: `Datos inválidos: ${messages}` });
+    }
+    const data = parsed.data;
+
+    // B-12: Force anonymous for sensitive categories — regardless of client value
+    const forcedAnonymous = SENSITIVE_CATEGORIES.has(data.category) ? true : data.isAnonymous;
+    const authorName = forcedAnonymous ? "Anónimo" : data.authorName;
+
     const [report] = await db.insert(reportsTable).values({
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      urgency: data.urgency,
-      isAnonymous: data.isAnonymous ?? false,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      address: data.address ?? "",
-      sector: data.sector,
-      imageUrl: data.imageUrl ?? null,
-      authorName: data.authorName,
+      title:        data.title,
+      description:  data.description,
+      category:     data.category as any,
+      urgency:      data.urgency  as any,
+      isAnonymous:  forcedAnonymous,
+      latitude:     data.latitude,
+      longitude:    data.longitude,
+      address:      data.address ?? "",
+      sector:       data.sector,
+      imageUrl:     data.imageUrl ?? null,
+      authorName,
       contactPhone: data.contactPhone ?? null,
       confirmedCount: 0,
     }).returning();

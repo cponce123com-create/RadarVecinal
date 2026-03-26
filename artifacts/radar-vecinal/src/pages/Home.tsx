@@ -98,7 +98,8 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="flex gap-2 sm:gap-3">
+        {/* B-07: responsive KPI grid — shrinks gracefully on tiny screens */}
+        <div className="flex gap-1.5 sm:gap-3">
           {[
             { value: stats?.todayIncidents ?? "—", label: "Hoy", accent: false },
             { value: activeAlerts.length, label: "Alertas", accent: true },
@@ -110,7 +111,7 @@ export default function Home() {
               variants={cardVariants}
               initial="hidden"
               animate="visible"
-              className={`px-4 py-2.5 rounded-xl flex flex-col items-center min-w-[72px] border relative overflow-hidden ${
+              className={`px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl flex flex-col items-center min-w-[58px] sm:min-w-[72px] border relative overflow-hidden ${
                 kpi.accent
                   ? "bg-red-950/40 border-red-900/40"
                   : kpi.green
@@ -121,12 +122,12 @@ export default function Home() {
               {kpi.accent && (
                 <div className="absolute inset-0 bg-destructive/5 status-blink pointer-events-none" />
               )}
-              <span className={`text-2xl font-bold relative z-10 ${
+              <span className={`text-xl sm:text-2xl font-bold relative z-10 ${
                 kpi.accent ? "text-destructive" : kpi.green ? "text-green-400" : "text-white"
               }`}>
                 {kpi.value}
               </span>
-              <span className={`text-[10px] font-medium uppercase tracking-wide relative z-10 ${
+              <span className={`text-[9px] sm:text-[10px] font-medium uppercase tracking-wide relative z-10 ${
                 kpi.accent ? "text-red-400/70" : kpi.green ? "text-green-600" : "text-muted-foreground"
               }`}>
                 {kpi.label}

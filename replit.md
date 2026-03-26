@@ -13,7 +13,7 @@ pnpm workspace monorepo using TypeScript. Contains the **Radar Vecinal** citizen
 - **Frontend**: React + Vite + TailwindCSS + shadcn/ui (artifacts/radar-vecinal)
 - **Backend**: Express 5 (artifacts/api-server)
 - **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
+- **Validation**: Zod (import from `"zod"` — catalog resolves to v4), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Maps**: Leaflet + react-leaflet (OSM tiles, dark filter)
 - **Charts**: Recharts

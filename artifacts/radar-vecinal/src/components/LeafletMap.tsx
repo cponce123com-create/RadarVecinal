@@ -96,11 +96,11 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
       const maxR = Math.sqrt(cx * cx + cy * cy) * 1.1;
       const innerR = Math.min(cx, cy) * 0.9;
 
-      // Vignette
+      // Vignette — B-11: keep opacity low so OSM tile names remain readable
       const vignette = ctx.createRadialGradient(cx, cy, innerR * 0.3, cx, cy, maxR);
-      vignette.addColorStop(0, "rgba(4,8,22,0.18)");
-      vignette.addColorStop(0.6, "rgba(4,8,22,0.4)");
-      vignette.addColorStop(1,   "rgba(4,8,22,0.75)");
+      vignette.addColorStop(0, "rgba(4,8,22,0.05)");
+      vignette.addColorStop(0.6, "rgba(4,8,22,0.18)");
+      vignette.addColorStop(1,   "rgba(4,8,22,0.55)");
       ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, width, height);
 
@@ -444,7 +444,8 @@ export function LeafletMap({
           maxZoom={19}
         />
 
-        <ZoomControl position="topleft" />
+        {/* B-09: bottomright keeps zoom buttons visible on mobile (top area covered by filter pills) */}
+        <ZoomControl position="bottomright" />
 
         <LocateControl
           simulated={simulated}

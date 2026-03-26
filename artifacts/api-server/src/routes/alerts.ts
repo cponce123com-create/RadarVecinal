@@ -1,9 +1,19 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { db } from "@workspace/db";
 import { panicAlertsTable, missingPersonsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// ── B-13: SSE client registry for real-time panic alerts ───────────────────
+const sseClients = new Set<Response>();
+
+export function broadcastPanicAlert(payload: object) {
+  const data = `data: ${JSON.stringify(payload)}\n\n`;
+  for (const res of sseClients) {
+    try { res.write(data); } catch { sseClients.delete(res); }
+  }
+}
 
 function formatPanic(a: typeof panicAlertsTable.$inferSelect) {
   return {
@@ -37,10 +47,30 @@ function formatMissing(m: typeof missingPersonsTable.$inferSelect) {
   };
 }
 
+// B-13: SSE stream endpoint for real-time panic alerts
+router.get("/panic-alerts/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  res.write(": connected\n\n");
+
+  const keepAlive = setInterval(() => {
+    try { res.write(": ping\n\n"); } catch { clearInterval(keepAlive); }
+  }, 25000);
+
+  sseClients.add(res);
+
+  req.on("close", () => {
+    clearInterval(keepAlive);
+    sseClients.delete(res);
+  });
+});
+
 router.get("/panic-alerts", async (req, res) => {
   try {
-    const conditions = [];
-    if (req.query.active === "true") conditions.push(eq(panicAlertsTable.isActive, true));
     const alerts = await db.select().from(panicAlertsTable).orderBy(desc(panicAlertsTable.createdAt)).limit(50);
     res.json({ alerts: alerts.map(formatPanic) });
   } catch (err) {
@@ -61,7 +91,10 @@ router.post("/panic-alerts", async (req, res) => {
       sector: data.sector,
       isActive: true,
     }).returning();
-    res.status(201).json(formatPanic(alert));
+    const formatted = formatPanic(alert);
+    // B-13: Broadcast new alert to all SSE subscribers in real time
+    broadcastPanicAlert({ type: "new_alert", alert: formatted });
+    res.status(201).json(formatted);
   } catch (err) {
     req.log.error({ err }, "Failed to create panic alert");
     res.status(500).json({ error: "Internal server error" });

@@ -106,15 +106,24 @@ export default function ReportForm() {
     setFormData(prev => ({ ...prev, category: key, isAnonymous: sens ? true : prev.isAnonymous }));
   };
 
+  // B-08: inline validation state
+  const [showErrors, setShowErrors] = useState(false);
+
+  const titleTrimmed = formData.title.trim();
+  const descTrimmed  = formData.description.trim();
+  const titleErr  = !titleTrimmed ? "El título es obligatorio" : titleTrimmed.length < 5 ? "Mínimo 5 caracteres" : null;
+  const descErr   = !descTrimmed  ? "La descripción es obligatoria" : descTrimmed.length < 10 ? "Mínimo 10 caracteres" : null;
+
   const canAdvanceStep1 = !!formData.category;
-  const canAdvanceStep2 = !!formData.title.trim() && !!formData.description.trim();
+  const canAdvanceStep2 = !titleErr && !descErr;
 
   const handleNext = () => {
     if (step === 1 && !canAdvanceStep1) {
       toast({ title: "Selecciona una categoría", variant: "destructive" }); return;
     }
-    if (step === 2 && !canAdvanceStep2) {
-      toast({ title: "Completa título y descripción", variant: "destructive" }); return;
+    if (step === 2) {
+      setShowErrors(true);
+      if (!canAdvanceStep2) return;
     }
     setStep(s => s + 1);
   };
@@ -256,23 +265,62 @@ export default function ReportForm() {
                   </p>
                 </div>
 
+                {/* B-08: Title with inline validation */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Título breve <span className="text-destructive">*</span></label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-white">Título breve <span className="text-destructive">*</span></label>
+                    <span className={`text-[11px] tabular-nums transition-colors ${
+                      formData.title.length > 120 ? "text-orange-400" : "text-muted-foreground/50"
+                    }`}>
+                      {formData.title.length}/160
+                    </span>
+                  </div>
                   <input
                     type="text" name="title" value={formData.title} onChange={handleChange}
                     placeholder="Ej: Prostíbulo clandestino en Jr. Tarma"
-                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                    maxLength={160}
+                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none transition-colors ${
+                      showErrors && titleErr
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-primary"
+                    }`}
                   />
+                  {showErrors && titleErr && (
+                    <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {titleErr}
+                    </p>
+                  )}
+                  {!titleErr && titleTrimmed.length > 0 && (
+                    <p className="text-[11px] text-green-400/70 mt-1.5">✓ Título correcto</p>
+                  )}
                 </div>
 
+                {/* B-08: Description with inline validation */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Descripción <span className="text-destructive">*</span></label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-white">Descripción <span className="text-destructive">*</span></label>
+                    <span className={`text-[11px] tabular-nums transition-colors ${
+                      formData.description.length > 1800 ? "text-orange-400" : "text-muted-foreground/50"
+                    }`}>
+                      {formData.description.length}/2000
+                    </span>
+                  </div>
                   <textarea
                     name="description" value={formData.description} onChange={handleChange}
-                    placeholder="Describe qué observaste, horarios, personas involucradas, etc."
+                    placeholder="Describe qué observaste, horarios, personas involucradas, etc. (mín. 10 caracteres)"
                     rows={4}
-                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors resize-none"
+                    maxLength={2000}
+                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none transition-colors resize-none ${
+                      showErrors && descErr
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-primary"
+                    }`}
                   />
+                  {showErrors && descErr && (
+                    <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {descErr}
+                    </p>
+                  )}
                 </div>
 
                 <div>

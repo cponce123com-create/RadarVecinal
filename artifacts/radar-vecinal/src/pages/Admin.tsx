@@ -9,11 +9,77 @@ import { es } from "date-fns/locale";
 import {
   Shield, CheckCircle, XCircle, FileText,
   Users, AlertTriangle, Clock, Search,
-  Trash2, Phone, Database, RotateCcw, Eye
+  Trash2, Phone, Database, Eye, Lock, KeyRound
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useGetStats } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
+
+// B-04: Simple PIN gate — stored in session so it clears on tab close
+const ADMIN_PIN = "admin2024";
+const SESSION_KEY = "radar_admin_unlocked";
+
+function AdminPin({ onUnlock }: { onUnlock: () => void }) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin === ADMIN_PIN) {
+      sessionStorage.setItem(SESSION_KEY, "1");
+      onUnlock();
+    } else {
+      setError(true);
+      setPin("");
+      toast({ title: "PIN incorrecto", description: "Verifica el código de acceso.", variant: "destructive" });
+      setTimeout(() => setError(false), 1000);
+    }
+  };
+
+  return (
+    <div className="min-h-[70vh] flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-sm"
+      >
+        <div className={`rounded-2xl bg-card border p-8 flex flex-col items-center gap-5 transition-all ${error ? "border-red-500/60" : "border-white/8"}`}>
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+            <KeyRound className="w-7 h-7 text-accent" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-white mb-1">Acceso Restringido</h2>
+            <p className="text-sm text-muted-foreground">Ingresa el PIN de administrador para continuar.</p>
+          </div>
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
+            <input
+              type="password"
+              value={pin}
+              onChange={e => setPin(e.target.value)}
+              placeholder="PIN de acceso"
+              autoFocus
+              className={`w-full text-center text-xl font-bold tracking-[0.3em] bg-background border rounded-xl px-4 py-3 text-white placeholder:text-muted-foreground/40 focus:outline-none transition-colors ${
+                error ? "border-red-500/60 focus:border-red-500" : "border-white/10 focus:border-primary"
+              }`}
+            />
+            <button
+              type="submit"
+              disabled={pin.length < 4}
+              className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-40"
+            >
+              <Lock className="w-4 h-4 inline mr-2" />
+              Desbloquear panel
+            </button>
+          </form>
+          <p className="text-[10px] text-muted-foreground/40 text-center">
+            Solo personal autorizado de Radar Vecinal
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   active:    { label: "Activo",      color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
@@ -30,7 +96,7 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
 
 type Tab = "reports" | "users";
 
-export default function Admin() {
+function AdminPanel() {
   const [tab, setTab]             = useState<Tab>("reports");
   const [search, setSearch]       = useState("");
   const [deleteId, setDeleteId]   = useState<string | null>(null);
@@ -64,7 +130,7 @@ export default function Admin() {
     setSeeding(true);
     try {
       const res = await seedDemoData();
-      toast({ title: res.seeded ? "✅ Datos cargados" : "ℹ️ " + res.message, description: res.message });
+      toast({ title: res.seeded ? "Datos cargados" : "ℹ️ " + res.message, description: res.message });
       refetch();
     } catch {
       toast({ title: "Error al cargar datos", variant: "destructive" });
@@ -108,7 +174,6 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Seed button */}
         <button
           onClick={handleSeed}
           disabled={seeding}
@@ -173,175 +238,241 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* ── Reports Table ── */}
+      {/* ── Reports: desktop table / mobile cards (B-06) ── */}
       {tab === "reports" && (
-        <div className="rounded-xl bg-card border border-white/5 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Incidente</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest hidden md:table-cell">Sector</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest hidden lg:table-cell">Hace</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Estado</th>
-                  <th className="text-right px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/4">
-                {filteredReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground text-sm">
-                      <div className="flex flex-col items-center gap-2">
-                        <FileText className="w-8 h-8 text-muted-foreground/30" />
-                        <p>No se encontraron reportes.</p>
-                        <button onClick={handleSeed} className="text-primary text-xs hover:underline">
-                          Cargar datos demo →
-                        </button>
-                      </div>
-                    </td>
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block rounded-xl bg-card border border-white/5 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Incidente</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest hidden lg:table-cell">Sector</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest hidden lg:table-cell">Hace</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Estado</th>
+                    <th className="text-right px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Acciones</th>
                   </tr>
-                ) : filteredReports.map(r => {
-                  const catConfig = CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
-                  const dotColor = CAT_HEX[r.category] ?? "#6b7280";
-                  const status = STATUS_META[r.status] ?? STATUS_META.active;
-                  const Icon = catConfig?.icon;
-                  return (
-                    <tr key={r.id} className="hover:bg-white/[0.025] transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          {Icon
-                            ? <Icon className="w-4 h-4 flex-shrink-0" style={{ color: dotColor }} />
-                            : <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
-                          }
-                          <div className="min-w-0">
-                            <span className="font-medium text-white max-w-[200px] truncate block">{r.title}</span>
-                            <span className="text-[10px] text-muted-foreground/50">{catConfig?.label ?? r.category}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-muted-foreground hidden md:table-cell text-xs">{r.sector}</td>
-                      <td className="px-4 py-3.5 text-muted-foreground hidden lg:table-cell text-xs">
-                        {formatDistanceToNow(new Date(r.createdAt), { locale: es })}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ color: status.color, background: status.bg }}>
-                          {status.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-
-                          {/* Call button — only if report has a contact phone */}
-                          {(r as any).contactPhone && (
-                            <a
-                              href={`tel:${(r as any).contactPhone}`}
-                              title={`Llamar: ${(r as any).contactPhone}`}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/15 transition-colors"
-                            >
-                              <Phone className="w-4 h-4" />
-                            </a>
-                          )}
-
-                          {/* Resolve */}
-                          {r.status !== "resolved" && (
-                            <button
-                              onClick={() => handleStatus(r.id, ReportStatus.resolved)}
-                              title="Marcar como resuelto"
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-green-500 hover:bg-green-500/15 transition-colors"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Reviewing */}
-                          {r.status !== "reviewing" && r.status !== "resolved" && (
-                            <button
-                              onClick={() => handleStatus(r.id, ReportStatus.reviewing)}
-                              title="Poner en revisión"
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-yellow-500 hover:bg-yellow-500/15 transition-colors"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Archive */}
-                          {r.status === "resolved" && (
-                            <button
-                              onClick={() => handleStatus(r.id, ReportStatus.archived)}
-                              title="Archivar"
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-white/8 transition-colors"
-                            >
-                              <Clock className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Delete — with confirmation */}
-                          <button
-                            onClick={() => setDeleteId(r.id)}
-                            title="Eliminar reporte"
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/15 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
+                </thead>
+                <tbody className="divide-y divide-white/4">
+                  {filteredReports.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground text-sm">
+                        <div className="flex flex-col items-center gap-2">
+                          <FileText className="w-8 h-8 text-muted-foreground/30" />
+                          <p>No se encontraron reportes.</p>
+                          <button onClick={handleSeed} className="text-primary text-xs hover:underline">
+                            Cargar datos demo →
                           </button>
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ) : filteredReports.map(r => {
+                    const catConfig = CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
+                    const dotColor = CAT_HEX[r.category] ?? "#6b7280";
+                    const status = STATUS_META[r.status] ?? STATUS_META.active;
+                    const Icon = catConfig?.icon;
+                    return (
+                      <tr key={r.id} className="hover:bg-white/[0.025] transition-colors">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            {Icon
+                              ? <Icon className="w-4 h-4 flex-shrink-0" style={{ color: dotColor }} />
+                              : <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
+                            }
+                            <div className="min-w-0">
+                              <span className="font-medium text-white max-w-[220px] truncate block">{r.title}</span>
+                              <span className="text-[10px] text-muted-foreground/50">{catConfig?.label ?? r.category}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-muted-foreground hidden lg:table-cell text-xs">{r.sector}</td>
+                        <td className="px-4 py-3.5 text-muted-foreground hidden lg:table-cell text-xs">
+                          {formatDistanceToNow(new Date(r.createdAt), { locale: es })}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ color: status.color, background: status.bg }}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            {(r as any).contactPhone && (
+                              <a href={`tel:${(r as any).contactPhone}`} title={`Llamar: ${(r as any).contactPhone}`}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/15 transition-colors">
+                                <Phone className="w-4 h-4" />
+                              </a>
+                            )}
+                            {r.status !== "resolved" && (
+                              <button onClick={() => handleStatus(r.id, ReportStatus.resolved)} title="Marcar como resuelto"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-green-500 hover:bg-green-500/15 transition-colors">
+                                <CheckCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                            {r.status !== "reviewing" && r.status !== "resolved" && (
+                              <button onClick={() => handleStatus(r.id, ReportStatus.reviewing)} title="Poner en revisión"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-yellow-500 hover:bg-yellow-500/15 transition-colors">
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            )}
+                            {r.status === "resolved" && (
+                              <button onClick={() => handleStatus(r.id, ReportStatus.archived)} title="Archivar"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-white/8 transition-colors">
+                                <Clock className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button onClick={() => setDeleteId(r.id)} title="Eliminar reporte"
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/15 transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile cards (B-06) */}
+          <div className="md:hidden flex flex-col gap-2">
+            {filteredReports.length === 0 ? (
+              <div className="p-8 text-center rounded-xl bg-card border border-white/5 text-muted-foreground text-sm flex flex-col items-center gap-2">
+                <FileText className="w-7 h-7 text-muted-foreground/30" />
+                No se encontraron reportes.
+              </div>
+            ) : filteredReports.map(r => {
+              const catConfig = CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
+              const dotColor  = CAT_HEX[r.category] ?? "#6b7280";
+              const status    = STATUS_META[r.status] ?? STATUS_META.active;
+              const Icon      = catConfig?.icon;
+              return (
+                <div key={r.id} className="p-3.5 rounded-xl bg-card border border-white/5">
+                  <div className="flex items-start gap-2.5 mb-3">
+                    {Icon
+                      ? <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: dotColor }} />
+                      : <span className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={{ background: dotColor }} />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white text-sm leading-tight mb-0.5">{r.title}</p>
+                      <p className="text-[10px] text-muted-foreground/60">{r.sector} · {formatDistanceToNow(new Date(r.createdAt), { locale: es })}</p>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ color: status.color, background: status.bg }}>
+                      {status.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 border-t border-white/5 pt-2.5">
+                    {(r as any).contactPhone && (
+                      <a href={`tel:${(r as any).contactPhone}`}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors">
+                        <Phone className="w-3 h-3" /> Llamar
+                      </a>
+                    )}
+                    {r.status !== "resolved" && (
+                      <button onClick={() => handleStatus(r.id, ReportStatus.resolved)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-colors">
+                        <CheckCircle className="w-3 h-3" /> Resolver
+                      </button>
+                    )}
+                    {r.status !== "reviewing" && r.status !== "resolved" && (
+                      <button onClick={() => handleStatus(r.id, ReportStatus.reviewing)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors">
+                        <Eye className="w-3 h-3" /> Revisar
+                      </button>
+                    )}
+                    <button onClick={() => setDeleteId(r.id)}
+                      className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-red-400/70 bg-red-500/8 hover:bg-red-500/15 transition-colors">
+                      <Trash2 className="w-3 h-3" /> Eliminar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
-      {/* ── Users Table ── */}
+      {/* ── Users: desktop table / mobile cards (B-06) ── */}
       {tab === "users" && (
-        <div className="rounded-xl bg-card border border-white/5 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Usuario</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest hidden md:table-cell">Sector</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Rol</th>
-                  <th className="text-right px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Reportes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/4">
-                {filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground text-sm">No se encontraron usuarios</td>
+        <>
+          {/* Desktop */}
+          <div className="hidden md:block rounded-xl bg-card border border-white/5 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Usuario</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest hidden lg:table-cell">Sector</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Rol</th>
+                    <th className="text-right px-4 py-3 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Reportes</th>
                   </tr>
-                ) : filteredUsers.map(u => {
-                  const role = ROLE_META[u.role ?? "user"] ?? ROLE_META.user;
-                  return (
-                    <tr key={u.id} className="hover:bg-white/[0.025] transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white">
-                            {u.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-white truncate">{u.name}</p>
-                            <p className="text-[10px] text-muted-foreground/60 truncate">{u.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-muted-foreground hidden md:table-cell text-xs">{u.sector}</td>
-                      <td className="px-4 py-3.5">
-                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                          style={{ color: role.color, background: `${role.color}20` }}>
-                          {role.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right text-white font-semibold">{u.reportsCount ?? 0}</td>
+                </thead>
+                <tbody className="divide-y divide-white/4">
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground text-sm">No se encontraron usuarios</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ) : filteredUsers.map(u => {
+                    const role = ROLE_META[u.role ?? "user"] ?? ROLE_META.user;
+                    return (
+                      <tr key={u.id} className="hover:bg-white/[0.025] transition-colors">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white">
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-white truncate">{u.name}</p>
+                              <p className="text-[10px] text-muted-foreground/60 truncate">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-muted-foreground hidden lg:table-cell text-xs">{u.sector}</td>
+                        <td className="px-4 py-3.5">
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                            style={{ color: role.color, background: `${role.color}20` }}>
+                            {role.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right text-white font-semibold">{u.reportsCount ?? 0}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile cards (B-06) */}
+          <div className="md:hidden flex flex-col gap-2">
+            {filteredUsers.length === 0 ? (
+              <div className="p-8 text-center rounded-xl bg-card border border-white/5 text-muted-foreground text-sm">No se encontraron usuarios</div>
+            ) : filteredUsers.map(u => {
+              const role = ROLE_META[u.role ?? "user"] ?? ROLE_META.user;
+              return (
+                <div key={u.id} className="flex items-center gap-3 p-3.5 rounded-xl bg-card border border-white/5">
+                  <div className="w-10 h-10 rounded-full bg-white/8 flex items-center justify-center flex-shrink-0 text-sm font-bold text-white">
+                    {u.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-sm truncate">{u.name}</p>
+                    <p className="text-[10px] text-muted-foreground/60 truncate">{u.email}</p>
+                    <p className="text-[10px] text-muted-foreground/40">{u.sector}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ color: role.color, background: `${role.color}20` }}>
+                      {role.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{u.reportsCount ?? 0} rep.</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* ── Delete Confirmation Modal ── */}
@@ -371,20 +502,15 @@ export default function Admin() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-5">
-                ¿Estás seguro de que deseas eliminar este reporte permanentemente del sistema?
+                ¿Estás seguro de que deseas eliminar este reporte permanentemente?
               </p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setDeleteId(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-muted-foreground hover:text-white hover:border-white/20 transition-all"
-                >
+                <button onClick={() => setDeleteId(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-muted-foreground hover:text-white hover:border-white/20 transition-all">
                   Cancelar
                 </button>
-                <button
-                  onClick={() => handleDelete(deleteId)}
-                  disabled={deleteReport.isPending}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-sm font-bold text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50"
-                >
+                <button onClick={() => handleDelete(deleteId)} disabled={deleteReport.isPending}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-sm font-bold text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50">
                   {deleteReport.isPending
                     ? <span className="flex items-center justify-center gap-1.5"><div className="w-3.5 h-3.5 rounded-full border-2 border-red-400/30 border-t-red-400 animate-spin" /> Eliminando...</span>
                     : "Sí, eliminar"
@@ -397,4 +523,16 @@ export default function Admin() {
       </AnimatePresence>
     </div>
   );
+}
+
+export default function Admin() {
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) === "1"
+  );
+
+  if (!unlocked) {
+    return <AdminPin onUnlock={() => setUnlocked(true)} />;
+  }
+
+  return <AdminPanel />;
 }

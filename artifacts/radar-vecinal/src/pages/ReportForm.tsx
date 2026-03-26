@@ -8,6 +8,8 @@ import "leaflet/dist/leaflet.css";
 import { ReportCategory, ReportUrgency, useCreateReport } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, SECTORS, SENSITIVE_CATEGORIES, DISTRICT } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDistrict } from "@/contexts/DistrictContext";
 
 // Fix leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -69,6 +71,8 @@ function DraggableMarker({ position, onDrag }: {
 export default function ReportForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user, isLoggedIn } = useAuth();
+  const { selectedDistrict } = useDistrict();
   const createReport = useCreateReport();
 
   const [step, setStep] = useState(1);
@@ -143,7 +147,8 @@ export default function ReportForm() {
         address: formData.address,
         sector: formData.sector,
         contactPhone: formData.contactPhone || null,
-        authorName: formData.isAnonymous ? "Anónimo" : "Vecino de San Ramón",
+        authorName: formData.isAnonymous ? "Anónimo" : (isLoggedIn && user?.name ? user.name : "Vecino de San Ramón"),
+        district: selectedDistrict,
       }
     }, {
       onSuccess: () => {

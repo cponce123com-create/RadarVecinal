@@ -25,6 +25,7 @@ const createReportSchema = z.object({
   longitude:   z.number().min(-180).max(180),
   address:     z.string().max(500).optional().default(""),
   sector:      z.string().min(1, "Sector requerido").max(100),
+  district:    z.string().max(100).optional().default("San Ramón"),
   imageUrl:    z.string().url().optional().nullable(),
   authorName:  z.string().min(1).max(100),
   contactPhone:z.string().max(20).optional().nullable(),
@@ -32,23 +33,24 @@ const createReportSchema = z.object({
 
 function formatReport(r: typeof reportsTable.$inferSelect) {
   return {
-    id: String(r.id),
-    title: r.title,
-    description: r.description,
-    category: r.category,
-    urgency: r.urgency,
-    status: r.status,
-    isAnonymous: r.isAnonymous,
-    latitude: r.latitude,
-    longitude: r.longitude,
-    address: r.address,
-    sector: r.sector,
-    imageUrl: r.imageUrl ?? null,
-    authorName: r.authorName,
+    id:           String(r.id),
+    title:        r.title,
+    description:  r.description,
+    category:     r.category,
+    urgency:      r.urgency,
+    status:       r.status,
+    isAnonymous:  r.isAnonymous,
+    latitude:     r.latitude,
+    longitude:    r.longitude,
+    address:      r.address,
+    sector:       r.sector,
+    district:     r.district,
+    imageUrl:     r.imageUrl ?? null,
+    authorName:   r.authorName,
     contactPhone: r.contactPhone ?? null,
     confirmedCount: r.confirmedCount,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
+    createdAt:    r.createdAt.toISOString(),
+    updatedAt:    r.updatedAt.toISOString(),
   };
 }
 
@@ -72,7 +74,9 @@ router.get("/reports", async (req, res) => {
     if (category) conditions.push(eq(reportsTable.category, category as any));
     if (status)   conditions.push(eq(reportsTable.status,   status   as any));
     if (urgency)  conditions.push(eq(reportsTable.urgency,  urgency  as any));
-    if (req.query.sector) conditions.push(eq(reportsTable.sector, req.query.sector as string));
+    if (req.query.sector)   conditions.push(eq(reportsTable.sector,   req.query.sector   as string));
+    // B-05: District segmentation — filter by district if provided
+    if (req.query.district) conditions.push(eq(reportsTable.district, req.query.district as string));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const reports = await db.select().from(reportsTable).where(where).orderBy(desc(reportsTable.createdAt)).limit(limit).offset(offset);
@@ -109,6 +113,7 @@ router.post("/reports", async (req, res) => {
       longitude:    data.longitude,
       address:      data.address ?? "",
       sector:       data.sector,
+      district:     data.district ?? "San Ramón",
       imageUrl:     data.imageUrl ?? null,
       authorName,
       contactPhone: data.contactPhone ?? null,

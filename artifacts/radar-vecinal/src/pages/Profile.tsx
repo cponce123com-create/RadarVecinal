@@ -1,20 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings } from "lucide-react";
-
-const user = {
-  name: "Carlos Mendoza",
-  email: "carlos.m@gmail.com",
-  dni: "42516789",
-  role: "Vecino Verificado",
-  sector: "San Ramón Centro",
-  joinDate: "Ene 2025",
-  reportsCount: 14,
-  confirmedCount: 89,
-  trustScore: 98,
-  initials: "CM",
-};
+import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings, LogIn, UserCheck } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const MENU_ITEMS = [
   {
@@ -66,10 +54,27 @@ const cardVariants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07 } }),
 };
 
+// Placeholder user for unauthenticated view
+const DEMO_USER = {
+  name: "Vecino de San Ramón",
+  email: "",
+  dni: "",
+  role: "user",
+  sector: "San Ramón Centro",
+  district: "San Ramón",
+  reportsCount: 0,
+  isActive: true,
+  createdAt: new Date().toISOString(),
+  id: "",
+};
+
 export default function Profile() {
+  const { user: authUser, isLoggedIn, logout } = useAuth();
+  const user = authUser ?? DEMO_USER;
+
   const [dniVisible, setDniVisible] = useState(false);
   const [editDni, setEditDni] = useState(false);
-  const [dniInput, setDniInput] = useState(user.dni);
+  const [dniInput, setDniInput] = useState(user.dni ?? "");
   const [dniSaved, setDniSaved] = useState(true);
   const [dniError, setDniError] = useState("");
 
@@ -83,7 +88,12 @@ export default function Profile() {
     setEditDni(false);
   };
 
-  const maskedDni = `••••${user.dni.slice(-4)}`;
+  const initials = user.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() || "VR";
+  const joinDate = user.createdAt
+    ? new Intl.DateTimeFormat("es-PE", { month: "short", year: "numeric" }).format(new Date(user.createdAt))
+    : "—";
+  const roleLabel = user.role === "admin" ? "Administrador" : user.role === "moderator" ? "Moderador" : "Vecino Verificado";
+  const maskedDni = user.dni && user.dni.length >= 4 ? `••••${user.dni.slice(-4)}` : "Sin registrar";
 
   return (
     <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-5">
@@ -101,7 +111,7 @@ export default function Profile() {
           {/* Letter Avatar */}
           <div className="relative flex-shrink-0">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-primary/40 to-primary/10 border-2 border-primary/30 flex items-center justify-center shadow-[0_0_24px_hsl(217_100%_55%_/_0.2)]">
-              <span className="text-2xl sm:text-3xl font-bold text-white">{user.initials}</span>
+              <span className="text-2xl sm:text-3xl font-bold text-white">{initials}</span>
             </div>
             <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-card" />
           </div>
@@ -111,17 +121,17 @@ export default function Profile() {
               <h1 className="text-xl sm:text-2xl font-bold text-white">{user.name}</h1>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-[11px] font-semibold border border-primary/25 w-max mx-auto sm:mx-0">
                 <Shield className="w-3 h-3" />
-                {user.role}
+                {roleLabel}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">{user.sector} · Desde {user.joinDate}</p>
+            <p className="text-sm text-muted-foreground mb-4">{user.sector} · Desde {joinDate}</p>
 
             {/* Stats row */}
             <div className="flex justify-center sm:justify-start gap-2 sm:gap-3 flex-wrap">
               {[
-                { value: user.reportsCount,        label: "Reportes" },
-                { value: user.confirmedCount,       label: "Validaciones" },
-                { value: `${user.trustScore}%`,     label: "Confiabilidad", green: true },
+                { value: user.reportsCount ?? 0,  label: "Reportes" },
+                { value: isLoggedIn ? "—" : "—",  label: "Validaciones" },
+                { value: isLoggedIn ? "100%" : "—", label: "Confiabilidad", green: true },
               ].map(s => (
                 <div key={s.label} className="px-3 sm:px-4 py-2 rounded-xl bg-background border border-white/5 text-center min-w-[76px] sm:min-w-[88px]">
                   <p className={`text-lg sm:text-xl font-bold ${s.green ? "text-green-400" : "text-white"}`}>{s.value}</p>
@@ -196,7 +206,7 @@ export default function Profile() {
                     Guardar DNI
                   </button>
                   <button
-                    onClick={() => { setEditDni(false); setDniInput(user.dni); setDniError(""); }}
+                    onClick={() => { setEditDni(false); setDniInput(user.dni ?? ""); setDniError(""); }}
                     className="px-4 py-2 rounded-xl border border-white/10 text-sm text-muted-foreground hover:text-white hover:bg-white/6 transition-all"
                   >
                     Cancelar
@@ -231,7 +241,7 @@ export default function Profile() {
             <div>
               <label className="block text-xs font-semibold text-white/70 mb-1.5 uppercase tracking-wide">Correo electrónico</label>
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-background border border-white/8">
-                <span className="text-sm text-white/70 truncate">{user.email}</span>
+                <span className="text-sm text-white/70 truncate">{user.email || "—"}</span>
               </div>
             </div>
             <div>
@@ -284,19 +294,42 @@ export default function Profile() {
         })}
       </div>
 
-      {/* Sign out */}
+      {/* Sign out / Login CTA */}
       <motion.div custom={MENU_ITEMS.length} variants={cardVariants} initial="hidden" animate="visible">
-        <button className="w-full flex items-center gap-4 p-4 rounded-xl border border-red-900/25 bg-red-950/15 hover:bg-red-950/25 hover:border-red-800/40 transition-all group text-left">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-500/12">
-            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+        {isLoggedIn ? (
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-4 p-4 rounded-xl border border-red-900/25 bg-red-950/15 hover:bg-red-950/25 hover:border-red-800/40 transition-all group text-left"
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-500/12">
+              <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-400">Cerrar Sesión</p>
+              <p className="text-xs text-muted-foreground">Salir de tu cuenta actual</p>
+            </div>
+          </button>
+        ) : (
+          <div className="p-5 rounded-2xl bg-primary/8 border border-primary/20 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <UserCheck className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Crea tu cuenta vecinal</p>
+                <p className="text-xs text-muted-foreground">Reporta incidentes y gana confiabilidad</p>
+              </div>
+            </div>
+            <Link href="/home">
+              <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all">
+                <LogIn className="w-4 h-4" />
+                Iniciar sesión o registrarse
+              </button>
+            </Link>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-red-400">Cerrar Sesión</p>
-            <p className="text-xs text-muted-foreground">Salir de tu cuenta actual</p>
-          </div>
-        </button>
+        )}
       </motion.div>
     </div>
   );

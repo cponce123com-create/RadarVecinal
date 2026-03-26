@@ -57,17 +57,21 @@ artifacts-monorepo/
 
 ### API Routes (artifacts/api-server at /api)
 - `GET /api/healthz` — Health check
-- `GET/POST /api/reports` — Incident reports
+- `GET/POST /api/reports` — Incident reports (supports `?district=` filter)
 - `GET/PATCH /api/reports/:id` — Single report
 - `DELETE /api/reports/:id` — Delete report (admin)
 - `POST /api/seed` — Auto-seed demo data if DB has < 10 reports
 - `GET/POST /api/panic-alerts` — Panic alerts
+- `GET /api/panic-alerts/stream` — SSE stream for real-time panic alerts
 - `GET/POST /api/missing-persons` — Missing person alerts
 - `PATCH /api/missing-persons/:id` — Update missing person
 - `GET /api/stats` — Statistics
 - `GET /api/activity` — Activity feed
 - `GET /api/users` — Users (admin)
-- `GET /api-slots` — Ad slots
+- `GET /api/ad-slots` — Ad slots
+- `POST /api/auth/register` — Register new user (JWT)
+- `POST /api/auth/login` — Login (returns JWT, 30d expiry)
+- `GET /api/auth/me` — Get current user from Bearer token
 
 ### Database Schema (lib/db)
 Tables: `users`, `reports`, `panic_alerts`, `missing_persons`, `ad_slots`
@@ -116,7 +120,17 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 - `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for API)
 - `lib/db/src/schema/reports.ts` — All DB tables and enums
-- `artifacts/radar-vecinal/src/App.tsx` — Frontend router
-- `artifacts/radar-vecinal/src/components/Layout.tsx` — App shell with sidebar/bottom nav
+- `artifacts/radar-vecinal/src/App.tsx` — Frontend router (wraps with AuthProvider + DistrictProvider)
+- `artifacts/radar-vecinal/src/components/Layout.tsx` — App shell with sidebar/bottom nav (auth user card, district selector)
+- `artifacts/radar-vecinal/src/components/AuthModal.tsx` — Login/Register slide-up modal (JWT auth)
 - `artifacts/radar-vecinal/src/components/PanicModal.tsx` — Emergency panic button modal
+- `artifacts/radar-vecinal/src/contexts/AuthContext.tsx` — Auth state (user, isLoggedIn, login/logout/register); token in localStorage key `radar_token`
+- `artifacts/radar-vecinal/src/contexts/DistrictContext.tsx` — District selector state, 6 Chanchamayo districts; persisted in localStorage
+- `artifacts/api-server/src/routes/auth.ts` — JWT auth routes (register/login/me); secret from JWT_SECRET env or fallback dev secret
 - `artifacts/api-server/src/routes/` — All API route handlers
+
+## Security Notes
+
+- Admin PIN: `"admin2024"` stored in sessionStorage key `radar_admin_unlocked`
+- Sensitive categories (prostitution, drug_point, bar_trouble, informal_commerce) are forced anonymous server-side
+- JWT expires in 30 days; secret from JWT_SECRET env variable (falls back to dev secret if unset)

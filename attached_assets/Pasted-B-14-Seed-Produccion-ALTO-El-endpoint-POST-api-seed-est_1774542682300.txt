@@ -1,0 +1,13 @@
+B-14	Seed / Produccion	ALTO	El endpoint POST /api/seed esta expuesto publicamente sin autenticacion ni flag de entorno. En produccion, cualquier usuario puede resetear la base de datos con datos de prueba.
+B-15	Users / Conteo	ALTO	El campo reports_count en la tabla users no se actualiza automaticamente al crear un reporte. No existe trigger ni logica en la API que incremente el contador. Siempre muestra 0.
+B-16	Notificaciones	ALTO	La pagina /notificaciones existe en el frontend pero no tiene endpoint en la API. No hay tabla de notificaciones en el schema. La pantalla muestra datos estaticos o vacios.
+B-17	Missing Persons	ALTO	El formulario de /menor-perdido no solicita foto del archivo local. imageUrl se envia como URL externa, pero no hay sistema de upload de imagenes. En produccion los vecinos no pueden adjuntar fotos reales.
+B-18	Rate Limiting	MEDIO	La API no tiene rate limiting. Un atacante puede hacer spam de alertas de panico o reportes falsos masivamente sin ninguna restriccion. Agregar express-rate-limit con limites por IP.
+B-19	CORS / Headers	MEDIO	No se configuran headers de seguridad HTTP (CSP, X-Frame-Options, HSTS). El servidor Express no tiene helmet.js instalado. Riesgo de XSS y clickjacking.
+B-20	Confirmar Reporte	MEDIO	El campo confirmedCount existe en el schema pero no hay endpoint para que un vecino pueda confirmar un reporte. POST /api/reports/:id/confirm no existe en la API ni en el OpenAPI spec.
+B-21	Delete Reports	MEDIO	DELETE /api/reports/:id no esta en el OpenAPI spec ni en el cliente generado (api.ts), pero si existe en el servidor. El cliente generado no lo expone, generando inconsistencia entre spec y realidad.
+B-22	Perfil / Datos	MEDIO	La pagina /perfil muestra datos del usuario pero no tiene formulario para editarlos. PATCH /api/users/:id no esta en la spec. El usuario no puede cambiar su nombre, sector ni datos de contacto.
+B-23	Estadisticas / Fecha	MEDIO	Los graficos en /estadisticas usan datos del endpoint /api/stats pero no tienen filtro de rango de fechas en la UI. El usuario no puede ver tendencias por semana, mes o ano personalizado.
+B-24	Empty States	MEDIO	Varias pantallas (/alertas, /menor-perdido, /historial) no tienen empty states cuando no hay datos. Se muestra una lista vacia sin mensaje, icono ni call-to-action que oriente al usuario.
+B-25	Paginacion	MEDIO	GET /api/reports soporta limit/offset pero el frontend no implementa paginacion visible. Con muchos reportes en produccion, la carga inicial sera lenta y el scroll infinito no funciona.
+B-26	Ad Slots / UI	MEDIO	La tabla ad_slots existe en el schema y hay un endpoint GET /api-slots, pero no hay UI para gestionar publicidad en el admin panel. El modelo de monetizacion esta incompleto.

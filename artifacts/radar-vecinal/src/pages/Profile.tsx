@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
-import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings, LogIn, UserCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings, LogIn, UserCheck, Edit3, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+
+const SECTORS = [
+  "San Ramón Centro", "Bajo Kimiri", "Alto Kimiri", "Zona Industrial", "Pampa del Carmen", "La Oroya", "Pueblo Joven",
+];
 
 const MENU_ITEMS = [
   {
@@ -70,6 +75,7 @@ const DEMO_USER = {
 
 export default function Profile() {
   const { user: authUser, isLoggedIn, logout } = useAuth();
+  const { toast } = useToast();
   const user = authUser ?? DEMO_USER;
 
   const [dniVisible, setDniVisible] = useState(false);
@@ -77,6 +83,11 @@ export default function Profile() {
   const [dniInput, setDniInput] = useState(user.dni ?? "");
   const [dniSaved, setDniSaved] = useState(true);
   const [dniError, setDniError] = useState("");
+
+  // B-22: Profile edit form
+  const [editProfile, setEditProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: user.name, sector: user.sector });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const handleDniSave = () => {
     if (!/^\d{8}$/.test(dniInput)) {
@@ -88,7 +99,30 @@ export default function Profile() {
     setEditDni(false);
   };
 
-  const initials = user.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() || "VR";
+  const handleProfileSave = async () => {
+    if (!profileForm.name.trim()) {
+      toast({ title: "El nombre no puede estar vacío.", variant: "destructive" }); return;
+    }
+    setSavingProfile(true);
+    try {
+      if (isLoggedIn && user.id) {
+        const token = localStorage.getItem("radar_token");
+        await fetch(`/api/users/${user.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ name: profileForm.name, sector: profileForm.sector }),
+        });
+      }
+      toast({ title: "Perfil actualizado", description: "Tus datos han sido guardados." });
+      setEditProfile(false);
+    } catch {
+      toast({ title: "Error al guardar", variant: "destructive" });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const initials = (profileForm.name || user.name).split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() || "VR";
   const joinDate = user.createdAt
     ? new Intl.DateTimeFormat("es-PE", { month: "short", year: "numeric" }).format(new Date(user.createdAt))
     : "—";
@@ -118,13 +152,22 @@ export default function Profile() {
 
           <div className="flex-1 text-center sm:text-left w-full">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1 justify-center sm:justify-start">
-              <h1 className="text-xl sm:text-2xl font-bold text-white">{user.name}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white">{profileForm.name || user.name}</h1>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-[11px] font-semibold border border-primary/25 w-max mx-auto sm:mx-0">
                 <Shield className="w-3 h-3" />
                 {roleLabel}
               </span>
+              {isLoggedIn && (
+                <button
+                  onClick={() => setEditProfile(true)}
+                  className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground hover:text-white px-2 py-1 rounded-lg hover:bg-white/6 transition-all"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  Editar
+                </button>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground mb-4">{user.sector} · Desde {joinDate}</p>
+            <p className="text-sm text-muted-foreground mb-4">{profileForm.sector || user.sector} · Desde {joinDate}</p>
 
             {/* Stats row */}
             <div className="flex justify-center sm:justify-start gap-2 sm:gap-3 flex-wrap">
@@ -293,6 +336,78 @@ export default function Profile() {
           return item.href ? <Link href={item.href} key={item.label}>{inner}</Link> : <div key={item.label}>{inner}</div>;
         })}
       </div>
+
+      {/* B-22: Edit Profile Modal */}
+      <AnimatePresence>
+        {editProfile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setEditProfile(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-[#0f1219] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Edit3 className="w-4 h-4 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-white">Editar perfil</h3>
+                </div>
+                <button onClick={() => setEditProfile(false)} className="text-muted-foreground hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-white/70 mb-1.5">Nombre completo</label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Tu nombre"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/8 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/70 mb-1.5">Sector</label>
+                  <select
+                    value={profileForm.sector}
+                    onChange={e => setProfileForm(p => ({ ...p, sector: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/8 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors appearance-none"
+                  >
+                    {SECTORS.map(s => (
+                      <option key={s} value={s} className="bg-[#0f1219]">{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setEditProfile(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-muted-foreground hover:text-white transition-all">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleProfileSave}
+                  disabled={savingProfile}
+                  className="flex-1 py-2.5 rounded-xl bg-primary/20 border border-primary/40 text-sm font-bold text-primary hover:bg-primary/30 transition-all disabled:opacity-50"
+                >
+                  {savingProfile ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Sign out / Login CTA */}
       <motion.div custom={MENU_ITEMS.length} variants={cardVariants} initial="hidden" animate="visible">

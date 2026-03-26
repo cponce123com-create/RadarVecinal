@@ -119,6 +119,21 @@ router.post("/reports", async (req, res) => {
       contactPhone: data.contactPhone ?? null,
       confirmedCount: 0,
     }).returning();
+
+    // B-15: Auto-increment reportsCount for the authenticated user
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const { verifyToken } = await import("./auth");
+        const payload = verifyToken(authHeader.slice(7));
+        if (payload?.id) {
+          await db.update(usersTable)
+            .set({ reportsCount: sql`${usersTable.reportsCount} + 1` })
+            .where(eq(usersTable.id, Number(payload.id)));
+        }
+      } catch { /* ignore — unauthenticated reports are allowed */ }
+    }
+
     res.status(201).json(formatReport(report));
   } catch (err) {
     req.log.error({ err }, "Failed to create report");
@@ -166,8 +181,37 @@ router.delete("/reports/:id", async (req, res) => {
   }
 });
 
+// ── B-20: Confirm a report ─────────────────────────────────────────────────
+router.post("/reports/:id/confirm", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+
+    const [report] = await db
+      .update(reportsTable)
+      .set({ confirmedCount: sql`${reportsTable.confirmedCount} + 1`, updatedAt: new Date() })
+      .where(eq(reportsTable.id, id))
+      .returning();
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado" });
+    res.json(formatReport(report));
+  } catch (err) {
+    req.log.error({ err }, "Failed to confirm report");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // ── Auto-seed demo data (50 reportes — 3 meses de vecinos de San Ramón) ────
+// B-14: Only allowed in development or with the admin seed header
 router.post("/seed", async (req, res) => {
+  const isDev = process.env["NODE_ENV"] === "development";
+  const seedHeader = req.headers["x-seed-key"];
+  const seedKey = process.env["SEED_KEY"];
+  const hasKey = seedKey && seedHeader === seedKey;
+
+  if (!isDev && !hasKey) {
+    return res.status(403).json({ error: "Acceso denegado. Solo disponible en entorno de desarrollo." });
+  }
   try {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(reportsTable);
     if (Number(count) >= 5) {

@@ -142,6 +142,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Report"
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete a report (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Report deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+                required:
+                  - success
+                  - id
+
+  /reports/{id}/confirm:
+    post:
+      operationId: confirmReport
+      tags: [reports]
+      summary: Confirm a report (increment confirmedCount)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Report confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
 
   /panic-alerts:
     get:
@@ -309,6 +353,54 @@ paths:
                       $ref: "#/components/schemas/User"
                 required:
                   - users
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserInput"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /notifications:
+    get:
+      operationId: getNotifications
+      tags: [users]
+      summary: Get notifications for current user
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  unreadCount:
+                    type: number
+                required:
+                  - notifications
+                  - unreadCount
 
   /ad-slots:
     get:
@@ -785,3 +877,39 @@ components:
         - tagline
         - targetUrl
         - isActive
+
+    UpdateUserInput:
+      type: object
+      properties:
+        name:
+          type: string
+        sector:
+          type: string
+        district:
+          type: string
+        dni:
+          type: string
+          nullable: true
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - title
+        - body
+        - read
+        - createdAt

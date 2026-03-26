@@ -14,7 +14,7 @@ export default function MissingPerson() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "",
+    name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", imageUrl: "",
   });
 
   const set = (field: string, value: string) =>
@@ -29,8 +29,9 @@ export default function MissingPerson() {
         clothing: formData.clothing,
         lastSeenAddress: formData.lastSeenAddress,
         contactInfo: formData.contactInfo,
-        lastSeenLatitude: -12.07,
-        lastSeenLongitude: -77.09,
+        photoUrl: formData.imageUrl || null,
+        lastSeenLatitude: -11.1272,
+        lastSeenLongitude: -75.3548,
         lastSeenAt: new Date().toISOString(),
         reportedBy: "Usuario Local",
       }
@@ -38,7 +39,7 @@ export default function MissingPerson() {
       onSuccess: () => {
         toast({ title: "Alerta publicada", description: "La red vecinal ha sido notificada." });
         setShowForm(false);
-        setFormData({ name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "" });
+        setFormData({ name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", imageUrl: "" });
       },
       onError: () => {
         toast({ title: "Error al publicar", variant: "destructive" });
@@ -116,6 +117,27 @@ export default function MissingPerson() {
                     <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground" />
                     <input required type="tel" value={formData.contactInfo} onChange={e => set("contactInfo", e.target.value)} placeholder="999 999 999" className={`${INPUT_CLASS} pl-10`} />
                   </div>
+                </div>
+                {/* B-17: Photo URL field */}
+                <div>
+                  <label className="block text-xs font-semibold text-white/80 mb-1.5">Foto (URL de imagen)</label>
+                  <input
+                    type="url"
+                    value={formData.imageUrl}
+                    onChange={e => set("imageUrl", e.target.value)}
+                    placeholder="https://ejemplo.com/foto.jpg (opcional)"
+                    className={INPUT_CLASS}
+                  />
+                  {formData.imageUrl && (
+                    <div className="mt-2 rounded-xl overflow-hidden h-32 bg-white/5 border border-white/8">
+                      <img
+                        src={formData.imageUrl}
+                        alt="Vista previa"
+                        className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-3 pt-2 border-t border-white/5">
                   <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/6 rounded-xl transition-all">

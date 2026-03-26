@@ -162,6 +162,56 @@ export const UpdateReportResponse = zod.object({
 });
 
 /**
+ * @summary Delete a report (admin)
+ */
+export const DeleteReportParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteReportResponse = zod.object({
+  success: zod.boolean(),
+  id: zod.string(),
+});
+
+/**
+ * @summary Confirm a report (increment confirmedCount)
+ */
+export const ConfirmReportParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ConfirmReportResponse = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  description: zod.string(),
+  category: zod.enum([
+    "robbery",
+    "fight",
+    "suspicious",
+    "water_cut",
+    "garbage",
+    "informal_commerce",
+    "noise",
+    "missing_person",
+    "fire",
+    "medical_emergency",
+    "other",
+  ]),
+  urgency: zod.enum(["low", "medium", "high", "critical"]),
+  status: zod.enum(["active", "reviewing", "resolved", "archived"]),
+  isAnonymous: zod.boolean(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  address: zod.string().optional(),
+  sector: zod.string(),
+  imageUrl: zod.string().nullish(),
+  authorName: zod.string(),
+  confirmedCount: zod.number(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
  * @summary Get all panic alerts
  */
 export const GetPanicAlertsQueryParams = zod.object({
@@ -350,6 +400,49 @@ export const GetUsersResponse = zod.object({
       createdAt: zod.string(),
     }),
   ),
+});
+
+/**
+ * @summary Update user profile
+ */
+export const UpdateUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateUserBody = zod.object({
+  name: zod.string().optional(),
+  sector: zod.string().optional(),
+  district: zod.string().optional(),
+  dni: zod.string().nullish(),
+});
+
+export const UpdateUserResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "moderator", "user"]),
+  sector: zod.string(),
+  district: zod.string(),
+  isActive: zod.boolean(),
+  reportsCount: zod.number(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Get notifications for current user
+ */
+export const GetNotificationsResponse = zod.object({
+  notifications: zod.array(
+    zod.object({
+      id: zod.string(),
+      type: zod.string(),
+      title: zod.string(),
+      body: zod.string(),
+      read: zod.boolean(),
+      createdAt: zod.string(),
+    }),
+  ),
+  unreadCount: zod.number(),
 });
 
 /**

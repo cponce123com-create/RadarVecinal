@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, adSlotsTable } from "@workspace/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -23,6 +24,76 @@ router.get("/users", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get users");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// B-22: Update user profile (name, sector, district, dni)
+const patchUserSchema = z.object({
+  name:     z.string().min(2).max(100).optional(),
+  sector:   z.string().max(100).optional(),
+  district: z.string().max(100).optional(),
+  dni:      z.string().regex(/^\d{8}$/, "DNI debe tener 8 dígitos").optional().nullable(),
+});
+
+router.patch("/users/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+
+    const parsed = patchUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+    }
+
+    const updates: Partial<typeof usersTable.$inferInsert> = {};
+    if (parsed.data.name     !== undefined) updates.name     = parsed.data.name;
+    if (parsed.data.sector   !== undefined) updates.sector   = parsed.data.sector;
+    if (parsed.data.district !== undefined) updates.district = parsed.data.district;
+    if (parsed.data.dni      !== undefined) updates.dni      = parsed.data.dni ?? undefined;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "Sin campos para actualizar" });
+    }
+
+    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    res.json({
+      id: String(user.id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      sector: user.sector,
+      district: user.district,
+      dni: user.dni ?? null,
+      isActive: user.isActive,
+      reportsCount: user.reportsCount,
+      createdAt: user.createdAt.toISOString(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update user");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// B-16: Notifications — global activity-based notifications
+router.get("/notifications", async (_req, res) => {
+  try {
+    res.json({
+      notifications: [
+        {
+          id: "notif-system-1",
+          type: "system",
+          title: "Bienvenido a Radar Vecinal",
+          body: "Activa las alertas de pánico para recibir notificaciones en tiempo real.",
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      unreadCount: 1,
+    });
+  } catch (err) {
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Clock, MapPin } from "lucide-react";
+import { Search, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
@@ -29,9 +29,12 @@ const CATEGORY_FILTERS = [
   { id: ReportCategory.other, label: "Otros" },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function History() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useGetReports();
 
   const filtered = (data?.reports ?? []).filter(r => {
@@ -43,6 +46,15 @@ export default function History() {
     const matchCat = category === "all" || r.category === category;
     return matchSearch && matchCat;
   });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleFilterChange = (newSearch: string, newCat: string) => {
+    setPage(1);
+    if (newSearch !== undefined) setSearch(newSearch);
+    if (newCat !== undefined) setCategory(newCat);
+  };
 
   return (
     <div className="max-w-4xl mx-auto pb-8 flex flex-col gap-5">
@@ -62,7 +74,7 @@ export default function History() {
             type="text"
             placeholder="Buscar incidentes..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-card border border-white/8 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           />
         </div>
@@ -76,7 +88,7 @@ export default function History() {
           return (
             <button
               key={f.id}
-              onClick={() => setCategory(f.id)}
+              onClick={() => { setCategory(f.id); setPage(1); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-all ${
                 active
                   ? "text-white"
@@ -122,7 +134,7 @@ export default function History() {
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {filtered.map((report, i) => {
+          {paginated.map((report, i) => {
             const config = CATEGORY_CONFIG[report.category as keyof typeof CATEGORY_CONFIG];
             const Icon = config?.icon;
             const color = CATEGORY_COLORS[report.category] ?? "#6b7280";
@@ -178,6 +190,57 @@ export default function History() {
             );
           })}
         </div>
+      )}
+
+      {/* B-25: Pagination */}
+      {totalPages > 1 && !isLoading && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="w-9 h-9 rounded-xl bg-card border border-white/8 flex items-center justify-center text-muted-foreground hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p =>
+            p === 1 || p === totalPages || Math.abs(p - page) <= 1
+          ).reduce<(number | "...")[]>((acc, p, idx, arr) => {
+            if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+            acc.push(p);
+            return acc;
+          }, []).map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground/50 px-1">…</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => setPage(p as number)}
+                className={`w-9 h-9 rounded-xl text-sm font-medium transition-all ${
+                  page === p
+                    ? "bg-primary text-white"
+                    : "bg-card border border-white/8 text-muted-foreground hover:text-white hover:border-white/20"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="w-9 h-9 rounded-xl bg-card border border-white/8 flex items-center justify-center text-muted-foreground hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {totalPages > 1 && !isLoading && (
+        <p className="text-center text-[11px] text-muted-foreground/50">
+          Página {page} de {totalPages} · {filtered.length} incidentes
+        </p>
       )}
     </div>
   );

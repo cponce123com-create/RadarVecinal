@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, BellOff, AlertTriangle, CheckCircle2, UserX, ShieldAlert,
@@ -8,6 +8,7 @@ import {
 import { formatDistanceToNow, isToday, isYesterday, subDays, isAfter } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { useGetNotifications } from "@workspace/api-client-react";
 
 type NotifType = "panic" | "confirmation" | "missing" | "update" | "system" | "fire";
 type NotifFilter = "all" | "unread" | "alerts" | "system";
@@ -153,6 +154,26 @@ export default function Notifications() {
   const [notifs, setNotifs] = useState<Notification[]>(DEMO_NOTIFS);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const { data: apiNotifs } = useGetNotifications();
+
+  // B-16: Merge API system notifications into local state
+  useEffect(() => {
+    if (!apiNotifs?.notifications?.length) return;
+    setNotifs(prev => {
+      const existingIds = new Set(prev.map(n => n.id));
+      const merged = apiNotifs.notifications
+        .filter((n: any) => !existingIds.has(n.id))
+        .map((n: any) => ({
+          id: n.id,
+          type: (n.type ?? "system") as NotifType,
+          title: n.title ?? "Notificación del sistema",
+          body: n.message ?? "",
+          time: new Date(n.createdAt ?? Date.now()),
+          read: false,
+        }));
+      return merged.length > 0 ? [...merged, ...prev] : prev;
+    });
+  }, [apiNotifs]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
 

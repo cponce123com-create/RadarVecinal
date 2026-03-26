@@ -23,9 +23,6 @@ export const ReportCategory = {
   missing_person: "missing_person",
   fire: "fire",
   medical_emergency: "medical_emergency",
-  prostitution: "prostitution",
-  drug_point: "drug_point",
-  bar_trouble: "bar_trouble",
   other: "other",
 } as const;
 
@@ -61,7 +58,6 @@ export interface Report {
   sector: string;
   imageUrl?: string | null;
   authorName: string;
-  contactPhone?: string | null;
   confirmedCount: number;
   createdAt: string;
   updatedAt: string;
@@ -79,7 +75,6 @@ export interface CreateReportInput {
   sector: string;
   imageUrl?: string | null;
   authorName: string;
-  contactPhone?: string | null;
 }
 
 export interface UpdateReportInput {
@@ -249,6 +244,22 @@ export interface AdSlot {
   sector?: string | null;
 }
 
+export interface UpdateUserInput {
+  name?: string;
+  sector?: string;
+  district?: string;
+  dni?: string | null;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export type GetReportsParams = {
   category?: string;
   status?: string;
@@ -261,6 +272,11 @@ export type GetReportsParams = {
 export type GetReports200 = {
   reports: Report[];
   total: number;
+};
+
+export type DeleteReport200 = {
+  success: boolean;
+  id: string;
 };
 
 export type GetPanicAlertsParams = {
@@ -289,6 +305,11 @@ export type GetActivity200 = {
 
 export type GetUsers200 = {
   users: User[];
+};
+
+export type GetNotifications200 = {
+  notifications: Notification[];
+  unreadCount: number;
 };
 
 export type GetAdSlots200 = {

@@ -91,9 +91,26 @@ Notable fields: `contactPhone` (nullable) on reports — admin-only, used for ca
 - Report table: icon, title, category, sector, time, status badge, action buttons
 - Action buttons: resolve ✓, review 👁, archive 🕐, delete 🗑, call ☎ (when contactPhone exists)
 - Delete confirmation modal
-- "Cargar datos demo" button → POST /api/seed (fixes empty production DB)
+- "Cargar datos demo" button → POST /api/reports/seed (fixes empty production DB)
 - Search/filter across reports and users
 - Users tab with roles
+- **Publicidad tab (B-26)**: Ad slots management — toggle active/inactive, CTR metrics (impressions, clicks), inline edit modal with all slot fields
+
+### Stats (estadisticas) Features (Stats.tsx)
+- **Period selector (B-23)**: 4 buttons — 7 días, 30 días, 3 meses, 1 año (default 30d); KPI cards and category chart filtered by selected period using client-side computation from full reports list
+- Per-category bar chart filtered by period; top sectors bar list filtered by period
+
+### History (historial) Features (History.tsx)
+- **Pagination (B-25)**: 20 reports per page; prev/next buttons, page number pills with ellipsis, "Página X de Y · N incidentes" footer; resets to page 1 on filter/search change
+
+### Missing Persons (menor-perdido) Features (MissingPerson.tsx)
+- **Photo URL field (B-17)**: Optional URL input with live image preview (preview hidden on load error); coordinates set to San Ramón, Chanchamayo
+
+### Profile (perfil) Features (Profile.tsx)
+- **Edit form (B-22)**: "Editar" button (desktop) opens modal with name text field and sector dropdown (7 sectors); saves via PATCH /api/users/:id with Bearer token; guest mode shows demo profile without edit button
+
+### Notifications Features (Notifications.tsx)
+- **Backend connection (B-16)**: Calls GET /api/notifications on mount; merges API system notifications (by id deduplication) into local DEMO_NOTIFS state; new API notifications prepended as unread
 
 ### Visual Identity
 - Dark carbon/navy backgrounds

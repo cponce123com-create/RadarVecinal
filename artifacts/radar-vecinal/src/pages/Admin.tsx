@@ -1,19 +1,27 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  useGetReports, useUpdateReport, useDeleteReport, seedDemoData,
+  useGetReports, useUpdateReport, useDeleteReport,
   ReportStatus, useGetUsers
 } from "@workspace/api-client-react";
+
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Shield, CheckCircle, XCircle, FileText,
   Users, AlertTriangle, Clock, Search,
-  Trash2, Phone, Database, Eye, Lock, KeyRound
+  Trash2, Phone, Database, Eye, Lock, KeyRound,
+  Megaphone, Plus, Link as LinkIcon, ToggleLeft, ToggleRight, Edit3
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useGetStats } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
+
+const seedDemoData = async (): Promise<{ seeded: boolean; message: string }> => {
+  const res = await fetch("/api/reports/seed", { method: "POST" });
+  if (!res.ok) throw new Error("seed failed");
+  return res.json();
+};
 
 // B-04: Simple PIN gate — stored in session so it clears on tab close
 const ADMIN_PIN = "admin2024";
@@ -94,13 +102,35 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
   user:      { label: "Usuario",     color: "#6b7280" },
 };
 
-type Tab = "reports" | "users";
+type Tab = "reports" | "users" | "ads";
+
+// B-26: Ad slot data structure
+interface AdSlot {
+  id: string;
+  label: string;
+  position: string;
+  client: string;
+  url: string;
+  active: boolean;
+  impressions: number;
+  clicks: number;
+}
+
+const DEMO_AD_SLOTS: AdSlot[] = [
+  { id: "ad1", label: "Banner Superior", position: "home_top",      client: "Ferretería San Ramón",  url: "https://example.com/fsr",   active: true,  impressions: 4820, clicks: 93 },
+  { id: "ad2", label: "Tarjeta Mapa",    position: "map_card",      client: "Farmacia Cruz Verde",   url: "https://example.com/cv",    active: true,  impressions: 2115, clicks: 41 },
+  { id: "ad3", label: "Banner Historial",position: "history_mid",   client: "Banco de Crédito BCP",  url: "https://example.com/bcp",   active: false, impressions: 0,    clicks: 0  },
+  { id: "ad4", label: "Notificaciones",  position: "notif_footer",  client: "Disponible",            url: "",                          active: false, impressions: 0,    clicks: 0  },
+];
 
 function AdminPanel() {
   const [tab, setTab]             = useState<Tab>("reports");
   const [search, setSearch]       = useState("");
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [seeding, setSeeding]     = useState(false);
+  // B-26: Ad slots state
+  const [adSlots, setAdSlots]     = useState<AdSlot[]>(DEMO_AD_SLOTS);
+  const [editingAd, setEditingAd] = useState<AdSlot | null>(null);
 
   const { data: reportsData, refetch } = useGetReports();
   const { data: usersData }   = useGetUsers();
@@ -213,29 +243,38 @@ function AdminPanel() {
       {/* Tabs + Search */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex gap-0 border border-white/8 rounded-xl overflow-hidden p-0.5 bg-card w-fit">
-          {(["reports", "users"] as Tab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => { setTab(t); setSearch(""); }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                tab === t ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
-              }`}
-            >
-              {t === "reports" ? <FileText className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
-              {t === "reports" ? "Reportes" : "Usuarios"}
-            </button>
-          ))}
+          {([
+            { id: "reports", label: "Reportes",   icon: FileText  },
+            { id: "users",   label: "Usuarios",   icon: Users     },
+            { id: "ads",     label: "Publicidad", icon: Megaphone },
+          ] as { id: Tab; label: string; icon: React.ElementType }[]).map(t => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); setSearch(""); }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  tab === t.id ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="relative flex-1 max-w-sm ml-auto">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={tab === "reports" ? "Buscar reportes..." : "Buscar usuarios..."}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-card border border-white/8 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
-          />
-        </div>
+        {tab !== "ads" && (
+          <div className="relative flex-1 max-w-sm ml-auto">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={tab === "reports" ? "Buscar reportes..." : "Buscar usuarios..."}
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-card border border-white/8 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Reports: desktop table / mobile cards (B-06) ── */}
@@ -474,6 +513,197 @@ function AdminPanel() {
           </div>
         </>
       )}
+
+      {/* ── B-26: Ad Slots Tab ── */}
+      {tab === "ads" && (
+        <div className="flex flex-col gap-4">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white">Espacios Publicitarios</p>
+              <p className="text-xs text-muted-foreground">Gestiona los espacios de publicidad local disponibles en la app.</p>
+            </div>
+            <button
+              onClick={() => {
+                const newSlot: AdSlot = {
+                  id: `ad${Date.now()}`,
+                  label: "Nuevo Banner",
+                  position: "custom",
+                  client: "Disponible",
+                  url: "",
+                  active: false,
+                  impressions: 0,
+                  clicks: 0,
+                };
+                setAdSlots(prev => [...prev, newSlot]);
+                setEditingAd(newSlot);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/20 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> Nuevo espacio
+            </button>
+          </div>
+
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Activos",     value: adSlots.filter(a => a.active).length,              color: "#22c55e" },
+              { label: "Impresiones", value: adSlots.reduce((s, a) => s + a.impressions, 0).toLocaleString(), color: "#3b82f6" },
+              { label: "Clics",       value: adSlots.reduce((s, a) => s + a.clicks, 0),         color: "#a855f7" },
+            ].map(kpi => (
+              <div key={kpi.label} className="p-3 rounded-xl bg-card border border-white/5 text-center">
+                <p className="text-xl font-bold text-white">{kpi.value}</p>
+                <p className="text-[11px] text-muted-foreground">{kpi.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Ad Slot Cards */}
+          <div className="flex flex-col gap-2">
+            {adSlots.map(slot => {
+              const ctr = slot.impressions > 0 ? ((slot.clicks / slot.impressions) * 100).toFixed(1) : "0.0";
+              return (
+                <div key={slot.id} className="p-4 rounded-xl bg-card border border-white/5 flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* Status toggle */}
+                  <button
+                    onClick={() => setAdSlots(prev => prev.map(a => a.id === slot.id ? { ...a, active: !a.active } : a))}
+                    className="flex-shrink-0"
+                  >
+                    {slot.active
+                      ? <ToggleRight className="w-7 h-7 text-green-400" />
+                      : <ToggleLeft  className="w-7 h-7 text-muted-foreground" />
+                    }
+                  </button>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-semibold text-white truncate">{slot.label}</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                        slot.active
+                          ? "bg-green-500/15 text-green-400"
+                          : "bg-white/5 text-muted-foreground"
+                      }`}>
+                        {slot.active ? "Activo" : "Pausado"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{slot.client}</p>
+                    {slot.url && (
+                      <a href={slot.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[11px] text-primary/60 hover:text-primary transition-colors mt-0.5">
+                        <LinkIcon className="w-3 h-3" />
+                        <span className="truncate">{slot.url}</span>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Metrics */}
+                  <div className="flex items-center gap-4 text-center flex-shrink-0">
+                    <div>
+                      <p className="text-xs font-bold text-white">{slot.impressions.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">Impr.</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">{slot.clicks}</p>
+                      <p className="text-[10px] text-muted-foreground">Clics</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">{ctr}%</p>
+                      <p className="text-[10px] text-muted-foreground">CTR</p>
+                    </div>
+                  </div>
+
+                  {/* Edit */}
+                  <button
+                    onClick={() => setEditingAd({ ...slot })}
+                    className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center text-muted-foreground hover:text-white hover:border-white/20 transition-all"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── B-26: Edit Ad Slot Modal ── */}
+      <AnimatePresence>
+        {editingAd && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setEditingAd(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-[#0f1219] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <Megaphone className="w-4.5 h-4.5 text-primary" />
+                </div>
+                <h3 className="font-bold text-white">Editar espacio publicitario</h3>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {[
+                  { label: "Nombre del banner",  field: "label",    type: "text",  placeholder: "Ej. Banner Superior" },
+                  { label: "Posición (código)",   field: "position", type: "text",  placeholder: "Ej. home_top" },
+                  { label: "Cliente / Anunciante",field: "client",   type: "text",  placeholder: "Nombre del anunciante" },
+                  { label: "URL de destino",      field: "url",      type: "url",   placeholder: "https://..." },
+                ].map(({ label, field, type, placeholder }) => (
+                  <div key={field}>
+                    <label className="block text-xs font-semibold text-white/70 mb-1">{label}</label>
+                    <input
+                      type={type}
+                      value={(editingAd as any)[field]}
+                      onChange={e => setEditingAd(prev => prev ? { ...prev, [field]: e.target.value } : prev)}
+                      placeholder={placeholder}
+                      className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/8 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors"
+                    />
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/8">
+                  <span className="text-sm text-white font-medium">Estado activo</span>
+                  <button
+                    onClick={() => setEditingAd(prev => prev ? { ...prev, active: !prev.active } : prev)}
+                    className="relative"
+                  >
+                    {editingAd.active
+                      ? <ToggleRight className="w-7 h-7 text-green-400" />
+                      : <ToggleLeft  className="w-7 h-7 text-muted-foreground" />
+                    }
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setEditingAd(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-muted-foreground hover:text-white transition-all">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setAdSlots(prev => prev.map(a => a.id === editingAd.id ? editingAd : a));
+                    setEditingAd(null);
+                    toast({ title: "Espacio actualizado", description: `"${editingAd.label}" guardado correctamente.` });
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-primary/20 border border-primary/40 text-sm font-bold text-primary hover:bg-primary/30 transition-all"
+                >
+                  Guardar cambios
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Delete Confirmation Modal ── */}
       <AnimatePresence>

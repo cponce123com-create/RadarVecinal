@@ -99,7 +99,7 @@ app.use("/api", router);
 import path from "path";
 import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const frontendDist = path.resolve(__dirname, "../../radar-vecinal/dist");
+const frontendDist = path.resolve(__dirname, "../../radar-vecinal/dist/public");
 app.use(express.static(frontendDist));
 // SPA fallback — todas las rutas no-API sirven index.html
 app.get("*path", (_req, res) => {

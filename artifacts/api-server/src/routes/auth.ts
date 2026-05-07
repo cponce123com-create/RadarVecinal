@@ -167,18 +167,39 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
-// ── Middleware: require auth ─────────────────────────────────────────────────
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+// ── Middleware: require auth (verifies JWT + user exists in DB + is active) ─
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Autenticación requerida." });
   }
+
   try {
-    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as any;
-    (req as any).jwtUser = payload;
+    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as { sub: string };
+
+    // Verify user still exists and is active in the database
+    const [user] = await db.select({ id: usersTable.id, isActive: usersTable.isActive, role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, parseInt(payload.sub)))
+      .limit(1);
+
+    if (!user) {
+      return res.status(401).json({ error: "Usuario no encontrado. Token inválido." });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: "Cuenta desactivada. Contacta al administrador." });
+    }
+
+    // Attach full user info from DB (more reliable than JWT alone)
+    (req as any).jwtUser = { ...payload, role: user.role };
     next();
-  } catch {
-    return res.status(401).json({ error: "Token inválido o expirado." });
+  } catch (err) {
+    if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: "Token inválido o expirado." });
+    }
+    req.log.error({ err }, "requireAuth: unexpected error");
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 }
 

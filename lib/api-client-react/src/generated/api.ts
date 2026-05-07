@@ -17,6 +17,10 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdSlot,
+  AuthLoginInput,
+  AuthRegisterInput,
+  AuthResponse,
   CreateMissingPersonInput,
   CreatePanicAlertInput,
   CreateReportInput,
@@ -36,6 +40,7 @@ import type {
   MissingPerson,
   PanicAlert,
   Report,
+  SeedResponse,
   Stats,
   UpdateMissingPersonInput,
   UpdateReportInput,
@@ -121,6 +126,241 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Register a new user
+ */
+export const getAuthRegisterUrl = () => {
+  return `/api/auth/register`;
+};
+
+export const authRegister = async (
+  authRegisterInput: AuthRegisterInput,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getAuthRegisterUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(authRegisterInput),
+  });
+};
+
+export const getAuthRegisterMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authRegister>>,
+    TError,
+    { data: BodyType<AuthRegisterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authRegister>>,
+  TError,
+  { data: BodyType<AuthRegisterInput> },
+  TContext
+> => {
+  const mutationKey = ["authRegister"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authRegister>>,
+    { data: BodyType<AuthRegisterInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authRegister(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthRegisterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authRegister>>
+>;
+export type AuthRegisterMutationBody = BodyType<AuthRegisterInput>;
+export type AuthRegisterMutationError = ErrorType<void>;
+
+/**
+ * @summary Register a new user
+ */
+export const useAuthRegister = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authRegister>>,
+    TError,
+    { data: BodyType<AuthRegisterInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof authRegister>>,
+  TError,
+  { data: BodyType<AuthRegisterInput> },
+  TContext
+> => {
+  return useMutation(getAuthRegisterMutationOptions(options));
+};
+
+/**
+ * @summary Login user
+ */
+export const getAuthLoginUrl = () => {
+  return `/api/auth/login`;
+};
+
+export const authLogin = async (
+  authLoginInput: AuthLoginInput,
+  options?: RequestInit,
+): Promise<AuthResponse> => {
+  return customFetch<AuthResponse>(getAuthLoginUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(authLoginInput),
+  });
+};
+
+export const getAuthLoginMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authLogin>>,
+    TError,
+    { data: BodyType<AuthLoginInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authLogin>>,
+  TError,
+  { data: BodyType<AuthLoginInput> },
+  TContext
+> => {
+  const mutationKey = ["authLogin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authLogin>>,
+    { data: BodyType<AuthLoginInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authLogin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthLoginMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authLogin>>
+>;
+export type AuthLoginMutationBody = BodyType<AuthLoginInput>;
+export type AuthLoginMutationError = ErrorType<void>;
+
+/**
+ * @summary Login user
+ */
+export const useAuthLogin = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authLogin>>,
+    TError,
+    { data: BodyType<AuthLoginInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof authLogin>>,
+  TError,
+  { data: BodyType<AuthLoginInput> },
+  TContext
+> => {
+  return useMutation(getAuthLoginMutationOptions(options));
+};
+
+/**
+ * @summary Get current user
+ */
+export const getAuthMeUrl = () => {
+  return `/api/auth/me`;
+};
+
+export const authMe = async (options?: RequestInit): Promise<User> => {
+  return customFetch<User>(getAuthMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAuthMeQueryKey = () => {
+  return [`/api/auth/me`] as const;
+};
+
+export const getAuthMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof authMe>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof authMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getAuthMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof authMe>>> = ({
+    signal,
+  }) => authMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof authMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AuthMeQueryResult = NonNullable<Awaited<ReturnType<typeof authMe>>>;
+export type AuthMeQueryError = ErrorType<void>;
+
+/**
+ * @summary Get current user
+ */
+
+export function useAuthMe<
+  TData = Awaited<ReturnType<typeof authMe>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof authMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAuthMeQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -828,6 +1068,81 @@ export const useCreatePanicAlert = <
 > => {
   return useMutation(getCreatePanicAlertMutationOptions(options));
 };
+
+/**
+ * @summary SSE stream of panic alerts
+ */
+export const getStreamPanicAlertsUrl = () => {
+  return `/api/panic-alerts/stream`;
+};
+
+export const streamPanicAlerts = async (
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getStreamPanicAlertsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getStreamPanicAlertsQueryKey = () => {
+  return [`/api/panic-alerts/stream`] as const;
+};
+
+export const getStreamPanicAlertsQueryOptions = <
+  TData = Awaited<ReturnType<typeof streamPanicAlerts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof streamPanicAlerts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getStreamPanicAlertsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof streamPanicAlerts>>
+  > = ({ signal }) => streamPanicAlerts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof streamPanicAlerts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type StreamPanicAlertsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof streamPanicAlerts>>
+>;
+export type StreamPanicAlertsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary SSE stream of panic alerts
+ */
+
+export function useStreamPanicAlerts<
+  TData = Awaited<ReturnType<typeof streamPanicAlerts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof streamPanicAlerts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getStreamPanicAlertsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get missing person alerts
@@ -1563,6 +1878,260 @@ export function useGetAdSlots<
 }
 
 /**
+ * @summary Create an advertisement slot
+ */
+export const getCreateAdSlotUrl = () => {
+  return `/api/ad-slots`;
+};
+
+export const createAdSlot = async (
+  adSlot: AdSlot,
+  options?: RequestInit,
+): Promise<AdSlot> => {
+  return customFetch<AdSlot>(getCreateAdSlotUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adSlot),
+  });
+};
+
+export const getCreateAdSlotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAdSlot>>,
+    TError,
+    { data: BodyType<AdSlot> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAdSlot>>,
+  TError,
+  { data: BodyType<AdSlot> },
+  TContext
+> => {
+  const mutationKey = ["createAdSlot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAdSlot>>,
+    { data: BodyType<AdSlot> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAdSlot(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAdSlotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAdSlot>>
+>;
+export type CreateAdSlotMutationBody = BodyType<AdSlot>;
+export type CreateAdSlotMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create an advertisement slot
+ */
+export const useCreateAdSlot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAdSlot>>,
+    TError,
+    { data: BodyType<AdSlot> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAdSlot>>,
+  TError,
+  { data: BodyType<AdSlot> },
+  TContext
+> => {
+  return useMutation(getCreateAdSlotMutationOptions(options));
+};
+
+/**
+ * @summary Update an advertisement slot
+ */
+export const getUpdateAdSlotUrl = (id: string) => {
+  return `/api/ad-slots/${id}`;
+};
+
+export const updateAdSlot = async (
+  id: string,
+  adSlot: AdSlot,
+  options?: RequestInit,
+): Promise<AdSlot> => {
+  return customFetch<AdSlot>(getUpdateAdSlotUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adSlot),
+  });
+};
+
+export const getUpdateAdSlotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdSlot>>,
+    TError,
+    { id: string; data: BodyType<AdSlot> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAdSlot>>,
+  TError,
+  { id: string; data: BodyType<AdSlot> },
+  TContext
+> => {
+  const mutationKey = ["updateAdSlot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAdSlot>>,
+    { id: string; data: BodyType<AdSlot> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAdSlot(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAdSlotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAdSlot>>
+>;
+export type UpdateAdSlotMutationBody = BodyType<AdSlot>;
+export type UpdateAdSlotMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update an advertisement slot
+ */
+export const useUpdateAdSlot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdSlot>>,
+    TError,
+    { id: string; data: BodyType<AdSlot> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAdSlot>>,
+  TError,
+  { id: string; data: BodyType<AdSlot> },
+  TContext
+> => {
+  return useMutation(getUpdateAdSlotMutationOptions(options));
+};
+
+/**
+ * @summary Seed database with sample data
+ */
+export const getSeedDataUrl = () => {
+  return `/api/seed`;
+};
+
+export const seedData = async (
+  options?: RequestInit,
+): Promise<SeedResponse> => {
+  return customFetch<SeedResponse>(getSeedDataUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSeedDataMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof seedData>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof seedData>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["seedData"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof seedData>>,
+    void
+  > = () => {
+    return seedData(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SeedDataMutationResult = NonNullable<
+  Awaited<ReturnType<typeof seedData>>
+>;
+
+export type SeedDataMutationError = ErrorType<void>;
+
+/**
+ * @summary Seed database with sample data
+ */
+export const useSeedData = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof seedData>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof seedData>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSeedDataMutationOptions(options));
+};
+
+/**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
 metadata here, then uploads the file directly to the returned URL.
 
@@ -1732,6 +2301,94 @@ export function useGetStorageObject<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetStorageObjectQueryOptions(objectPath, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Serve a public object from PUBLIC_OBJECT_DIR
+ */
+export const getGetPublicObjectUrl = (objectPath: string) => {
+  return `/api/storage/public-objects/${objectPath}`;
+};
+
+export const getPublicObject = async (
+  objectPath: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetPublicObjectUrl(objectPath), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPublicObjectQueryKey = (objectPath: string) => {
+  return [`/api/storage/public-objects/${objectPath}`] as const;
+};
+
+export const getGetPublicObjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPublicObject>>,
+  TError = ErrorType<void>,
+>(
+  objectPath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPublicObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPublicObjectQueryKey(objectPath);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicObject>>> = ({
+    signal,
+  }) => getPublicObject(objectPath, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!objectPath,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicObject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPublicObjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPublicObject>>
+>;
+export type GetPublicObjectQueryError = ErrorType<void>;
+
+/**
+ * @summary Serve a public object from PUBLIC_OBJECT_DIR
+ */
+
+export function useGetPublicObject<
+  TData = Awaited<ReturnType<typeof getPublicObject>>,
+  TError = ErrorType<void>,
+>(
+  objectPath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPublicObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPublicObjectQueryOptions(objectPath, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -10,84 +10,21 @@ import { es } from "date-fns/locale";
 import {
   Shield, CheckCircle, XCircle, FileText,
   Users, AlertTriangle, Clock, Search,
-  Trash2, Phone, Database, Eye, Lock, KeyRound,
-  Megaphone, Plus, Link as LinkIcon, ToggleLeft, ToggleRight, Edit3
+  Trash2, Phone, Database, Eye, Lock,
+  Megaphone, Plus, Link as LinkIcon, ToggleLeft, ToggleRight, Edit3,
+  LogIn, ShieldOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useGetStats } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthModal from "@/components/AuthModal";
 
 const seedDemoData = async (): Promise<{ seeded: boolean; message: string }> => {
   const res = await fetch("/api/seed", { method: "POST" });
   if (!res.ok) throw new Error("seed failed");
   return res.json();
 };
-
-// B-04: Simple PIN gate — stored in session so it clears on tab close
-const ADMIN_PIN = "admin2024";
-const SESSION_KEY = "radar_admin_unlocked";
-
-function AdminPin({ onUnlock }: { onUnlock: () => void }) {
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
-  const { toast } = useToast();
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pin === ADMIN_PIN) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      onUnlock();
-    } else {
-      setError(true);
-      setPin("");
-      toast({ title: "PIN incorrecto", description: "Verifica el código de acceso.", variant: "destructive" });
-      setTimeout(() => setError(false), 1000);
-    }
-  };
-
-  return (
-    <div className="min-h-[70vh] flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-sm"
-      >
-        <div className={`rounded-2xl bg-card border p-8 flex flex-col items-center gap-5 transition-all ${error ? "border-red-500/60" : "border-white/8"}`}>
-          <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center">
-            <KeyRound className="w-7 h-7 text-accent" />
-          </div>
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-white mb-1">Acceso Restringido</h2>
-            <p className="text-sm text-muted-foreground">Ingresa el PIN de administrador para continuar.</p>
-          </div>
-          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
-            <input
-              type="password"
-              value={pin}
-              onChange={e => setPin(e.target.value)}
-              placeholder="PIN de acceso"
-              autoFocus
-              className={`w-full text-center text-xl font-bold tracking-[0.3em] bg-background border rounded-xl px-4 py-3 text-white placeholder:text-muted-foreground/40 focus:outline-none transition-colors ${
-                error ? "border-red-500/60 focus:border-red-500" : "border-white/10 focus:border-primary"
-              }`}
-            />
-            <button
-              type="submit"
-              disabled={pin.length < 4}
-              className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-40"
-            >
-              <Lock className="w-4 h-4 inline mr-2" />
-              Desbloquear panel
-            </button>
-          </form>
-          <p className="text-[10px] text-muted-foreground/40 text-center">
-            Solo personal autorizado de Radar Vecinal
-          </p>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   active:    { label: "Activo",      color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
@@ -756,13 +693,79 @@ function AdminPanel() {
 }
 
 export default function Admin() {
-  const [unlocked, setUnlocked] = useState(
-    () => sessionStorage.getItem(SESSION_KEY) === "1"
-  );
+  const { isLoggedIn, isAdmin, loading } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
 
-  if (!unlocked) {
-    return <AdminPin onUnlock={() => setUnlocked(true)} />;
+  // Show loading state while auth state hydrates
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Verificando acceso...</p>
+        </div>
+      </div>
+    );
   }
 
+  // Not logged in → prompt login
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          <div className="rounded-2xl bg-card border border-white/8 p-8 flex flex-col items-center gap-5">
+            <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <Lock className="w-7 h-7 text-accent" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-white mb-1">Acceso Restringido</h2>
+              <p className="text-sm text-muted-foreground">
+                Inicia sesión con una cuenta de administrador para acceder al panel de control.
+              </p>
+            </div>
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-[0_0_16px_hsl(217_100%_55%_/_0.3)]"
+            >
+              <LogIn className="w-4 h-4" />
+              Iniciar sesión
+            </button>
+          </div>
+        </motion.div>
+        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      </div>
+    );
+  }
+
+  // Logged in but not admin → denied
+  if (!isAdmin) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          <div className="rounded-2xl bg-card border border-red-500/30 p-8 flex flex-col items-center gap-5">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <ShieldOff className="w-7 h-7 text-red-400" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-white mb-1">Acceso Denegado</h2>
+              <p className="text-sm text-muted-foreground">
+                Necesitas permisos de administrador o moderador para acceder a esta sección.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Authorized → show admin panel
   return <AdminPanel />;
 }

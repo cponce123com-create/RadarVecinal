@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Response } from "express";
 import { db } from "@workspace/db";
-import { panicAlertsTable, missingPersonsTable } from "@workspace/db/schema";
+import { panicAlertsTable, missingPersonsTable, notificationsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -94,6 +94,26 @@ router.post("/panic-alerts", async (req, res) => {
     const formatted = formatPanic(alert);
     // B-13: Broadcast new alert to all SSE subscribers in real time
     broadcastPanicAlert({ type: "new_alert", alert: formatted });
+
+    // B-16: Create notification for the new panic alert
+    const typeLabels: Record<string, string> = {
+      robbery: "Robo en curso",
+      medical: "Emergencia médica",
+      fight: "Pelea callejera",
+      fire: "Incendio",
+      missing_person: "Persona extraviada",
+      other: "Alerta de pánico",
+    };
+    const label = typeLabels[data.type] ?? "Alerta de pánico";
+    await db.insert(notificationsTable).values({
+      type: "panic_alert",
+      title: label,
+      body: `${data.authorName} reportó: ${data.address || `${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`}`,
+      referenceId: String(alert.id),
+      referenceType: "panic_alert",
+      isRead: false,
+    }).execute();
+
     res.status(201).json(formatted);
   } catch (err) {
     req.log.error({ err }, "Failed to create panic alert");

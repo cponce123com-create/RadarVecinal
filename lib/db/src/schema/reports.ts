@@ -45,6 +45,8 @@ export const usersTable = pgTable("users", {
   role: userRoleEnum("role").notNull().default("user"),
   sector: text("sector").notNull().default(""),
   district: text("district").notNull().default("San Ramón"),
+  province: text("province").notNull().default("Chanchamayo"),
+  department: text("department").notNull().default("Junín"),
   isActive: boolean("is_active").notNull().default(true),
   reportsCount: integer("reports_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -63,6 +65,8 @@ export const reportsTable = pgTable("reports", {
   address: text("address").notNull().default(""),
   sector: text("sector").notNull(),
   district: text("district").notNull().default("San Ramón"),
+  province: text("province").notNull().default("Chanchamayo"),
+  department: text("department").notNull().default("Junín"),
   imageUrl: text("image_url"),
   authorName: text("author_name").notNull(),
   contactPhone: text("contact_phone"),
@@ -110,11 +114,32 @@ export const adSlotsTable = pgTable("ad_slots", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "system",
+  "panic_alert",
+  "missing_person",
+  "report_update",
+  "report_nearby",
+]);
+
+export const notificationsTable = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  type: notificationTypeEnum("type").notNull().default("system"),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  referenceId: text("reference_id"),
+  referenceType: text("reference_type"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPanicAlertSchema = createInsertSchema(panicAlertsTable).omit({ id: true, createdAt: true });
 export const insertMissingPersonSchema = createInsertSchema(missingPersonsTable).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });
 export const insertAdSlotSchema = createInsertSchema(adSlotsTable).omit({ id: true, createdAt: true });
+export const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });
 
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reportsTable.$inferSelect;
@@ -124,3 +149,5 @@ export type InsertMissingPerson = z.infer<typeof insertMissingPersonSchema>;
 export type MissingPerson = typeof missingPersonsTable.$inferSelect;
 export type User = typeof usersTable.$inferSelect;
 export type AdSlot = typeof adSlotsTable.$inferSelect;
+export type Notification = typeof notificationsTable.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;

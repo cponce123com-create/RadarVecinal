@@ -5,6 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { optionalAuth } from "./routes/auth";
 
 const app: Express = express();
 
@@ -43,6 +44,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Attach JWT user info for auth-aware rate limiting (applied before limiters)
+app.use("/api", optionalAuth);
+
 // Force fresh responses — prevent stale cached empty data in browsers
 app.use("/api", (_req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -51,29 +55,30 @@ app.use("/api", (_req, res, next) => {
 });
 
 // B-18: Rate limiting — specific limits per endpoint type to prevent spam
-const generalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Demasiadas solicitudes. Intenta de nuevo en un minuto." },
-});
+// Authenticated users get higher limits than anonymous users
+function authAwareRateLimit(windowMs: number, authMax: number, anonMax: number, message: string) {
+  return rateLimit({
+    windowMs,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: message },
+    keyGenerator: (req) => {
+      const jwtUser = (req as any).jwtUser;
+      if (jwtUser?.sub) return `user_${jwtUser.sub}`;
+      return req.ip ?? req.socket.remoteAddress ?? "unknown";
+    },
+    max: (req) => {
+      const jwtUser = (req as any).jwtUser;
+      return jwtUser?.sub ? authMax : anonMax;
+    },
+  });
+}
 
-const reportLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Límite de reportes alcanzado. Máximo 10 por minuto." },
-});
+const generalLimiter = authAwareRateLimit(60 * 1000, 200, 60, "Demasiadas solicitudes. Intenta de nuevo en un minuto.");
 
-const panicLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Límite de alertas de pánico alcanzado. Máximo 5 por minuto." },
-});
+const reportLimiter = authAwareRateLimit(60 * 1000, 30, 5, "Límite de reportes alcanzado. Máximo 30 por minuto (autenticados) o 5 por minuto (anónimo).");
+
+const panicLimiter = authAwareRateLimit(60 * 1000, 15, 3, "Límite de alertas de pánico alcanzado. Máximo 15 por minuto (autenticados) o 3 por minuto (anónimo).");
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -89,5 +94,18 @@ app.use("/api/reports", reportLimiter);
 app.use("/api", generalLimiter);
 
 app.use("/api", router);
+
+// ── Servir frontend React build en producción ──────────────────────────────
+import path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = path.resolve(__dirname, "../../radar-vecinal/dist");
+app.use(express.static(frontendDist));
+// SPA fallback — todas las rutas no-API sirven index.html
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(frontendDist, "index.html"), (err) => {
+    if (err) res.status(404).json({ error: "Not found" });
+  });
+});
 
 export default app;

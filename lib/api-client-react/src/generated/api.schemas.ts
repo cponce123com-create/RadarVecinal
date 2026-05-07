@@ -9,6 +9,56 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface AuthRegisterInput {
+  name: string;
+  email: string;
+  password: string;
+  sector: string;
+  district: string;
+}
+
+export interface AuthLoginInput {
+  email: string;
+  password: string;
+}
+
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+
+export const UserRole = {
+  admin: "admin",
+  moderator: "moderator",
+  user: "user",
+} as const;
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  sector: string;
+  district: string;
+  isActive: boolean;
+  reportsCount: number;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export type SeedResponseSeeded = {
+  users?: number;
+  reports?: number;
+  alerts?: number;
+};
+
+export interface SeedResponse {
+  success: boolean;
+  message: string;
+  seeded?: SeedResponseSeeded;
+}
+
 export type ReportCategory =
   (typeof ReportCategory)[keyof typeof ReportCategory];
 
@@ -211,26 +261,6 @@ export interface ActivityItem {
   urgency?: string | null;
   sector: string;
   authorName: string;
-  createdAt: string;
-}
-
-export type UserRole = (typeof UserRole)[keyof typeof UserRole];
-
-export const UserRole = {
-  admin: "admin",
-  moderator: "moderator",
-  user: "user",
-} as const;
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  sector: string;
-  district: string;
-  isActive: boolean;
-  reportsCount: number;
   createdAt: string;
 }
 

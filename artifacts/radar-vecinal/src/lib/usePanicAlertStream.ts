@@ -149,6 +149,35 @@ function beep(ctx: AudioContext, freq: number, type: OscillatorType, dur: number
 }
 
 function playAlertSound(type: string) {
+  // F-09: Check user's sound preference from Settings
+  try {
+    const soundEnabled = localStorage.getItem("rvs_sound") !== "false";
+    if (!soundEnabled) return;
+
+    // Check quiet hours
+    const quietHours = localStorage.getItem("rvs_quietHours") === "true";
+    if (quietHours) {
+      const quietStart = localStorage.getItem("rvs_quietStart") ?? "22:00";
+      const quietEnd = localStorage.getItem("rvs_quietEnd") ?? "07:00";
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const startParts = quietStart.split(":").map(Number);
+      const endParts = quietEnd.split(":").map(Number);
+      const startMinutes = startParts[0] * 60 + (startParts[1] ?? 0);
+      const endMinutes = endParts[0] * 60 + (endParts[1] ?? 0);
+
+      if (startMinutes <= endMinutes) {
+        // Same-day range (e.g., 22:00-07:00 spans midnight, so this handles normal ranges)
+        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) return;
+      } else {
+        // Overnight range (e.g., 22:00-07:00)
+        if (currentMinutes >= startMinutes || currentMinutes < endMinutes) return;
+      }
+    }
+  } catch {
+    // If localStorage is unavailable, play sound anyway
+  }
+
   const ctx = getAudioCtx();
   if (!ctx) return;
 

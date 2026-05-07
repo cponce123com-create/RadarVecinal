@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, adSlotsTable } from "@workspace/db/schema";
+import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -77,23 +77,35 @@ router.patch("/users/:id", async (req, res) => {
   }
 });
 
-// B-16: Notifications — global activity-based notifications
-router.get("/notifications", async (_req, res) => {
+// B-16: Notifications — real DB-backed notifications
+router.get("/notifications", async (req, res) => {
   try {
+    const userId = (req as any).jwtUser?.sub
+      ? parseInt((req as any).jwtUser.sub)
+      : null;
+
+    const notifs = await db.select()
+      .from(notificationsTable)
+      .orderBy(desc(notificationsTable.createdAt))
+      .limit(50);
+
+    const unreadCount = notifs.filter(n => !n.isRead).length;
+
     res.json({
-      notifications: [
-        {
-          id: "notif-system-1",
-          type: "system",
-          title: "Bienvenido a Radar Vecinal",
-          body: "Activa las alertas de pánico para recibir notificaciones en tiempo real.",
-          read: false,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      unreadCount: 1,
+      notifications: notifs.map(n => ({
+        id: String(n.id),
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        referenceId: n.referenceId,
+        referenceType: n.referenceType,
+        read: n.isRead,
+        createdAt: n.createdAt.toISOString(),
+      })),
+      unreadCount,
     });
   } catch (err) {
+    req.log.error({ err }, "Failed to get notifications");
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserX, Phone, MapPin, Clock, Plus, X } from "lucide-react";
+import { UserX, Phone, MapPin, Clock, Plus, X, Camera, Upload } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGetMissingPersons, useCreateMissingPerson } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUpload } from "@workspace/object-storage-web";
 
 const INPUT_CLASS = "w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500/60 transition-colors";
 
@@ -12,6 +13,16 @@ export default function MissingPerson() {
   const { data, isLoading } = useGetMissingPersons({ active: true });
   const createMissing = useCreateMissingPerson();
   const { toast } = useToast();
+  const { uploadFile, isUploading: isUploadingPhoto, error: uploadError } = useUpload({
+    basePath: "/api/storage",
+    onSuccess: (response) => {
+      set("imageUrl", response.objectPath);
+      toast({ title: "✅ Foto subida correctamente", description: "La imagen se adjuntará al reporte." });
+    },
+    onError: (err) => {
+      toast({ title: "Error al subir foto", description: err.message, variant: "destructive" });
+    },
+  });
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", imageUrl: "",
@@ -118,26 +129,56 @@ export default function MissingPerson() {
                     <input required type="tel" value={formData.contactInfo} onChange={e => set("contactInfo", e.target.value)} placeholder="999 999 999" className={`${INPUT_CLASS} pl-10`} />
                   </div>
                 </div>
-                {/* B-17: Photo URL field */}
+                {/* B-17: Photo upload — now with file upload via presigned URLs */}
                 <div>
-                  <label className="block text-xs font-semibold text-white/80 mb-1.5">Foto (URL de imagen)</label>
-                  <input
-                    type="url"
-                    value={formData.imageUrl}
-                    onChange={e => set("imageUrl", e.target.value)}
-                    placeholder="https://ejemplo.com/foto.jpg (opcional)"
-                    className={INPUT_CLASS}
-                  />
-                  {formData.imageUrl && (
-                    <div className="mt-2 rounded-xl overflow-hidden h-32 bg-white/5 border border-white/8">
-                      <img
-                        src={formData.imageUrl}
-                        alt="Vista previa"
-                        className="w-full h-full object-cover"
-                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
+                  <label className="block text-xs font-semibold text-white/80 mb-1.5">Foto de la persona</label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-sm font-semibold hover:bg-amber-500/25 transition-all cursor-pointer ${isUploadingPhoto ? "opacity-50 pointer-events-none" : ""}`}>
+                        <Camera className="w-4 h-4" />
+                        {isUploadingPhoto ? "Subiendo..." : "Seleccionar foto"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={isUploadingPhoto}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              await uploadFile(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      {formData.imageUrl && (
+                        <button
+                          onClick={() => set("imageUrl", "")}
+                          className="text-xs text-muted-foreground hover:text-white transition-colors"
+                        >
+                          Quitar foto
+                        </button>
+                      )}
                     </div>
-                  )}
+                    {isUploadingPhoto && (
+                      <div className="flex items-center gap-2 text-xs text-amber-400">
+                        <div className="w-4 h-4 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+                        Subiendo foto...
+                      </div>
+                    )}
+                    {uploadError && (
+                      <p className="text-xs text-red-400">Error: {uploadError.message}</p>
+                    )}
+                    {formData.imageUrl && (
+                      <div className="mt-1 rounded-xl overflow-hidden h-32 bg-white/5 border border-white/8">
+                        <img
+                          src={formData.imageUrl}
+                          alt="Vista previa"
+                          className="w-full h-full object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-3 pt-2 border-t border-white/5">
                   <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/6 rounded-xl transition-all">

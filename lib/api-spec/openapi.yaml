@@ -9,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
   - name: reports
     description: Incident reports
   - name: alerts
@@ -37,6 +39,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: authRegister
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterInput"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
 
   /reports:
     get:
@@ -231,6 +292,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/PanicAlert"
 
+  /panic-alerts/stream:
+    get:
+      operationId: streamPanicAlerts
+      tags: [alerts]
+      summary: SSE stream of panic alerts
+      responses:
+        "200":
+          description: SSE stream of panic alert events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
   /missing-persons:
     get:
       operationId: getMissingPersons
@@ -423,6 +497,63 @@ paths:
                       $ref: "#/components/schemas/AdSlot"
                 required:
                   - ads
+    post:
+      operationId: createAdSlot
+      tags: [admin]
+      summary: Create an advertisement slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdSlot"
+      responses:
+        "201":
+          description: Ad slot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdSlot"
+
+  /ad-slots/{id}:
+    patch:
+      operationId: updateAdSlot
+      tags: [admin]
+      summary: Update an advertisement slot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdSlot"
+      responses:
+        "200":
+          description: Ad slot updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdSlot"
+
+  /seed:
+    post:
+      operationId: seedData
+      tags: [admin]
+      summary: Seed database with sample data
+      responses:
+        "200":
+          description: Database seeded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeedResponse"
+        "500":
+          description: Seeding failed
 
   /storage/uploads/request-url:
     post:
@@ -474,6 +605,30 @@ paths:
         '500':
           description: Failed to serve object.
 
+  /storage/public-objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public object from PUBLIC_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public object content streamed with correct Content-Type.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Public object not found.
+        '500':
+          description: Failed to serve public object.
+
 components:
   schemas:
     HealthStatus:
@@ -483,6 +638,68 @@ components:
           type: string
       required:
         - status
+
+    AuthRegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        sector:
+          type: string
+        district:
+          type: string
+      required:
+        - name
+        - email
+        - password
+        - sector
+        - district
+
+    AuthLoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    SeedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        seeded:
+          type: object
+          properties:
+            users:
+              type: number
+            reports:
+              type: number
+            alerts:
+              type: number
+      required:
+        - success
+        - message
 
     Report:
       type: object

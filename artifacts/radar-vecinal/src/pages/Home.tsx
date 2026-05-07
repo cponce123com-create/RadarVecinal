@@ -196,8 +196,18 @@ export default function Home() {
               ))}
             </div>
           ) : reportsData?.reports.length === 0 ? (
-            <div className="p-8 text-center rounded-xl bg-card border border-white/5 text-muted-foreground text-sm">
-              No hay reportes recientes.
+            <div className="py-12 flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-card border border-white/5 flex items-center justify-center mb-3">
+                <Activity className="w-7 h-7 text-muted-foreground/30" />
+              </div>
+              <p className="text-white font-semibold mb-1">No hay reportes recientes</p>
+              <p className="text-xs text-muted-foreground max-w-[200px]">
+                Cuando los vecinos reporten incidentes, aparecerán aquí.
+              </p>
+              <Link href="/reportar" className="mt-3 text-xs text-primary hover:text-blue-300 transition-colors flex items-center gap-1">
+                <Plus className="w-3 h-3" />
+                Reportar un incidente
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col gap-2">

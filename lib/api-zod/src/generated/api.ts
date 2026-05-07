@@ -15,6 +15,55 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Register a new user
+ */
+export const AuthRegisterBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  sector: zod.string(),
+  district: zod.string(),
+});
+
+/**
+ * @summary Login user
+ */
+export const AuthLoginBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const AuthLoginResponse = zod.object({
+  token: zod.string(),
+  user: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "moderator", "user"]),
+    sector: zod.string(),
+    district: zod.string(),
+    isActive: zod.boolean(),
+    reportsCount: zod.number(),
+    createdAt: zod.string(),
+  }),
+});
+
+/**
+ * @summary Get current user
+ */
+export const AuthMeResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "moderator", "user"]),
+  sector: zod.string(),
+  district: zod.string(),
+  isActive: zod.boolean(),
+  reportsCount: zod.number(),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary Get all reports
  */
 export const GetReportsQueryParams = zod.object({
@@ -463,6 +512,61 @@ export const GetAdSlotsResponse = zod.object({
 });
 
 /**
+ * @summary Create an advertisement slot
+ */
+export const CreateAdSlotBody = zod.object({
+  id: zod.string(),
+  businessName: zod.string(),
+  tagline: zod.string(),
+  imageUrl: zod.string().nullish(),
+  targetUrl: zod.string(),
+  isActive: zod.boolean(),
+  sector: zod.string().nullish(),
+});
+
+/**
+ * @summary Update an advertisement slot
+ */
+export const UpdateAdSlotParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateAdSlotBody = zod.object({
+  id: zod.string(),
+  businessName: zod.string(),
+  tagline: zod.string(),
+  imageUrl: zod.string().nullish(),
+  targetUrl: zod.string(),
+  isActive: zod.boolean(),
+  sector: zod.string().nullish(),
+});
+
+export const UpdateAdSlotResponse = zod.object({
+  id: zod.string(),
+  businessName: zod.string(),
+  tagline: zod.string(),
+  imageUrl: zod.string().nullish(),
+  targetUrl: zod.string(),
+  isActive: zod.boolean(),
+  sector: zod.string().nullish(),
+});
+
+/**
+ * @summary Seed database with sample data
+ */
+export const SeedDataResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  seeded: zod
+    .object({
+      users: zod.number().optional(),
+      reports: zod.number().optional(),
+      alerts: zod.number().optional(),
+    })
+    .optional(),
+});
+
+/**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
 metadata here, then uploads the file directly to the returned URL.
 
@@ -499,5 +603,12 @@ export const RequestUploadUrlResponse = zod.object({
  * @summary Serve an object entity from PRIVATE_OBJECT_DIR
  */
 export const GetStorageObjectParams = zod.object({
+  objectPath: zod.coerce.string(),
+});
+
+/**
+ * @summary Serve a public object from PUBLIC_OBJECT_DIR
+ */
+export const GetPublicObjectParams = zod.object({
   objectPath: zod.coerce.string(),
 });

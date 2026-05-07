@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { optionalAuth } from "./routes/auth";
@@ -65,7 +65,7 @@ function authAwareRateLimit(windowMs: number, authMax: number, anonMax: number, 
     keyGenerator: (req) => {
       const jwtUser = (req as any).jwtUser;
       if (jwtUser?.sub) return `user_${jwtUser.sub}`;
-      return req.ip ?? req.socket.remoteAddress ?? "unknown";
+      return ipKeyGenerator(req);
     },
     max: (req) => {
       const jwtUser = (req as any).jwtUser;
@@ -102,7 +102,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDist = path.resolve(__dirname, "../../radar-vecinal/dist");
 app.use(express.static(frontendDist));
 // SPA fallback — todas las rutas no-API sirven index.html
-app.get("*", (_req, res) => {
+app.get("*path", (_req, res) => {
   res.sendFile(path.join(frontendDist, "index.html"), (err) => {
     if (err) res.status(404).json({ error: "Not found" });
   });

@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
 import { useDistrict } from "@/contexts/DistrictContext";
@@ -51,21 +50,6 @@ export default function History() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const listParentRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: paginated.length,
-    getScrollElement: () => listParentRef.current,
-    estimateSize: () => 96,
-    overscan: 5,
-  });
-  const virtualItems = virtualizer.getVirtualItems();
-
-  const handleFilterChange = (newSearch: string, newCat: string) => {
-    setPage(1);
-    if (newSearch !== undefined) setSearch(newSearch);
-    if (newCat !== undefined) setCategory(newCat);
-  };
 
   return (
     <div className="max-w-4xl mx-auto pb-8 flex flex-col gap-5">
@@ -145,83 +129,68 @@ export default function History() {
         </div>
       ) : (
         <div
-          ref={listParentRef}
           style={{ maxHeight: 'calc(100dvh - 24rem)', overflowY: 'auto' }}
-          className="relative"
+          className="relative space-y-2"
         >
-          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-            {virtualItems.map((virtualRow) => {
-              const report = paginated[virtualRow.index];
-              const i = virtualRow.index;
-              const config = CATEGORY_CONFIG[report.category as keyof typeof CATEGORY_CONFIG];
-              const Icon = config?.icon;
-              const color = CATEGORY_COLORS[report.category] ?? "#6b7280";
-              const status = STATUS_META[report.status] ?? STATUS_META.active;
+          {paginated.map((report, i) => {
+            const config = CATEGORY_CONFIG[report.category as keyof typeof CATEGORY_CONFIG];
+            const Icon = config?.icon;
+            const color = CATEGORY_COLORS[report.category] ?? "#6b7280";
+            const status = STATUS_META[report.status] ?? STATUS_META.active;
 
-              return (
+            return (
+              <motion.div
+                key={report.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.02, 0.15) }}
+                className="flex items-start gap-3.5 p-4 rounded-xl bg-card border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all cursor-pointer"
+              >
+                {/* Category icon */}
                 <div
-                  key={report.id}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${color}15` }}
                 >
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(i * 0.02, 0.15) }}
-                    className="flex items-start gap-3.5 p-4 rounded-xl bg-card border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all cursor-pointer mb-2"
-                  >
-                    {/* Category icon */}
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${color}15` }}
-                    >
-                      {Icon && <Icon className="w-5 h-5" style={{ color }} />}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="text-sm font-semibold text-white leading-snug truncate">{report.title}</p>
-                        <span
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
-                          style={{ color: status.color, background: status.bg }}
-                        >
-                          {status.label}
-                        </span>
-                      </div>
-
-                      {report.description ? (
-                        <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">{report.description}</p>
-                      ) : null}
-
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {report.sector}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(report.createdAt), { locale: es, addSuffix: true })}
-                        </span>
-                        {report.confirmedCount > 0 && (
-                          <span className="text-primary/60">✓ {report.confirmedCount}</span>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
+                  {Icon && <Icon className="w-5 h-5" style={{ color }} />}
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-sm font-semibold text-white leading-snug truncate">{report.title}</p>
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+                      style={{ color: status.color, background: status.bg }}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
+
+                  {report.description ? (
+                    <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">{report.description}</p>
+                  ) : null}
+
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {report.sector}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatDistanceToNow(new Date(report.createdAt), { locale: es, addSuffix: true })}
+                    </span>
+                    {report.confirmedCount > 0 && (
+                      <span className="text-primary/60">✓ {report.confirmedCount}</span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
-      {/* B-25: Pagination */}
+      {/* Pagination */}
       {totalPages > 1 && !isLoading && (
         <div className="flex items-center justify-center gap-2 pt-2">
           <button

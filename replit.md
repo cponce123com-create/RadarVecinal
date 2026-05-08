@@ -33,7 +33,7 @@ artifacts-monorepo/
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   ├── db/                 # Drizzle ORM schema + DB connection
-│   └── object-storage-web/ # Replit object storage web client (upload hook)
+│   └── object-storage-web/ # Web client for object storage upload
 ├── scripts/                # Utility scripts
 │   └── src/seed.ts         # Database seed script
 ├── pnpm-workspace.yaml
@@ -153,7 +153,7 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - **Sound alerts** (F-09): Web Audio API tones generated in `usePanicAlertStream.ts` — robbery/fight: triple high beep (1200Hz); fire: siren sweep; medical: double low beep; other: single sine tone. AudioContext resumes on interaction before playing.
 
 ### Image Upload (F-06)
-- **Replit Object Storage** (GCS-backed): Provisioned bucket `replit-objstore-861d06e1-9251-4c59-8628-adc0c0d3fdc9`
+- **Google Cloud Storage**: Provisioned bucket via `GCS_BUCKET_NAME` env var
 - **API routes**: `POST /api/storage/uploads/request-url` (presigned URL), `GET /api/storage/objects/*` (serve objects)
 - **Frontend**: Two-step upload in ReportForm step 2 — POST metadata → get presigned URL → PUT file to GCS → store `/api/storage/objects/{path}` as imageUrl
 - **Preview**: shows local blob URL immediately while uploading; shows green "Imagen subida" badge on success; X button to remove
@@ -169,3 +169,4 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - Sensitive categories (prostitution, drug_point, bar_trouble, informal_commerce) are forced anonymous server-side
 - JWT expires in 30 days; secret from JWT_SECRET env variable (falls back to dev secret if unset)
 - PATCH/DELETE /api/reports require valid JWT; DELETE also requires admin/moderator role
+TE also requires admin/moderator role

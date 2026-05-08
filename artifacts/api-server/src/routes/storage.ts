@@ -91,7 +91,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const objectPath = `/objects/${wildcardPath}`;
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
-    // --- Protected route example (uncomment when using replit-auth) ---
+    // --- Protected route example (uncomment when using auth middleware) ---
     // if (!req.isAuthenticated()) {
     //   res.status(401).json({ error: "Unauthorized" });
     //   return;

@@ -9,7 +9,7 @@ import { optionalAuth } from "./routes/auth";
 
 const app: Express = express();
 
-// Trust proxy headers so rate-limit works correctly behind Replit's reverse proxy
+// Trust proxy headers so rate-limit works correctly behind reverse proxy
 app.set("trust proxy", 1);
 
 // B-19: Security headers (helmet) — disable CSP/COEP to keep API accessible from frontend

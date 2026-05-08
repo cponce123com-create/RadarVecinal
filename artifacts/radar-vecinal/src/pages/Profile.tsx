@@ -437,12 +437,12 @@ export default function Profile() {
                 <p className="text-xs text-muted-foreground">Reporta incidentes y gana confiabilidad</p>
               </div>
             </div>
-            <Link href="/home">
+            <a href="/home?auth=login">
               <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all">
                 <LogIn className="w-4 h-4" />
                 Iniciar sesión o registrarse
               </button>
-            </Link>
+            </a>
           </div>
         )}
       </motion.div>

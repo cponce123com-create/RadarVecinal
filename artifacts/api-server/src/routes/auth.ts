@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import { OAuth2Client } from "google-auth-library";
 
 const router: IRouter = Router();
 
@@ -129,6 +130,63 @@ router.post("/auth/login", async (req: Request, res: Response) => {
   } catch (err) {
     req.log.error({ err }, "login failed");
     return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /auth/google — Google OAuth ──────────────────────────────────────
+router.post("/auth/google", async (req: Request, res: Response) => {
+  const { credential } = z.object({ credential: z.string().min(1) }).parse(req.body);
+
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ error: "GOOGLE_CLIENT_ID no configurado." });
+    }
+
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res.status(400).json({ error: "Token de Google inválido." });
+    }
+
+    const googleEmail = payload.email.toLowerCase().trim();
+    const googleName = payload.name || "Usuario Google";
+
+    // Check if user exists
+    const [existing] = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.email, googleEmail))
+      .limit(1);
+
+    if (existing) {
+      // User exists — log in
+      if (!existing.isActive) {
+        return res.status(403).json({ error: "Cuenta desactivada." });
+      }
+      const token = signToken(existing);
+      return res.json({ token, user: formatUser(existing) });
+    }
+
+    // New user — auto-register with Google data
+    const [user] = await db.insert(usersTable).values({
+      name: googleName,
+      email: googleEmail,
+      role: "user",
+      sector: "Sin asignar",
+      district: "San Ramón",
+      isActive: true,
+      reportsCount: 0,
+    }).returning();
+
+    const token = signToken(user);
+    return res.status(201).json({ token, user: formatUser(user) });
+  } catch (err) {
+    req.log.error({ err }, "Google auth failed");
+    return res.status(401).json({ error: "Autenticación con Google fallida." });
   }
 });
 

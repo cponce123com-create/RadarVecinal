@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -93,6 +93,14 @@ export function Layout({ children }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [panicOpen, setPanicOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  // Auto-open auth modal if ?auth=login is in URL
+  useEffect(() => {
+    if (location.includes('auth=login')) {
+      setAuthOpen(true);
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [location]);
   const { user, isLoggedIn, logout } = useAuth();
 
   const isActive = (href: string) =>

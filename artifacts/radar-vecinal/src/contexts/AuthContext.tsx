@@ -21,6 +21,7 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   login:    (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  googleLogin: (credential: string) => Promise<void>;
   logout:   () => void;
   isLoggedIn: boolean;
   isAdmin:    boolean;
@@ -92,6 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user: data.user, token: data.token, loading: false });
   };
 
+  const googleLogin = async (credential: string) => {
+    const data = await apiFetch("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    });
+    localStorage.setItem(TOKEN_KEY, data.token);
+    setState({ user: data.user, token: data.token, loading: false });
+  };
+
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     setState({ user: null, token: null, loading: false });
@@ -102,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...state,
       login,
       register,
+      googleLogin,
       logout,
       isLoggedIn: !!state.user,
       isAdmin:    state.user?.role === "admin" || state.user?.role === "moderator",

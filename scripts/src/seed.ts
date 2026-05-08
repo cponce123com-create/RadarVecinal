@@ -12,18 +12,9 @@ async function seed() {
   await db.delete(reportsTable);
   await db.delete(usersTable);
 
-  // ── Usuarios (admin + 9 vecinos activos) ─────────────────────────────────
+  // ── Solo admin ───────────────────────────────────────────────────────
   await db.insert(usersTable).values([
-    { name: "Admin Radar",         email: "admin@radarvecinal.pe",     role: "admin",     sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0  },
-    { name: "Rosa Huamán Torres",  email: "rosa.huaman@gmail.com",     role: "moderator", sector: "San Ramón Centro", district: "San Ramón", reportsCount: 8  },
-    { name: "Carlos Quispe",       email: "c.quispe@outlook.com",      role: "user",      sector: "Pampa del Carmen", district: "San Ramón", reportsCount: 5  },
-    { name: "Ana Tuesta Valles",   email: "ana.tuesta@hotmail.com",    role: "user",      sector: "San Luis",         district: "San Ramón", reportsCount: 12 },
-    { name: "Jorge Suárez",        email: "jorge.suarez@gmail.com",    role: "user",      sector: "Los Ángeles",      district: "San Ramón", reportsCount: 7  },
-    { name: "María Flores",        email: "mflores@gmail.com",         role: "user",      sector: "San Ramón Centro", district: "San Ramón", reportsCount: 4  },
-    { name: "Pedro Campos",        email: "pedrocampos@hotmail.com",   role: "user",      sector: "Pampa del Carmen", district: "San Ramón", reportsCount: 6  },
-    { name: "Cecilia Ríos",        email: "crios@gmail.com",           role: "user",      sector: "San Ramón Centro", district: "San Ramón", reportsCount: 3  },
-    { name: "Luis Asto",           email: "l.asto@gmail.com",          role: "user",      sector: "El Milagro",       district: "San Ramón", reportsCount: 5  },
-    { name: "Delia Solís",         email: "delia.solis@gmail.com",     role: "user",      sector: "Los Ángeles",      district: "San Ramón", reportsCount: 2  },
+    { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", role: "admin", sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
   ]);
 
   const now = new Date();
@@ -583,7 +574,7 @@ async function seed() {
     },
   ]);
 
-  console.log("✅ Seed completo: 50 reportes de 50 vecinos — últimos 90 días — San Ramón, Chanchamayo.");
+  console.log("✅ Seed completo: 50 reportes + admin insertados — San Ramón, Chanchamayo.");
   process.exit(0);
 }
 

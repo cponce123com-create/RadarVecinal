@@ -145,7 +145,7 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `artifacts/radar-vecinal/src/components/PanicModal.tsx` — Emergency panic button modal
 - `artifacts/radar-vecinal/src/contexts/AuthContext.tsx` — Auth state (user, isLoggedIn, login/logout/register); token in localStorage key `radar_token`
 - `artifacts/radar-vecinal/src/contexts/DistrictContext.tsx` — District selector state, 6 Chanchamayo districts; persisted in localStorage
-- `artifacts/api-server/src/routes/auth.ts` — JWT auth routes (register/login/me); secret from JWT_SECRET env or fallback dev secret
+- `artifacts/api-server/src/routes/auth.ts` — JWT auth routes (register/login/me); secret from JWT_SECRET env (required)
 - `artifacts/api-server/src/routes/` — All API route handlers
 
 ### Real-time Features (F-07, F-09)
@@ -165,8 +165,7 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ## Security Notes
 
-- Admin PIN: `"admin2024"` stored in sessionStorage key `radar_admin_unlocked`
 - Sensitive categories (prostitution, drug_point, bar_trouble, informal_commerce) are forced anonymous server-side
-- JWT expires in 30 days; secret from JWT_SECRET env variable (falls back to dev secret if unset)
+- JWT expires in 30 days; JWT_SECRET env variable is required (no fallback)
 - PATCH/DELETE /api/reports require valid JWT; DELETE also requires admin/moderator role
 TE also requires admin/moderator role

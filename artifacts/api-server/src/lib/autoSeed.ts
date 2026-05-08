@@ -18,18 +18,10 @@ export async function autoSeedIfEmpty() {
 
     logger.info("DB is empty — auto-seeding 50 demo reports...");
 
-    // ── Usuarios ─────────────────────────────────────────────────────────────
+    // ── Usuario administrador ────────────────────────────────────────────
+    // Solo el admin se crea en seed. Usuarios reales se registran vía /api/auth/register
     await db.insert(usersTable).values([
-      { name: "Admin Radar",         email: "admin@radarvecinal.pe",     role: "admin"     as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0  },
-      { name: "Rosa Huamán Torres",  email: "rosa.huaman@gmail.com",     role: "moderator" as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 8  },
-      { name: "Carlos Quispe",       email: "c.quispe@outlook.com",      role: "user"      as const, sector: "Pampa del Carmen", district: "San Ramón", reportsCount: 5  },
-      { name: "Ana Tuesta Valles",   email: "ana.tuesta@hotmail.com",    role: "user"      as const, sector: "San Luis",         district: "San Ramón", reportsCount: 12 },
-      { name: "Jorge Suárez",        email: "jorge.suarez@gmail.com",    role: "user"      as const, sector: "Los Ángeles",      district: "San Ramón", reportsCount: 7  },
-      { name: "María Flores",        email: "mflores@gmail.com",         role: "user"      as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 4  },
-      { name: "Pedro Campos",        email: "pedrocampos@hotmail.com",   role: "user"      as const, sector: "Pampa del Carmen", district: "San Ramón", reportsCount: 6  },
-      { name: "Cecilia Ríos",        email: "crios@gmail.com",           role: "user"      as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 3  },
-      { name: "Luis Asto",           email: "l.asto@gmail.com",          role: "user"      as const, sector: "El Milagro",       district: "San Ramón", reportsCount: 5  },
-      { name: "Delia Solís",         email: "delia.solis@gmail.com",     role: "user"      as const, sector: "Los Ángeles",      district: "San Ramón", reportsCount: 2  },
+      { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", role: "admin" as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
     ]).onConflictDoNothing();
 
     // ── 50 Reportes ────────────────────────────────────────────────────────
@@ -110,7 +102,7 @@ export async function autoSeedIfEmpty() {
       { businessName: "Hospedaje Río Tarma", tagline: "Habitaciones cómodas, wifi y desayuno — desde S/ 45", imageUrl: null, targetUrl: "https://example.com", isActive: true, sector: "San Ramón Centro" },
     ]).onConflictDoNothing();
 
-    logger.info("✅ Auto-seed completo: 50 reportes + 10 usuarios insertados en BD de producción.");
+    logger.info("✅ Auto-seed completo: 50 reportes + admin insertados.");
   } catch (err) {
     logger.error({ err }, "Auto-seed failed — continuing without demo data");
   }

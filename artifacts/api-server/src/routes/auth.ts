@@ -8,7 +8,8 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-const JWT_SECRET  = process.env.JWT_SECRET ?? "radar-vecinal-dev-secret-2024";
+const JWT_SECRET  = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
 const JWT_EXPIRES = "30d";
 
 // ── Zod schemas ─────────────────────────────────────────────────────────────

@@ -770,5 +770,3 @@ export default function Admin() {
   // Authorized → show admin panel
   return <AdminPanel />;
 }
-l />;
-}

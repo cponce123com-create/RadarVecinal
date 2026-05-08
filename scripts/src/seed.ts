@@ -14,7 +14,7 @@ async function seed() {
 
   // ── Solo admin ───────────────────────────────────────────────────────
   await db.insert(usersTable).values([
-    { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", role: "admin", sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
+    { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe", role: "admin", sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
   ]);
 
   const now = new Date();

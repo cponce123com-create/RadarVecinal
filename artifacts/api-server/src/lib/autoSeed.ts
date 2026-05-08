@@ -21,7 +21,7 @@ export async function autoSeedIfEmpty() {
     // ── Usuario administrador ────────────────────────────────────────────
     // Solo el admin se crea en seed. Usuarios reales se registran vía /api/auth/register
     await db.insert(usersTable).values([
-      { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", role: "admin" as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
+      { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe", role: "admin" as const, sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
     ]).onConflictDoNothing();
 
     // ── 50 Reportes ────────────────────────────────────────────────────────

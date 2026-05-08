@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";

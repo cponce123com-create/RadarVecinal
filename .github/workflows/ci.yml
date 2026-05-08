@@ -140,3 +140,28 @@ jobs:
           name: api-server-build
           path: artifacts/api-server/dist/
           if-no-files-found: error
+
+  build-frontend:
+    name: 🌐 Build Frontend
+    runs-on: ubuntu-latest
+    needs: [typecheck-api, test-api]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared libs (db, api-zod)
+        run: pnpm --filter "@workspace/db" --filter "@workspace/api-zod" run build 2>/dev/null || true
+      - name: Build radar-vecinal frontend
+        run: pnpm --filter "@workspace/radar-vecinal" run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-vecinal-build
+          path: artifacts/radar-vecinal/dist/
+          if-no-files-found: error

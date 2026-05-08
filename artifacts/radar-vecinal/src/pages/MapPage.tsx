@@ -34,7 +34,8 @@ export default function MapPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [viewMode, setViewMode] = useState<MapMode>("map");
 
-  const { data, isLoading } = useGetReports();
+  const { district } = useDistrict();
+  const { data, isLoading } = useGetReports({ district });
   const allReports = data?.reports ?? [];
 
   const cutoff15d   = subDays(new Date(), 15);
@@ -229,5 +230,8 @@ export default function MapPage() {
         )}
       </div>
     </div>
+  );
+}
+
   );
 }

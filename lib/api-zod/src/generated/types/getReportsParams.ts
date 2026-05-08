@@ -11,6 +11,7 @@ export type GetReportsParams = {
   status?: string;
   urgency?: string;
   sector?: string;
+  district?: string;
   limit?: number;
   offset?: number;
 };

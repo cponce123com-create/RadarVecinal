@@ -32,7 +32,8 @@ const CHART_TOOLTIP_STYLE = {
 export default function Stats() {
   const [period, setPeriod] = useState<Period>("30d");
   const { data: stats, isLoading } = useGetStats();
-  const { data: allReports } = useGetReports();
+  const { district } = useDistrict();
+  const { data: allReports } = useGetReports({ district });
 
   // B-23: Filter reports by selected period for derived stats
   const periodDays = PERIODS.find(p => p.id === period)?.days ?? 30;
@@ -233,5 +234,8 @@ export default function Stats() {
         </div>
       )}
     </div>
+  );
+}
+
   );
 }

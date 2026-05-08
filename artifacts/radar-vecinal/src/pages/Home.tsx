@@ -15,6 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { CATEGORY_CONFIG, STATUS_CONFIG } from "@/lib/constants";
 import { useGeofenceWatcher } from "@/lib/useGeofenceWatcher";
+import { useDistrict } from "@/contexts/DistrictContext";
 import ProximityBanner from "@/components/ProximityBanner";
 
 const PANIC_TYPE_ICONS: Record<string, any> = {

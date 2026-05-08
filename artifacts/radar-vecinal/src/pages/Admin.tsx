@@ -69,7 +69,8 @@ function AdminPanel() {
   const [adSlots, setAdSlots]     = useState<AdSlot[]>(DEMO_AD_SLOTS);
   const [editingAd, setEditingAd] = useState<AdSlot | null>(null);
 
-  const { data: reportsData, refetch } = useGetReports();
+  const { district } = useDistrict();
+  const { data: reportsData, refetch } = useGetReports({ district });
   const { data: usersData }   = useGetUsers();
   const { data: stats }       = useGetStats();
   const updateReport  = useUpdateReport();
@@ -768,4 +769,6 @@ export default function Admin() {
 
   // Authorized → show admin panel
   return <AdminPanel />;
+}
+l />;
 }

@@ -121,6 +121,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: district
+          in: query
+          schema:
+            type: string
         - name: limit
           in: query
           schema:

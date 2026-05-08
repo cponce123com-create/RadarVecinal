@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 router.get("/activity", async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(String(req.query.limit)) || 20;
 
     const reports = await db.select().from(reportsTable).orderBy(desc(reportsTable.createdAt)).limit(limit);
     const panics = await db.select().from(panicAlertsTable).orderBy(desc(panicAlertsTable.createdAt)).limit(5);
@@ -54,7 +54,7 @@ router.get("/activity", async (req, res) => {
     res.json({ items });
   } catch (err) {
     req.log.error({ err }, "Failed to get activity");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

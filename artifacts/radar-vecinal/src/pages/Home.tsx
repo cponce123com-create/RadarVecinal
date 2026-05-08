@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import {
@@ -14,6 +14,8 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { CATEGORY_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import { useGeofenceWatcher } from "@/lib/useGeofenceWatcher";
+import ProximityBanner from "@/components/ProximityBanner";
 
 const PANIC_TYPE_ICONS: Record<string, any> = {
   robbery: AlertTriangle,
@@ -58,6 +60,13 @@ export default function Home() {
   const { data: alertsData } = useGetPanicAlerts({ active: true });
   const { data: missingData } = useGetMissingPersons({ active: true });
   const { data: adsData } = useGetAdSlots();
+  const geofence = useGeofenceWatcher({ radius: 1000 });
+
+  // Auto-start geofence watcher on mount
+  useEffect(() => {
+    geofence.start();
+    return () => geofence.stop();
+  }, []);
 
   const activeAlerts = alertsData?.alerts?.filter(a => a.isActive) ?? [];
   const activeMissing = missingData?.alerts?.filter(m => m.status === "active") ?? [];
@@ -85,6 +94,15 @@ export default function Home() {
           </Link>
         </motion.div>
       )}
+
+      {/* ── Geofence Proximity Banner ── */}
+      <ProximityBanner
+        nearbyAlerts={geofence.nearbyAlerts}
+        onDismiss={(id) => {
+          // Remove dismissed alert from local state
+          // The hook handles deduplication, so just refilter
+        }}
+      />
 
       {/* ── Header Row: greeting + KPIs ── */}
       <section className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -210,7 +228,7 @@ export default function Home() {
               </Link>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2" style={{ maxHeight: '32rem', overflowY: 'auto' }}>
               {reportsData?.reports.slice(0, 5).map((report, i) => {
                 const config = CATEGORY_CONFIG[report.category as keyof typeof CATEGORY_CONFIG];
                 const color = CATEGORY_DOT_COLORS[report.category] ?? "#6b7280";

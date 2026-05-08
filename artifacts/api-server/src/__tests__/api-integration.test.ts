@@ -21,8 +21,8 @@ const JWT_SECRET = "radar-vecinal-dev-secret-2024";
 describe.skipIf(!process.env.DATABASE_URL)(
   "API Integration Tests (E2E)",
   () => {
-    let db: Awaited<ReturnType<typeof import("@workspace/db")>>["db"];
-    let pool: Awaited<ReturnType<typeof import("@workspace/db")>>["pool"];
+    let db: any;
+    let pool: any;
     let usersTable: any;
     let reportsTable: any;
     let sql: any;

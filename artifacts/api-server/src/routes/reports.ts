@@ -51,7 +51,7 @@ function formatReport(r: typeof reportsTable.$inferSelect) {
     contactPhone: r.contactPhone ?? null,
     confirmedCount: r.confirmedCount,
     createdAt:    r.createdAt.toISOString(),
-    updatedAt:    r.updatedAt.toISOString(),
+    updatedAt:    r.updatedAt ? r.updatedAt.toISOString() : r.createdAt.toISOString(),
   };
 }
 
@@ -75,18 +75,17 @@ router.get("/reports", async (req, res) => {
     if (category) conditions.push(eq(reportsTable.category, category as any));
     if (status)   conditions.push(eq(reportsTable.status,   status   as any));
     if (urgency)  conditions.push(eq(reportsTable.urgency,  urgency  as any));
-    if (req.query.sector)   conditions.push(eq(reportsTable.sector,   req.query.sector   as string));
-    // B-05: District segmentation — filter by district if provided
-    if (req.query.district) conditions.push(eq(reportsTable.district, req.query.district as string));
+    if (req.query.sector)   conditions.push(eq(reportsTable.sector,   String(req.query.sector)));
+    if (req.query.district) conditions.push(eq(reportsTable.district, String(req.query.district)));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const reports = await db.select().from(reportsTable).where(where).orderBy(desc(reportsTable.createdAt)).limit(limit).offset(offset);
     const total   = await db.select({ count: sql<number>`count(*)` }).from(reportsTable).where(where);
 
-    res.json({ reports: reports.map(formatReport), total: Number(total[0]?.count ?? 0) });
+    return res.json({ reports: reports.map(formatReport), total: Number(total[0]?.count ?? 0) });
   } catch (err) {
     req.log.error({ err }, "Failed to get reports");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -127,18 +126,18 @@ router.post("/reports", async (req, res) => {
       try {
         const { verifyToken } = await import("./auth");
         const payload = verifyToken(authHeader.slice(7));
-        if (payload?.id) {
+        if (payload?.sub) {
           await db.update(usersTable)
             .set({ reportsCount: sql`${usersTable.reportsCount} + 1` })
-            .where(eq(usersTable.id, Number(payload.id)));
+            .where(eq(usersTable.id, Number(payload.sub)));
         }
       } catch { /* ignore — unauthenticated reports are allowed */ }
     }
 
-    res.status(201).json(formatReport(report));
+    return res.status(201).json(formatReport(report));
   } catch (err) {
     req.log.error({ err }, "Failed to create report");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -146,14 +145,14 @@ router.get("/reports/:id", async (req, res) => {
   try {
     const [report] = await db.select().from(reportsTable).where(eq(reportsTable.id, parseInt(req.params.id)));
     if (!report) return res.status(404).json({ error: "Not found" });
-    res.json(formatReport(report));
+    return res.json(formatReport(report));
   } catch (err) {
     req.log.error({ err }, "Failed to get report");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// F-03: Protected — any authenticated user can update a report (moderators/admins enforce via admin panel)
+// F-03: Protected — any authenticated user can update a report
 router.patch("/reports/:id", requireAuth, async (req, res) => {
   try {
     const data = req.body;
@@ -163,24 +162,24 @@ router.patch("/reports/:id", requireAuth, async (req, res) => {
     if (data.description !== undefined) updates.description = data.description;
     updates.updatedAt = new Date();
 
-    const [report] = await db.update(reportsTable).set(updates).where(eq(reportsTable.id, parseInt(req.params.id))).returning();
+    const [report] = await db.update(reportsTable).set(updates).where(eq(reportsTable.id, parseInt(String(req.params.id)))).returning();
     if (!report) return res.status(404).json({ error: "Not found" });
-    res.json(formatReport(report));
+    return res.json(formatReport(report));
   } catch (err) {
     req.log.error({ err }, "Failed to update report");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // F-03: Protected — only admins/moderators can delete reports
 router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [deleted] = await db.delete(reportsTable).where(eq(reportsTable.id, parseInt(req.params.id))).returning();
+    const [deleted] = await db.delete(reportsTable).where(eq(reportsTable.id, parseInt(String(req.params.id)))).returning();
     if (!deleted) return res.status(404).json({ error: "Not found" });
-    res.json({ success: true, id: String(deleted.id) });
+    return res.json({ success: true, id: String(deleted.id) });
   } catch (err) {
     req.log.error({ err }, "Failed to delete report");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -197,10 +196,10 @@ router.post("/reports/:id/confirm", async (req, res) => {
       .returning();
 
     if (!report) return res.status(404).json({ error: "Reporte no encontrado" });
-    res.json(formatReport(report));
+    return res.json(formatReport(report));
   } catch (err) {
     req.log.error({ err }, "Failed to confirm report");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -314,10 +313,95 @@ router.post("/seed", async (req, res) => {
       { businessName: "Hospedaje Río Tarma", tagline: "Habitaciones cómodas, wifi y desayuno — desde S/ 45", imageUrl: null, targetUrl: "https://example.com", isActive: true, sector: "San Ramón Centro" },
     ]).onConflictDoNothing();
 
-    res.json({ seeded: true, message: `✅ ${seedReports.length} reportes de 50 vecinos insertados correctamente.` });
+    return res.json({ seeded: true, message: `✅ ${seedReports.length} reportes de 50 vecinos insertados correctamente.` });
   } catch (err) {
     req.log.error({ err }, "Seed failed");
-    res.status(500).json({ error: "Seed failed", detail: String(err) });
+    return res.status(500).json({ error: "Seed failed", detail: String(err) });
+  }
+});
+
+// ── GET /reports/nearby ── Reportes cercanos a una ubicación ──
+const nearbyQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  radius: z.coerce.number().min(100).max(10000).default(1000),
+  category: z.string().optional(),
+  district: z.string().optional(),
+});
+
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+router.get("/reports/nearby", async (req, res) => {
+  try {
+    const parsed = nearbyQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Parámetros de consulta inválidos",
+        detail: parsed.error.issues,
+      });
+    }
+
+    const { lat, lng, radius, category, district } = parsed.data;
+
+    // Build base query — only active reports
+    let query = db
+      .select()
+      .from(reportsTable)
+      .where(eq(reportsTable.status, "active"));
+
+    // Apply district filter if provided
+    if (district) {
+      query = db
+        .select()
+        .from(reportsTable)
+        .where(
+          eq(reportsTable.district, district),
+        );
+    }
+
+    const allReports = await query;
+
+    // Apply haversine filter
+    const nearby = allReports
+      .map((r) => ({
+        ...r,
+        distance: haversineDistance(lat, lng, r.latitude, r.longitude),
+      }))
+      .filter((r) => r.distance <= radius)
+      .filter((r) => !category || r.category === category)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 50);
+
+    return res.json({
+      reports: nearby.map((r) => ({
+        id: String(r.id),
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        urgency: r.urgency,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        address: r.address,
+        sector: r.sector,
+        distance: Math.round(r.distance),
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+      })),
+      count: nearby.length,
+      query: { lat, lng, radius },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get nearby reports");
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

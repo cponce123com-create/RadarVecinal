@@ -15,6 +15,7 @@ export interface AuthRegisterInput {
   password: string;
   sector: string;
   district: string;
+  dni?: string | null;
 }
 
 export interface AuthLoginInput {
@@ -73,6 +74,9 @@ export const ReportCategory = {
   missing_person: "missing_person",
   fire: "fire",
   medical_emergency: "medical_emergency",
+  prostitution: "prostitution",
+  drug_point: "drug_point",
+  bar_trouble: "bar_trouble",
   other: "other",
 } as const;
 
@@ -106,11 +110,13 @@ export interface Report {
   longitude: number;
   address?: string;
   sector: string;
+  district: string;
   imageUrl?: string | null;
   authorName: string;
+  contactPhone?: string | null;
   confirmedCount: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface CreateReportInput {
@@ -123,8 +129,10 @@ export interface CreateReportInput {
   longitude: number;
   address?: string;
   sector: string;
+  district?: string;
   imageUrl?: string | null;
   authorName: string;
+  contactPhone?: string | null;
 }
 
 export interface UpdateReportInput {
@@ -281,6 +289,21 @@ export interface UpdateUserInput {
   dni?: string | null;
 }
 
+export interface NearbyReport {
+  id: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  urgency?: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  sector?: string;
+  distance: number;
+  status: string;
+  createdAt: string;
+}
+
 export interface Notification {
   id: string;
   type: string;
@@ -333,6 +356,25 @@ export type GetReports200 = {
 export type DeleteReport200 = {
   success: boolean;
   id: string;
+};
+
+export type GetReportsNearbyParams = {
+  lat: number;
+  lng: number;
+  radius: number;
+  category?: string;
+};
+
+export type GetReportsNearby200Query = {
+  lat?: number;
+  lng?: number;
+  radius?: number;
+};
+
+export type GetReportsNearby200 = {
+  reports: NearbyReport[];
+  count: number;
+  query: GetReportsNearby200Query;
 };
 
 export type GetPanicAlertsParams = {

@@ -250,6 +250,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/Report"
 
+  /reports/nearby:
+    get:
+      operationId: getReportsNearby
+      tags: [reports]
+      summary: Get reports near a location using haversine distance
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radius
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Nearby reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NearbyReport"
+                  count:
+                    type: number
+                  query:
+                    type: object
+                    properties:
+                      lat:
+                        type: number
+                      lng:
+                        type: number
+                      radius:
+                        type: number
+                required:
+                  - reports
+                  - count
+                  - query
+        "400":
+          description: Invalid query parameters
+
   /panic-alerts:
     get:
       operationId: getPanicAlerts
@@ -652,6 +707,9 @@ components:
           type: string
         district:
           type: string
+        dni:
+          type: string
+          nullable: true
       required:
         - name
         - email
@@ -723,6 +781,9 @@ components:
             - missing_person
             - fire
             - medical_emergency
+            - prostitution
+            - drug_point
+            - bar_trouble
             - other
         urgency:
           type: string
@@ -748,11 +809,16 @@ components:
           type: string
         sector:
           type: string
+        district:
+          type: string
         imageUrl:
           type: string
           nullable: true
         authorName:
           type: string
+        contactPhone:
+          type: string
+          nullable: true
         confirmedCount:
           type: number
         createdAt:
@@ -770,10 +836,10 @@ components:
         - latitude
         - longitude
         - sector
+        - district
         - authorName
         - confirmedCount
         - createdAt
-        - updatedAt
 
     CreateReportInput:
       type: object
@@ -796,11 +862,16 @@ components:
           type: string
         sector:
           type: string
+        district:
+          type: string
         imageUrl:
           type: string
           nullable: true
         authorName:
           type: string
+        contactPhone:
+          type: string
+          nullable: true
       required:
         - title
         - description
@@ -1159,6 +1230,44 @@ components:
         dni:
           type: string
           nullable: true
+
+    NearbyReport:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+        urgency:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        sector:
+          type: string
+        distance:
+          type: number
+        status:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - category
+        - latitude
+        - longitude
+        - distance
+        - status
+        - createdAt
 
     Notification:
       type: object

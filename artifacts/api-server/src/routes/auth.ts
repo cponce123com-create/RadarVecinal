@@ -149,11 +149,20 @@ router.get("/auth/me", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Usuario no encontrado o inactivo." });
     }
 
-    return res.json({ user: formatUser(user) });
+    return res.json(formatUser(user));
   } catch (err) {
     return res.status(401).json({ error: "Token inválido o expirado." });
   }
 });
+
+// ── Token verification helper (used by other modules) ──────────────────────
+export function verifyToken(token: string): { sub: string; email: string; role: string } | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as any;
+  } catch {
+    return null;
+  }
+}
 
 // ── Middleware: optional auth (attaches user if token valid) ─────────────────
 export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
@@ -193,7 +202,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     // Attach full user info from DB (more reliable than JWT alone)
     (req as any).jwtUser = { ...payload, role: user.role };
-    next();
+    return next();
   } catch (err) {
     if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
       return res.status(401).json({ error: "Token inválido o expirado." });
@@ -209,7 +218,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!user || !["admin", "moderator"].includes(user.role)) {
     return res.status(403).json({ error: "Acceso denegado. Se requiere rol de administrador." });
   }
-  next();
+  return next();
 }
 
 export default router;

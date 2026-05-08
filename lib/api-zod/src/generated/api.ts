@@ -23,6 +23,7 @@ export const AuthRegisterBody = zod.object({
   password: zod.string(),
   sector: zod.string(),
   district: zod.string(),
+  dni: zod.string().nullish(),
 });
 
 /**
@@ -92,6 +93,9 @@ export const GetReportsResponse = zod.object({
         "missing_person",
         "fire",
         "medical_emergency",
+        "prostitution",
+        "drug_point",
+        "bar_trouble",
         "other",
       ]),
       urgency: zod.enum(["low", "medium", "high", "critical"]),
@@ -101,11 +105,13 @@ export const GetReportsResponse = zod.object({
       longitude: zod.number(),
       address: zod.string().optional(),
       sector: zod.string(),
+      district: zod.string(),
       imageUrl: zod.string().nullish(),
       authorName: zod.string(),
+      contactPhone: zod.string().nullish(),
       confirmedCount: zod.number(),
       createdAt: zod.string(),
-      updatedAt: zod.string(),
+      updatedAt: zod.string().optional(),
     }),
   ),
   total: zod.number(),
@@ -124,8 +130,10 @@ export const CreateReportBody = zod.object({
   longitude: zod.number(),
   address: zod.string().optional(),
   sector: zod.string(),
+  district: zod.string().optional(),
   imageUrl: zod.string().nullish(),
   authorName: zod.string(),
+  contactPhone: zod.string().nullish(),
 });
 
 /**
@@ -150,6 +158,9 @@ export const GetReportResponse = zod.object({
     "missing_person",
     "fire",
     "medical_emergency",
+    "prostitution",
+    "drug_point",
+    "bar_trouble",
     "other",
   ]),
   urgency: zod.enum(["low", "medium", "high", "critical"]),
@@ -159,11 +170,13 @@ export const GetReportResponse = zod.object({
   longitude: zod.number(),
   address: zod.string().optional(),
   sector: zod.string(),
+  district: zod.string(),
   imageUrl: zod.string().nullish(),
   authorName: zod.string(),
+  contactPhone: zod.string().nullish(),
   confirmedCount: zod.number(),
   createdAt: zod.string(),
-  updatedAt: zod.string(),
+  updatedAt: zod.string().optional(),
 });
 
 /**
@@ -194,6 +207,9 @@ export const UpdateReportResponse = zod.object({
     "missing_person",
     "fire",
     "medical_emergency",
+    "prostitution",
+    "drug_point",
+    "bar_trouble",
     "other",
   ]),
   urgency: zod.enum(["low", "medium", "high", "critical"]),
@@ -203,11 +219,13 @@ export const UpdateReportResponse = zod.object({
   longitude: zod.number(),
   address: zod.string().optional(),
   sector: zod.string(),
+  district: zod.string(),
   imageUrl: zod.string().nullish(),
   authorName: zod.string(),
+  contactPhone: zod.string().nullish(),
   confirmedCount: zod.number(),
   createdAt: zod.string(),
-  updatedAt: zod.string(),
+  updatedAt: zod.string().optional(),
 });
 
 /**
@@ -244,6 +262,9 @@ export const ConfirmReportResponse = zod.object({
     "missing_person",
     "fire",
     "medical_emergency",
+    "prostitution",
+    "drug_point",
+    "bar_trouble",
     "other",
   ]),
   urgency: zod.enum(["low", "medium", "high", "critical"]),
@@ -253,11 +274,48 @@ export const ConfirmReportResponse = zod.object({
   longitude: zod.number(),
   address: zod.string().optional(),
   sector: zod.string(),
+  district: zod.string(),
   imageUrl: zod.string().nullish(),
   authorName: zod.string(),
+  contactPhone: zod.string().nullish(),
   confirmedCount: zod.number(),
   createdAt: zod.string(),
-  updatedAt: zod.string(),
+  updatedAt: zod.string().optional(),
+});
+
+/**
+ * @summary Get reports near a location using haversine distance
+ */
+export const GetReportsNearbyQueryParams = zod.object({
+  lat: zod.coerce.number(),
+  lng: zod.coerce.number(),
+  radius: zod.coerce.number(),
+  category: zod.coerce.string().optional(),
+});
+
+export const GetReportsNearbyResponse = zod.object({
+  reports: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().nullish(),
+      category: zod.string(),
+      urgency: zod.string().optional(),
+      latitude: zod.number(),
+      longitude: zod.number(),
+      address: zod.string().optional(),
+      sector: zod.string().optional(),
+      distance: zod.number(),
+      status: zod.string(),
+      createdAt: zod.string(),
+    }),
+  ),
+  count: zod.number(),
+  query: zod.object({
+    lat: zod.number().optional(),
+    lng: zod.number().optional(),
+    radius: zod.number().optional(),
+  }),
 });
 
 /**

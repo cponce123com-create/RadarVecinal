@@ -44,7 +44,7 @@ router.get("/stats", async (req, res) => {
       weeklyTrend.push({ day: dayName, count: Number(row?.count ?? 0) });
     }
 
-    res.json({
+    return res.json({
       totalReports: Number(totalRow?.count ?? 0),
       activeAlerts: Number(activeAlertsRow?.count ?? 0),
       todayIncidents: Number(todayRow?.count ?? 0),
@@ -57,7 +57,7 @@ router.get("/stats", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get stats");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

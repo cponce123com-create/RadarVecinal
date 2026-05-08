@@ -72,10 +72,10 @@ router.get("/panic-alerts/stream", (req, res) => {
 router.get("/panic-alerts", async (req, res) => {
   try {
     const alerts = await db.select().from(panicAlertsTable).orderBy(desc(panicAlertsTable.createdAt)).limit(50);
-    res.json({ alerts: alerts.map(formatPanic) });
+    return res.json({ alerts: alerts.map(formatPanic) });
   } catch (err) {
     req.log.error({ err }, "Failed to get panic alerts");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -114,20 +114,20 @@ router.post("/panic-alerts", async (req, res) => {
       isRead: false,
     }).execute();
 
-    res.status(201).json(formatted);
+    return res.status(201).json(formatted);
   } catch (err) {
     req.log.error({ err }, "Failed to create panic alert");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
 router.get("/missing-persons", async (req, res) => {
   try {
     const persons = await db.select().from(missingPersonsTable).orderBy(desc(missingPersonsTable.createdAt));
-    res.json({ alerts: persons.map(formatMissing) });
+    return res.json({ alerts: persons.map(formatMissing) });
   } catch (err) {
     req.log.error({ err }, "Failed to get missing persons");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -147,10 +147,10 @@ router.post("/missing-persons", async (req, res) => {
       status: "active",
       reportedBy: data.reportedBy,
     }).returning();
-    res.status(201).json(formatMissing(person));
+    return res.status(201).json(formatMissing(person));
   } catch (err) {
     req.log.error({ err }, "Failed to create missing person alert");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -164,10 +164,10 @@ router.patch("/missing-persons/:id", async (req, res) => {
 
     const [person] = await db.update(missingPersonsTable).set(updates).where(eq(missingPersonsTable.id, parseInt(req.params.id))).returning();
     if (!person) return res.status(404).json({ error: "Not found" });
-    res.json(formatMissing(person));
+    return res.json(formatMissing(person));
   } catch (err) {
     req.log.error({ err }, "Failed to update missing person");
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

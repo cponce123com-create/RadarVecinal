@@ -6,18 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreateReportInput {
+export interface NearbyReport {
+  id: string;
   title: string;
-  description: string;
+  description?: string | null;
   category: string;
-  urgency: string;
-  isAnonymous: boolean;
+  urgency?: string;
   latitude: number;
   longitude: number;
   address?: string;
-  sector: string;
-  district?: string;
-  imageUrl?: string | null;
-  authorName: string;
-  contactPhone?: string | null;
+  sector?: string;
+  distance: number;
+  status: string;
+  createdAt: string;
 }

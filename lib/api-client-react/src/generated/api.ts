@@ -34,6 +34,8 @@ import type {
   GetPanicAlerts200,
   GetPanicAlertsParams,
   GetReports200,
+  GetReportsNearby200,
+  GetReportsNearbyParams,
   GetReportsParams,
   GetUsers200,
   HealthStatus,
@@ -888,6 +890,103 @@ export const useConfirmReport = <
 > => {
   return useMutation(getConfirmReportMutationOptions(options));
 };
+
+/**
+ * @summary Get reports near a location using haversine distance
+ */
+export const getGetReportsNearbyUrl = (params: GetReportsNearbyParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/nearby?${stringifiedParams}`
+    : `/api/reports/nearby`;
+};
+
+export const getReportsNearby = async (
+  params: GetReportsNearbyParams,
+  options?: RequestInit,
+): Promise<GetReportsNearby200> => {
+  return customFetch<GetReportsNearby200>(getGetReportsNearbyUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetReportsNearbyQueryKey = (
+  params?: GetReportsNearbyParams,
+) => {
+  return [`/api/reports/nearby`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetReportsNearbyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReportsNearby>>,
+  TError = ErrorType<void>,
+>(
+  params: GetReportsNearbyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReportsNearby>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetReportsNearbyQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getReportsNearby>>
+  > = ({ signal }) => getReportsNearby(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReportsNearby>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetReportsNearbyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReportsNearby>>
+>;
+export type GetReportsNearbyQueryError = ErrorType<void>;
+
+/**
+ * @summary Get reports near a location using haversine distance
+ */
+
+export function useGetReportsNearby<
+  TData = Awaited<ReturnType<typeof getReportsNearby>>,
+  TError = ErrorType<void>,
+>(
+  params: GetReportsNearbyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReportsNearby>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetReportsNearbyQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get all panic alerts

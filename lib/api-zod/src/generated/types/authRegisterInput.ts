@@ -12,4 +12,5 @@ export interface AuthRegisterInput {
   password: string;
   sector: string;
   district: string;
+  dni?: string | null;
 }

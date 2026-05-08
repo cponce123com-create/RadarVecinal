@@ -21,9 +21,11 @@ export interface Report {
   longitude: number;
   address?: string;
   sector: string;
+  district: string;
   imageUrl?: string | null;
   authorName: string;
+  contactPhone?: string | null;
   confirmedCount: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }

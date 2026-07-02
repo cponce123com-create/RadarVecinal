@@ -9,8 +9,8 @@ services:
     region: oregon
     plan: free
     branch: main
-    # Monorepo root — pnpm necesita resolver workspaces desde la raíz
-    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/db run build && pnpm --filter @workspace/api-zod run build && pnpm --filter @workspace/api-server run build
+    # Monorepo root — se usa npx pnpm@9 porque corepack falla en Render (ROFS)
+    buildCommand: npx pnpm@9 install --no-frozen-lockfile && npx pnpm@9 --filter @workspace/api-server run build && cd artifacts/radar-vecinal && npx pnpm@9 run build
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:

@@ -10,7 +10,9 @@ import {
   districtsTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
+import rateLimit from "express-rate-limit";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
+import { getDistrictId, checkTenant } from "./tenant";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -35,7 +37,7 @@ const createReportSchema = z.object({
   district: z.string().optional(),
   imageUrl: z.string().optional().nullable(),
   authorName: z.string().optional(),
-  contactPhone: z.string().optional().nullable(),
+  contactPhone: z.string().regex(/^[+\d\s\-()]{7,15}$/, "Teléfono inválido").optional().nullable(),
 });
 
 const updateReportSchema = z.object({
@@ -43,23 +45,6 @@ const updateReportSchema = z.object({
   title: z.string().min(3).max(200).optional(),
   description: z.string().min(10).max(2000).optional(),
 });
-
-// ── Helper: obtener districtId del request ──────────────────────────────────
-function getDistrictId(req: any): number | null {
-  const user = req.jwtUser;
-  if (user?.districtId && user.role !== "super_admin") return Number(user.districtId);
-  const q = req.query.districtId || req.body.districtId;
-  if (q) return Number(q);
-  return null;
-}
-
-// ── M-04: Helper de chequeo de tenant ──────────────────────────────────────
-function checkTenant(req: any, resourceDistrictId: number): boolean {
-  const user = req.jwtUser;
-  if (!user) return false;
-  if (user.role === "super_admin") return true;
-  return Number(user.districtId) === Number(resourceDistrictId);
-}
 
 // ── B-12, M-01: GET /reports (with district filter) ───────────────────────
 router.get("/reports", optionalAuth, async (req, res) => {
@@ -364,7 +349,16 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
 });
 
 // ── POST /seed — M-12: parametrizado por districtSlug ────────────────────────
-router.post("/seed", async (req, res) => {
+// Rate limiter estricto: máximo 5 intentos por hora por IP
+const seedLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos de seed. Intenta en una hora." },
+});
+
+router.post("/seed", seedLimiter, async (req, res) => {
   try {
     // Verificar seed key
     const seedKey = req.headers["x-seed-key"];

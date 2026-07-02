@@ -3,17 +3,9 @@ import { db } from "@workspace/db";
 import { reportsTable, panicAlertsTable, missingPersonsTable } from "@workspace/db/schema";
 import { eq, and, gte, sql, desc } from "drizzle-orm";
 import { optionalAuth } from "./auth";
+import { getDistrictId } from "./tenant";
 
 const router: IRouter = Router();
-
-// ── Helper: obtener districtId del request ──────────────────────────────────
-function getDistrictId(req: any): number | null {
-  const user = req.jwtUser;
-  if (user?.districtId && user.role !== "super_admin") return Number(user.districtId);
-  const q = req.query.districtId;
-  if (q) return Number(q);
-  return null;
-}
 
 // ── M-01/M-10: GET /stats — filtrado por distrito ──────────────────────────
 router.get("/stats", optionalAuth, async (req, res) => {

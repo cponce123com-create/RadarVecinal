@@ -1,19 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { reportsTable, panicAlertsTable, missingPersonsTable } from "@workspace/db/schema";
-import { desc, eq, and, sql } from "drizzle-orm";
+import { desc, eq, and, sql, type SQL } from "drizzle-orm";
 import { optionalAuth } from "./auth";
+import { getDistrictId } from "./tenant";
 
 const router: IRouter = Router();
-
-// ── Helper: obtener districtId del request ──────────────────────────────────
-function getDistrictId(req: any): number | null {
-  const user = req.jwtUser;
-  if (user?.districtId && user.role !== "super_admin") return Number(user.districtId);
-  const q = req.query.districtId;
-  if (q) return Number(q);
-  return null;
-}
 
 // ── M-01: GET /activity — filtrado por distrito ────────────────────────────
 router.get("/activity", optionalAuth, async (req, res) => {
@@ -22,8 +14,9 @@ router.get("/activity", optionalAuth, async (req, res) => {
     const districtId = getDistrictId(req);
 
     const filter = districtId
-      ? (table: any) => and(eq(table.districtId, districtId))
-      : () => undefined;
+      ? <T extends { districtId: SQL | unknown }>(table: T): SQL | undefined =>
+          and(eq(table.districtId as any, districtId))
+      : (): undefined => undefined;
 
     const [reports, panics, missing] = await Promise.all([
       db.select({
@@ -37,7 +30,7 @@ router.get("/activity", optionalAuth, async (req, res) => {
         authorName: reportsTable.authorName,
         createdAt: reportsTable.createdAt,
       }).from(reportsTable)
-        .where(filter(reportsTable) as any ?? sql`TRUE`)
+        .where(filter(reportsTable) ?? sql`TRUE`)
         .orderBy(desc(reportsTable.createdAt))
         .limit(limit),
 
@@ -52,7 +45,7 @@ router.get("/activity", optionalAuth, async (req, res) => {
         authorName: panicAlertsTable.authorName,
         createdAt: panicAlertsTable.createdAt,
       }).from(panicAlertsTable)
-        .where(filter(panicAlertsTable) as any ?? sql`TRUE`)
+        .where(filter(panicAlertsTable) ?? sql`TRUE`)
         .orderBy(desc(panicAlertsTable.createdAt))
         .limit(limit),
 
@@ -67,7 +60,7 @@ router.get("/activity", optionalAuth, async (req, res) => {
         authorName: missingPersonsTable.reportedBy,
         createdAt: missingPersonsTable.createdAt,
       }).from(missingPersonsTable)
-        .where(filter(missingPersonsTable) as any ?? sql`TRUE`)
+        .where(filter(missingPersonsTable) ?? sql`TRUE`)
         .orderBy(desc(missingPersonsTable.createdAt))
         .limit(limit),
     ]);

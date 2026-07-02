@@ -8,6 +8,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth, optionalAuth } from "./auth";
+import { getDistrictId } from "./tenant";
 
 const router: IRouter = Router();
 
@@ -19,15 +20,6 @@ interface SseClient {
 }
 
 let sseClients: SseClient[] = [];
-
-// ── Helper: obtener districtId del request ──────────────────────────────────
-function getDistrictId(req: any): number | null {
-  const user = req.jwtUser;
-  if (user?.districtId && user.role !== "super_admin") return Number(user.districtId);
-  const q = req.query.districtId || req.body.districtId;
-  if (q) return Number(q);
-  return null;
-}
 
 // ── M-02: Broadcast de alerta solo a clientes del mismo distrito ────────────
 export function broadcastPanicAlert(alert: any) {

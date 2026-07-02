@@ -15,9 +15,13 @@ cd artifacts/radar-vecinal
 cp package.json package.json.bak
 node fix-pkg.cjs
 echo "--- npm install ---"
-echo "--- npm install ---"
-npm install --no-package-lock --ignore-scripts 2>&1 | tail -5
-# Crear symlinks para @workspace/* (no existen en npm registry)
+npm install --no-package-lock --ignore-scripts 2>&1
+# DEBUG: check if vite was installed
+echo "--- checking install ---"
+ls node_modules/vite/bin/vite.js 2>&1 || echo "vite bin NOT FOUND"
+ls node_modules/.package-lock.json 2>&1 || echo "no lock"
+echo "node_modules dirs:" $(ls node_modules/ | head -5) "..."
+echo "--- vite build ---"
 mkdir -p node_modules/@workspace
 # Todos los paquetes del workspace que puedan necesitarse
 for pkgdir in ../../lib/* ../../lib/integrations/* ../../artifacts/*; do

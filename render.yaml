@@ -9,10 +9,8 @@ services:
     region: oregon
     plan: free
     branch: main
-    # Monorepo root — se usa npx pnpm@9 porque corepack falla en Render (ROFS)
-    # NOTA: node ./build.mjs directamente NO funciona porque pnpm usa node_modules/.pnpm/
-    # Es necesario usar pnpm exec para que Node resuelva las dependencias correctamente.
-    buildCommand: npx pnpm@9 install --no-frozen-lockfile && cd artifacts/api-server && npx pnpm@9 exec node build.mjs && cd ../radar-vecinal && npx pnpm@9 run build
+    # Monorepo root — build via script para evitar escapes en el dashboard de Render
+    buildCommand: bash render-build.sh
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:

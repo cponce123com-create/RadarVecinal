@@ -134,6 +134,35 @@ router.post("/reports", optionalAuth, async (req, res) => {
       imageUrl: data.imageUrl ?? null,
     }).returning();
 
+    // Smart auto-asignación: mapea categoría → departamento (inspirado CivicReporter)
+    const CATEGORY_TO_DEPT: Record<string, string> = {
+      robbery: "serenazgo",
+      fight: "serenazgo",
+      suspicious: "serenazgo",
+      water_cut: "servicios-publicos",
+      garbage: "limpieza-publica",
+      noise: "serenazgo",
+      fire: "bomberos",
+      medical_emergency: "salud",
+      informal_commerce: "fiscalizacion",
+      prostitution: "serenazgo",
+      drug_point: "serenazgo",
+      bar_trouble: "serenazgo",
+      missing_person: "serenazgo",
+    };
+    const deptSlug = CATEGORY_TO_DEPT[data.category];
+    if (deptSlug) {
+      const { departmentsTable } = await import("@workspace/db/schema");
+      const [dept] = await db.select({ id: departmentsTable.id })
+        .from(departmentsTable)
+        .where(and(eq(departmentsTable.slug, deptSlug), eq(departmentsTable.districtId, districtId)))
+        .limit(1);
+      if (dept) {
+        await db.update(reportsTable).set({ assignedTo: dept.id }).where(eq(reportsTable.id, report.id));
+        report.assignedTo = dept.id;
+      }
+    }
+
     return res.status(201).json({
       ...report,
       id: String(report.id),

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
+import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 
@@ -154,7 +155,10 @@ export function Layout({ children }: LayoutProps) {
           })}
         </nav>
 
-        {/* Footer Zone — B-01: Auth user card */}
+        {/* Theme toggle + Footer Zone — B-01: Auth user card */}
+        <div className="p-2">
+          <ThemeToggle />
+        </div>
         <div className="p-4 border-t border-sidebar-border">
           {!!user ? (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/6">
@@ -187,6 +191,8 @@ export function Layout({ children }: LayoutProps) {
           <span className="font-bold text-base text-white">Radar Vecinal</span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Theme toggle compact */}
+          <ThemeToggle compact />
           {/* B-05: District selector in mobile header */}
           <DistrictSelector compact />
           {/* B-01: Auth button in mobile header */}

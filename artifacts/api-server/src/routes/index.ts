@@ -11,6 +11,7 @@ import districtsRouter from "./districts";
 import categoriesRouter from "./categories";
 import featuresRouter from "./features";
 import civicEducationRouter from "./civicEducation";
+import embedRouter from "./embed";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(districtsRouter);
 router.use(categoriesRouter);
 router.use(featuresRouter);
 router.use(civicEducationRouter);
+router.use(embedRouter);
 
 export default router;

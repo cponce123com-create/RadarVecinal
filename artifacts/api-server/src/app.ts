@@ -6,8 +6,14 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { optionalAuth } from "./routes/auth";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 
 const app: Express = express();
+
+// Swagger UI en /api-docs (antes de las rutas API)
+import swaggerRouter from "./lib/swagger";
+app.use(swaggerRouter);
 
 // Trust proxy headers so rate-limit works correctly behind reverse proxy
 app.set("trust proxy", 1);
@@ -20,6 +26,17 @@ app.use(helmet({
 
 // Disable ETag so API responses are never cached as stale empty data
 app.set("etag", false);
+
+// RLS: setear variables de sesión PostgreSQL para Row Level Security (migración 0007)
+// Inspirado en FixNet (Supabase RLS). Cada request setea app.district_id usado por las políticas.
+app.use("/api", (req, _res, next) => {
+  const user = (req as any).jwtUser;
+  if (user?.districtId) {
+    db.execute(sql`SELECT set_config('app.district_id', ${String(user.districtId)}, true)`).catch(() => {});
+    db.execute(sql`SELECT set_config('app.role', ${user.role}, true)`).catch(() => {});
+  }
+  next();
+});
 
 // CORS: solo orígenes explícitos. En producción el frontend se sirve
 // desde express.static (mismo origen), así que no necesita CORS.

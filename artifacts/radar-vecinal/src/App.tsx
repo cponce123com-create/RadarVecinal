@@ -7,6 +7,7 @@ import { DistrictProvider } from "@/contexts/DistrictContext";
 import { usePanicAlertStream } from "@/lib/usePanicAlertStream";
 
 import { Layout } from "@/components/Layout";
+import BrandingWrapper from "@/components/BrandingWrapper";
 import Home from "@/pages/Home";
 import MapPage from "@/pages/MapPage";
 import ReportForm from "@/pages/ReportForm";
@@ -61,40 +62,40 @@ function Router() {
       
       {/* App Routes wrapped in Layout */}
       <Route path="/home">
-        {() => <Layout><Home /></Layout>}
+        {() => <Layout><BrandingWrapper><Home /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/mapa">
-        {() => <Layout><MapPage /></Layout>}
+        {() => <Layout><BrandingWrapper><MapPage /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/reportar">
-        {() => <Layout><ReportForm /></Layout>}
+        {() => <Layout><BrandingWrapper><ReportForm /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/alertas">
-        {() => <Layout><Alerts /></Layout>}
+        {() => <Layout><BrandingWrapper><Alerts /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/historial">
-        {() => <Layout><History /></Layout>}
+        {() => <Layout><BrandingWrapper><History /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/estadisticas">
-        {() => <Layout><Stats /></Layout>}
+        {() => <Layout><BrandingWrapper><Stats /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/perfil">
-        {() => <Layout><Profile /></Layout>}
+        {() => <Layout><BrandingWrapper><Profile /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/menor-perdido">
-        {() => <Layout><MissingPerson /></Layout>}
+        {() => <Layout><BrandingWrapper><MissingPerson /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/admin">
-        {() => <Layout><Admin /></Layout>}
+        {() => <Layout><BrandingWrapper><Admin /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/notificaciones">
-        {() => <Layout><Notifications /></Layout>}
+        {() => <Layout><BrandingWrapper><Notifications /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/configuracion">
-        {() => <Layout><Settings /></Layout>}
+        {() => <Layout><BrandingWrapper><Settings /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/emergencias">
-        {() => <Layout><Emergencias /></Layout>}
+        {() => <Layout><BrandingWrapper><Emergencias /></BrandingWrapper></Layout>}
       </Route>
       
       <Route component={NotFound} />

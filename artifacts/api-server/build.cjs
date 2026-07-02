@@ -66,7 +66,7 @@ async function buildAll() {
       "aws-sdk","classic-level","dd-trace","ffi-napi","grpc","hiredis","kerberos","leveldown",
       "miniflare","mysql2","newrelic","odbc","piscina","realm","ref-napi","rocksdb",
       "sass-embedded","sequelize","serialport","snappy","tinypool","usb","workerd","wrangler",
-      "zeromq","zeromq-prebuilt","playwright","puppeteer","puppeteer-core","electron",
+      "zeromq","zeromq-prebuilt","playwright","puppeteer","puppeteer-core","electron","pdfkit",
     ],
     sourcemap: "linked",
     plugins: esbuildPluginPino ? [esbuildPluginPino({ transports: ["pino-pretty"] })] : [],

@@ -11,6 +11,15 @@ if (!REDIS_URL) {
   logger.warn("REDIS_URL not set — emailWorker will not start");
 }
 
+/** Crea conexión Redis detectando automáticamente si necesita TLS (Upstash) */
+function createRedisConnection(url: string): IORedis {
+  const needsTls = url.includes("upstash.io") || url.startsWith("rediss://");
+  return new IORedis(url, {
+    maxRetriesPerRequest: null,
+    ...(needsTls ? { tls: {} } : {}),
+  });
+}
+
 let connection: IORedis | null = null;
 let worker: Worker | null = null;
 
@@ -22,7 +31,7 @@ export function startEmailWorker(): void {
   if (!REDIS_URL) return;
   if (worker) return;
 
-  connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+  connection = createRedisConnection(REDIS_URL);
 
   const queue = new Queue("email-notifications", { connection });
 

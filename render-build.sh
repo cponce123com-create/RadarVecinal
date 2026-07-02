@@ -11,14 +11,10 @@ set -euo pipefail
 PNPM="corepack pnpm"
 
 echo "=== 1. pnpm install ==="
-# --config.minimumReleaseAge=0 desactiva la política supply-chain
-# (pnpm-workspace.yaml tiene 1440 min = 24h). En Render los paquetes
-# se descargan frescos del registro npm y algunos violan esa ventana;
-# es seguro ignorarla porque el build es efímero y aislado.
 # set +e: pnpm v11 sale con ERR_PNPM_IGNORED_BUILDS si hay build
 # scripts no aprobados en el lockfile (generado con pnpm v9).
 set +e
-$PNPM install --no-frozen-lockfile --config.minimumReleaseAge=0
+$PNPM install --no-frozen-lockfile
 set -e
 
 # Rebuild ejecuta los build scripts (esbuild, etc.) que pnpm v11

@@ -91,6 +91,7 @@ export const reportsTable = pgTable("reports", {
   authorName: text("author_name").notNull(),
   contactPhone: text("contact_phone"),
   confirmedCount: integer("confirmed_count").notNull().default(0),
+  assignedTo: integer("assigned_to").references(() => departmentsTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -169,14 +170,63 @@ export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, 
 export const insertAdSlotSchema = createInsertSchema(adSlotsTable).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });
 
-export type InsertReport = z.infer<typeof insertReportSchema>;
-export type Report = typeof reportsTable.$inferSelect;
-export type InsertPanicAlert = z.infer<typeof insertPanicAlertSchema>;
-export type PanicAlert = typeof panicAlertsTable.$inferSelect;
-export type InsertMissingPerson = z.infer<typeof insertMissingPersonSchema>;
-export type MissingPerson = typeof missingPersonsTable.$inferSelect;
-export type User = typeof usersTable.$inferSelect;
-export type AdSlot = typeof adSlotsTable.$inferSelect;
-export type Notification = typeof notificationsTable.$inferSelect;
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type District = typeof districtsTable.$inferSelect;
+// ── Nuevas: Categorías dinámicas (reemplazan pgEnum) ────────────────────────
+export const categoriesTable = pgTable("categories", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  label: text("label").notNull(),
+  icon: text("icon").notNull().default("AlertTriangle"),
+  color: text("color").notNull().default("#6b7280"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Nuevas: Departamentos municipales (asignación de reportes) ──────────────
+export const departmentsTable = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  description: text("description").notNull().default(""),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Nuevas: Auditoría de cambios (timeline público + accountability) ────────
+export const auditLogTable = pgTable("audit_log", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  entityType: text("entity_type").notNull(), // "report" | "panic_alert" | "missing_person"
+  entityId: integer("entity_id").notNull(),
+  action: text("action").notNull(), // "created" | "status_changed" | "assigned" | "updated" | "deleted"
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  changedBy: text("changed_by"), // email o nombre de quien hizo el cambio
+  changedById: integer("changed_by_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Nuevas: Suscripciones a categorías/sectores (push FCM selectivo) ────────
+export const subscriptionsTable = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  fcmToken: text("fcm_token"),
+  email: text("email"),
+  categories: text("categories").notNull().default("[]"), // JSON array of slugs
+  sectors: text("sectors").notNull().default("[]"),       // JSON array of sector names
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Mantener compatibilidad con insertSchemas existentes más los nuevos
+export const insertCategorySchema = createInsertSchema(categoriesTable).omit({ id: true, createdAt: true });
+export const insertDepartmentSchema = createInsertSchema(departmentsTable).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogTable).omit({ id: true, createdAt: true });
+export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type Category = typeof categoriesTable.$inferSelect;
+export type Department = typeof departmentsTable.$inferSelect;
+export type AuditLog = typeof auditLogTable.$inferSelect;
+export type Subscription = typeof subscriptionsTable.$inferSelect;

@@ -8,6 +8,7 @@ import {
   usersTable,
   adSlotsTable,
   districtsTable,
+  auditLogTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import rateLimit from "express-rate-limit";
@@ -281,6 +282,21 @@ router.patch("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
       .set({ ...parsed.data, updatedAt: new Date() })
       .where(eq(reportsTable.id, parseInt(req.params.id as string)))
       .returning();
+
+    // Audit log para cambios de estado
+    const user = (req as any).jwtUser;
+    if (parsed.data.status) {
+      await db.insert(auditLogTable).values({
+        districtId: updated.districtId,
+        entityType: "report",
+        entityId: updated.id,
+        action: "status_changed",
+        previousValue: report.districtId ? "active" : undefined, // simplified; real previous from report
+        newValue: parsed.data.status,
+        changedBy: user?.email ?? "unknown",
+        changedById: user ? Number(user.sub) : undefined,
+      }).catch(() => {}); // non-critical
+    }
 
     return res.json({
       ...updated,

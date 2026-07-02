@@ -1,6 +1,10 @@
-// vite-build.cjs - npm flat node_modules version
-// Usa require() directo porque npm crea node_modules planos (funciona en Render)
 const path = require("path");
+
+// DEBUG: check if @vitejs/plugin-react exists
+const nm = path.join(__dirname, "node_modules");
+console.log("DEBUG vite-build: node_modules/@vitejs/plugin-react exists:", require("fs").existsSync(path.join(nm, "@vitejs", "plugin-react", "package.json")));
+console.log("DEBUG vite-build: node_modules/@vitejs/plugin-react dir:", require("fs").readdirSync(path.join(nm, "@vitejs", "plugin-react")).join(","));
+console.log("DEBUG vite-build: node_modules has @vitejs:", require("fs").readdirSync(nm).includes("@vitejs"));
 
 const react = require("@vitejs/plugin-react");
 const tailwindcss = require("@tailwindcss/vite");

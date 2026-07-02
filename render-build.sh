@@ -45,7 +45,8 @@ ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-r
 node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('node_modules/@vitejs/plugin-react/package.json','utf-8'));if(!p.main){p.main=p.exports?.['.']||'dist/index.js';fs.writeFileSync('node_modules/@vitejs/plugin-react/package.json',JSON.stringify(p,null,2));console.log('Added main:',p.main);}"
 # Instalar dependencias transitivas faltantes (@vitejs/plugin-react necesita @rolldown/pluginutils)
 echo "--- installing transitive deps ---"
-npm install --cache /tmp/npm-cache @rolldown/pluginutils 2>&1 | tail -3
+# npm install no funciona en Render (ignora instalaciones explicitas)
+# Las transitive deps se manejan via npm pack si son necesarias
 echo "--- vite build ---"
 mkdir -p node_modules/@workspace
 # Todos los paquetes del workspace que puedan necesitarse

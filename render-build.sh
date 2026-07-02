@@ -14,7 +14,8 @@ cd artifacts/radar-vecinal
 # Backup package.json, remover workspace:* deps (no existen en npm registry)
 cp package.json package.json.bak
 node fix-pkg.cjs
-echo "--- npm install ---"
+echo "--- npm install (fresh) ---"
+rm -rf node_modules 2>/dev/null || true
 npm install --no-package-lock --ignore-scripts 2>&1
 # DEBUG: check if vite was installed
 echo "--- checking install ---"
@@ -31,9 +32,11 @@ for pkgdir in ../../lib/* ../../lib/integrations/* ../../artifacts/*; do
 done
 echo "--- vite build ---"
 node node_modules/vite/bin/vite.js build --config vite.config.ts 2>&1 | tail -15
-# Restaurar
+# Restaurar package.json y node_modules de pnpm para runtime
 mv package.json.bak package.json
 rm -rf node_modules 2>/dev/null || true
+echo "--- restoring pnpm node_modules ---"
+npx pnpm@9 install --no-frozen-lockfile 2>&1 | tail -3
 cd "$OLDPWD"
 
 echo "=== Build completado ==="

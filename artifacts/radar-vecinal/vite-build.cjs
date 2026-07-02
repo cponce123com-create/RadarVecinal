@@ -1,58 +1,23 @@
 const fs = require("fs");
 const path = require("path");
 
-// DEBUG: force sync write before anything else
+// DEBUG: console.log doesn't need embedding newlines
 const startDir = __dirname;
-process.stdout.write("=== VITE BUILD DEBUG ===
-");
-process.stdout.write("startDir: " + startDir + "
-");
-process.stdout.write("cwd: " + process.cwd() + "
-");
-// Check each directory level for .pnpm
-let d = startDir;
-for (let i = 0; i < 10 && d; i++) {
-  const nm = path.join(d, "node_modules");
-  const pn = path.join(nm, ".pnpm");
-  process.stdout.write("level " + i + ": " + d + " | nm:" + fs.existsSync(nm) + " .pnpm:" + fs.existsSync(pn) + "
-");
-  const p = path.dirname(d);
-  if (p === d) break;
-  d = p;
-}
-// Also check process.execPath and argv
-process.stdout.write("execPath: " + process.execPath + "
-");
-process.stdout.write("argv: " + JSON.stringify(process.argv) + "
-");
-// Check if /opt/render/project/src/node_modules/.pnpm exists directly
-process.stdout.write("DIRECT CHECK /opt/render/project/src/node_modules/.pnpm: " + fs.existsSync("/opt/render/project/src/node_modules/.pnpm") + "
-");
-process.stdout.write("DIRECT CHECK /opt/render/project/src/node_modules: " + fs.existsSync("/opt/render/project/src/node_modules") + "
-");
-// List first few entries of .pnpm
+console.log("=== VITE DEBUG ===");
+console.log("startDir:", startDir);
+console.log("exists .pnpm at startDir:", fs.existsSync(path.join(startDir, "node_modules", ".pnpm")));
+console.log("exists .pnpm at root:", fs.existsSync("/opt/render/project/src/node_modules/.pnpm"));
+console.log("exists node_modules at root:", fs.existsSync("/opt/render/project/src/node_modules"));
 try {
   const entries = fs.readdirSync("/opt/render/project/src/node_modules/.pnpm");
-  process.stdout.write("pnpm entries count: " + entries.length + "
-");
-  process.stdout.write("first 3 entries: " + entries.slice(0,3).join(",") + "
-");
-  // Check for @vitejs+plugin-react
-  const vitePlugin = entries.find(e => e.startsWith("@vitejs+plugin-react@"));
-  process.stdout.write("@vitejs+plugin-react entry: " + (vitePlugin || "NOT FOUND") + "
-");
-  if (vitePlugin) {
-    const pj = path.join("/opt/render/project/src/node_modules/.pnpm", vitePlugin, "node_modules", "@vitejs/plugin-react", "package.json");
-    process.stdout.write("package.json exists: " + fs.existsSync(pj) + "
-");
-  }
+  console.log("pnpm entries count:", entries.length);
+  console.log("@vitejs+plugin-react found:", !!entries.find(e => e.startsWith("@vitejs+plugin-react@")));
 } catch(e) {
-  process.stdout.write("ERROR reading .pnpm: " + e.message + "
-");
+  console.log("ERROR:", e.message);
 }
-process.stdout.write("=== END DEBUG ===
-");
+console.log("=== END DEBUG ===");
 
+// Clean version without embedded newlines
 function resolveFromPnpm(name, startDir) {
   let dir = startDir;
   while (dir) {
@@ -77,10 +42,9 @@ function resolveFromPnpm(name, startDir) {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error(`Cannot resolve ${name} (checked from ${startDir})`);
+  throw new Error("Cannot resolve " + name + " from " + startDir);
 }
 
-// Pre-load + build
 for (const pkg of ["esbuild", "rollup", "react", "react-dom", "react-dom/client", "@vitejs/plugin-react", "@tailwindcss/vite", "vite-plugin-pwa"]) {
   try { require(resolveFromPnpm(pkg, startDir)); } catch {}
 }

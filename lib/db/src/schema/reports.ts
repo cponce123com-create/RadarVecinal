@@ -230,3 +230,29 @@ export type Category = typeof categoriesTable.$inferSelect;
 export type Department = typeof departmentsTable.$inferSelect;
 export type AuditLog = typeof auditLogTable.$inferSelect;
 export type Subscription = typeof subscriptionsTable.$inferSelect;
+
+// ── Votos de usuarios en reportes (upvote system) ───────────────────────────
+export const votesTable = pgTable("votes", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  userId: integer("user_id"),
+  userIp: text("user_ip"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Recursos comunitarios por distrito ──────────────────────────────────────
+export const districtResourcesTable = pgTable("district_resources", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  type: text("type").notNull(), // "police" | "fire" | "hospital" | "helpline" | "other"
+  name: text("name").notNull(),
+  phone: text("phone"),
+  address: text("address"),
+  url: text("url"),
+  description: text("description").default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertVoteSchema = createInsertSchema(votesTable).omit({ id: true, createdAt: true });
+export const insertDistrictResourceSchema = createInsertSchema(districtResourcesTable).omit({ id: true, createdAt: true });

@@ -21,17 +21,10 @@ mkdir -p dist
 cd "$OLDPWD"
 
 echo "=== 4. Build del Frontend ==="
-VITE_BIN=$(node -e "
-const fs=require('fs'),p=require('path');
-const dirs=fs.readdirSync(p.join(process.cwd(),'node_modules','.pnpm'));
-// vite siempre tiene peer deps (suffix con _), buscamos el primero
-const d=dirs.find(x=>x.startsWith('vite@'));
-if(!d){console.error('vite not found');process.exit(1)}
-console.log(p.join(process.cwd(),'node_modules','.pnpm',d,'node_modules','vite','bin','vite.js'));
-")
-echo "vite: $VITE_BIN"
 cd artifacts/radar-vecinal
-node "$VITE_BIN" build --config vite.config.ts 2>&1 | tail -5
+# vite.cjs usa createRequire para cargar Vite como CJS, evitando problemas
+# del loader ESM de Node 24 con symlinks de pnpm
+node vite-build.cjs 2>&1 | tail -15
 cd "$OLDPWD"
 
 echo "=== Build completado exitosamente ==="

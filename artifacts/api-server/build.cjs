@@ -70,7 +70,17 @@ async function buildAll() {
     ],
     sourcemap: "linked",
     plugins: esbuildPluginPino ? [esbuildPluginPino({ transports: ["pino-pretty"] })] : [],
-    banner: { js: "import { createRequire as __bannerCrReq } from 'node:module';" + String.fromCharCode(92,110) + "import __bannerPath from 'node:path';" + String.fromCharCode(92,110) + "import __bannerUrl from 'node:url';" + String.fromCharCode(92,110) + String.fromCharCode(92,110) + "globalThis.require = __bannerCrReq(import.meta.url);" + String.fromCharCode(92,110) + "globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);" + String.fromCharCode(92,110) + "globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);" },
+    banner: {
+      js: [
+        "import { createRequire as __bannerCrReq } from 'node:module';",
+        "import __bannerPath from 'node:path';",
+        "import __bannerUrl from 'node:url';",
+        "",
+        "globalThis.require = __bannerCrReq(import.meta.url);",
+        "globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);",
+        "globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);",
+      ].join("\n"),
+    },
   });
 }
 

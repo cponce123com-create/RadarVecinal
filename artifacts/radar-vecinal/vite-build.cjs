@@ -1,20 +1,18 @@
 const fs = require("fs");
 const path = require("path");
 
+console.log("=== VITE DEBUG 2 ===");
 const startDir = __dirname;
-console.log("=== VITE DEBUG ===");
-console.log("startDir:", __dirname);
 try {
   const entries = fs.readdirSync("/opt/render/project/src/node_modules/.pnpm");
-  console.log("pnpm entries count:", entries.length);
-  // Search all entries containing 'vite' or 'plugin' 
-  const viteEntries = entries.filter(e => e.includes("vite") || e.includes("plugin") || e.includes("react"));
-  console.log("entries with vite/plugin/react:", viteEntries.length);
-  viteEntries.sort().forEach(e => console.log("  -", e));
-  // Also check if @vitejs exists anywhere
-  const scoped = entries.filter(e => e.includes("@vitejs") || e.includes("@tailwindcss") || e.includes("vite-plugin"));
-  console.log("scoped vite entries:", scoped.length);
-  scoped.forEach(e => console.log("  -", e));
+  // Check what tailwind-related entries exist
+  const tailwind = entries.filter(e => e.includes("tailwind") || e.includes("@tailwind"));
+  console.log("tailwind entries:", tailwind.length);
+  tailwind.sort().forEach(e => console.log("  -", e));
+  // Also check @vitejs entries
+  const vitejs = entries.filter(e => e.includes("@vitejs"));
+  console.log("@vitejs entries:", vitejs.length);
+  vitejs.forEach(e => console.log("  -", e));
 } catch(e) {
   console.log("ERROR:", e.message);
 }

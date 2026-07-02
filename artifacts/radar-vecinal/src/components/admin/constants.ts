@@ -13,7 +13,7 @@ export const ROLE_META: Record<string, { label: string; color: string }> = {
   user:      { label: "Usuario",     color: "#6b7280" },
 };
 
-export type Tab = "reports" | "users" | "ads";
+export type Tab = "reports" | "users" | "ads" | "analytics";
 
 export interface AdSlot {
   id: string;

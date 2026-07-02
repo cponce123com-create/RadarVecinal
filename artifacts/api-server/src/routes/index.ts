@@ -9,6 +9,8 @@ import usersRouter from "./users";
 import storageRouter from "./storage";
 import districtsRouter from "./districts";
 import categoriesRouter from "./categories";
+import featuresRouter from "./features";
+import civicEducationRouter from "./civicEducation";
 
 const router: IRouter = Router();
 
@@ -22,5 +24,7 @@ router.use(usersRouter);
 router.use(storageRouter);
 router.use(districtsRouter);
 router.use(categoriesRouter);
+router.use(featuresRouter);
+router.use(civicEducationRouter);
 
 export default router;

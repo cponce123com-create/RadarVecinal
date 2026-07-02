@@ -14,6 +14,7 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import rateLimit from "express-rate-limit";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
+import { sendStatusChangeEmail } from "../lib/email";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -291,11 +292,22 @@ router.patch("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
         entityType: "report",
         entityId: updated.id,
         action: "status_changed",
-        previousValue: report.districtId ? "active" : undefined, // simplified; real previous from report
+        previousValue: report.districtId ? "active" : undefined,
         newValue: parsed.data.status,
         changedBy: user?.email ?? "unknown",
         changedById: user ? Number(user.sub) : undefined,
       }).catch(() => {}); // non-critical
+
+      // Email notification al autor si tiene contacto
+      if (updated.contactPhone?.includes("@")) {
+        sendStatusChangeEmail({
+          to: updated.contactPhone,
+          reportTitle: updated.title,
+          reportId: updated.id,
+          newStatus: parsed.data.status,
+          districtName: updated.district,
+        }).catch(() => {});
+      }
     }
 
     return res.json({

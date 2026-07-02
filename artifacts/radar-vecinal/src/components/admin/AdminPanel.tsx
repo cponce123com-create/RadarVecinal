@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search } from "lucide-react";
+import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search, BarChart3 } from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,7 @@ import ReportsTab from "./ReportsTab";
 import UsersTab from "./UsersTab";
 import AdSlotsTab from "./AdSlotsTab";
 import DistrictSwitcher from "./DistrictSwitcher";
+import AnalyticsTab from "./AnalyticsTab";
 
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>("reports");
@@ -36,6 +37,7 @@ export default function AdminPanel() {
 
   const tabs = [
     { id: "reports" as Tab, label: "Reportes",   icon: FileText },
+    { id: "analytics" as Tab, label: "Analítica", icon: BarChart3 },
     { id: "users" as Tab,   label: "Usuarios",   icon: UsersIcon },
     { id: "ads" as Tab,     label: "Publicidad", icon: Megaphone },
   ];
@@ -92,7 +94,7 @@ export default function AdminPanel() {
           })}
         </div>
 
-        {tab !== "ads" && (
+        {tab !== "ads" && tab !== "analytics" && (
           <div className="relative flex-1 max-w-sm ml-auto">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -107,6 +109,7 @@ export default function AdminPanel() {
 
       {/* Tab content */}
       {tab === "reports" && <ReportsTab reports={reportsData?.reports ?? []} search={search} onRefetch={refetch} />}
+      {tab === "analytics" && <AnalyticsTab />}
       {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
       {tab === "ads" && <AdSlotsTab />}
     </div>

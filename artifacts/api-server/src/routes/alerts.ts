@@ -10,6 +10,7 @@ import {
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth, optionalAuth } from "./auth";
 import { getDistrictId } from "./tenant";
+import { sendPanicAlertPush } from "../lib/fcm";
 
 const router: IRouter = Router();
 
@@ -154,6 +155,9 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
 
     // Broadcast SSE solo a clientes del mismo distrito
     broadcastPanicAlert(alert);
+
+    // FCM push nativo a dispositivos Android — best-effort, no await
+    sendPanicAlertPush(alert).catch(() => {});
 
     return res.status(201).json({
       ...alert,

@@ -14,11 +14,12 @@
   },
   "private": true,
   "devDependencies": {
-    "prettier": "^3.8.1",
-    "typescript": "~5.9.2",
+    "@capacitor/android": "^7.2.0",
     "@capacitor/cli": "^7.2.0",
     "@capacitor/core": "^7.2.0",
-    "@capacitor/android": "^7.2.0"
+    "firebase-admin": "^14.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
   },
   "dependencies": {
     "pg": "^8.22.0"

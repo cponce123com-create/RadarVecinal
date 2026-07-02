@@ -23,15 +23,21 @@ echo "--- DEBUG node_modules ---"
 node -e "const fs=require('fs');const nm='node_modules';if(!fs.existsSync(nm)){console.log('node_modules MISSING');process.exit()};const d=fs.readdirSync(nm);console.log('count:',d.length,'scoped:',d.filter(x=>x.startsWith('@')).length);console.log('@vitejs:',fs.existsSync(nm+'/@vitejs'));console.log('vite find:',d.filter(x=>x.includes('vite')).join(','));"
 echo "--- installing missing packages ---"
 PKG_DIR=$PWD
-mkdir -p node_modules/@vitejs node_modules/@tailwindcss
 cd /tmp
-npm pack @vitejs/plugin-react@5.2.0 2>/dev/null
-tar -xzf vitejs-plugin-react-5.2.0.tgz 2>/dev/null
-cp -r package/* "$PKG_DIR/node_modules/@vitejs/plugin-react/" 2>/dev/null || true
-npm pack @tailwindcss/vite@4.3.2 2>/dev/null
-tar -xzf tailwindcss-vite-4.3.2.tgz 2>/dev/null
-cp -r package/* "$PKG_DIR/node_modules/@tailwindcss/vite/" 2>/dev/null || true
-rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz 2>/dev/null || true
+# @vitejs/plugin-react
+npm pack @vitejs/plugin-react@5.2.0 2>&1 | tail -1
+tar -xzf vitejs-plugin-react-5.2.0.tgz 2>&1
+ls package/package.json 2>&1 || echo "NO package.json in tar!"
+mkdir -p "$PKG_DIR/node_modules/@vitejs/plugin-react"
+cp -r package/* "$PKG_DIR/node_modules/@vitejs/plugin-react/" 2>&1
+ls "$PKG_DIR/node_modules/@vitejs/plugin-react/package.json" 2>&1 || echo "COPY FAILED!"
+# @tailwindcss/vite
+npm pack @tailwindcss/vite@4.3.2 2>&1 | tail -1
+tar -xzf tailwindcss-vite-4.3.2.tgz 2>&1
+mkdir -p "$PKG_DIR/node_modules/@tailwindcss/vite"
+cp -r package/* "$PKG_DIR/node_modules/@tailwindcss/vite/" 2>&1
+ls "$PKG_DIR/node_modules/@tailwindcss/vite/package.json" 2>&1 || echo "T COPY FAILED!"
+rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz package/ -rf 2>/dev/null || true
 cd "$PKG_DIR"
 echo "--- checking after manual install ---"
 ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-react STILL MISSING"

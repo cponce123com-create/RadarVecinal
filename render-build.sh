@@ -22,17 +22,17 @@ npm install --cache /tmp/npm-cache @vitejs/plugin-react@5.2.0 @tailwindcss/vite@
 echo "--- DEBUG node_modules ---"
 node -e "const fs=require('fs');const nm='node_modules';if(!fs.existsSync(nm)){console.log('node_modules MISSING');process.exit()};const d=fs.readdirSync(nm);console.log('count:',d.length,'scoped:',d.filter(x=>x.startsWith('@')).length);console.log('@vitejs:',fs.existsSync(nm+'/@vitejs'));console.log('vite find:',d.filter(x=>x.includes('vite')).join(','));"
 echo "--- installing missing packages ---"
-# npm no instala @vitejs/plugin-react por peer deps. Lo instalamos manualmente
+PKG_DIR=$PWD
 mkdir -p node_modules/@vitejs node_modules/@tailwindcss
 cd /tmp
 npm pack @vitejs/plugin-react@5.2.0 2>/dev/null
 tar -xzf vitejs-plugin-react-5.2.0.tgz 2>/dev/null
-cp -r package/* /opt/render/project/src/artifacts/radar-vecinal/node_modules/@vitejs/plugin-react/ 2>/dev/null || true
+cp -r package/* "$PKG_DIR/node_modules/@vitejs/plugin-react/" 2>/dev/null || true
 npm pack @tailwindcss/vite@4.3.2 2>/dev/null
 tar -xzf tailwindcss-vite-4.3.2.tgz 2>/dev/null
-cp -r package/* /opt/render/project/src/artifacts/radar-vecinal/node_modules/@tailwindcss/vite/ 2>/dev/null || true
+cp -r package/* "$PKG_DIR/node_modules/@tailwindcss/vite/" 2>/dev/null || true
 rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz 2>/dev/null || true
-cd /opt/render/project/src/artifacts/radar-vecinal
+cd "$PKG_DIR"
 echo "--- checking after manual install ---"
 ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-react STILL MISSING"
 echo "--- vite build ---"

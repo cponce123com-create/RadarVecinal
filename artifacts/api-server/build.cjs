@@ -1,24 +1,22 @@
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { rm } from "node:fs/promises";
-import esbuildPluginPino from "esbuild-plugin-pino";
+// @ts-check
+const path = require("path");
+const { rm } = require("fs/promises");
+const { fileURLToPath } = require("url");
+const esbuild = require("esbuild");
+const esbuildPluginPino = require("esbuild-plugin-pino");
 
-// Use require() via createRequire so esbuild resolves correctly
-// in pnpm's isolated node_modules layout (Node 24 + pnpm ESM issue)
-const require = createRequire(import.meta.url);
-const { build: esbuild } = require("esbuild");
+// This file uses require() instead of import to work around
+// Node.js 24 + pnpm isolated node_modules ESM resolution issue.
+// pnpm places packages in node_modules/.pnpm/ with symlinks,
+// but Node 24 ESM loader doesn't follow them correctly on Render.
 
-// Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
-globalThis.require = createRequire(import.meta.url);
-
-const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const artifactDir = __dirname;
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
-  await esbuild({
+  await esbuild.build({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
     bundle: true,
@@ -26,11 +24,6 @@ async function buildAll() {
     outdir: distDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
-    // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
-    // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
-    // Examples of unbundleable packages:
-    // - uses native modules and loads them dynamically (e.g. sharp)
-    // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
       "sharp",
@@ -107,8 +100,7 @@ async function buildAll() {
     ],
     sourcemap: "linked",
     plugins: [
-      // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] })
+      esbuildPluginPino({ transports: ["pino-pretty"] }),
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {

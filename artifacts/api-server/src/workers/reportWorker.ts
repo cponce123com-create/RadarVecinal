@@ -1,14 +1,13 @@
 import { Worker, Queue } from "bullmq";
 import IORedis from "ioredis";
 import { db } from "@workspace/db";
-import { reportsTable, usersTable, districtsTable } from "@workspace/db/schema";
-import { eq, and, sql, gte } from "drizzle-orm";
+import { reportsTable, panicAlertsTable } from "@workspace/db/schema";
+import { eq, and, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { sendStatusChangeEmail } from "../lib/email";
 
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
-  logger.warn("REDIS_URL not set — emailWorker will not start");
+  logger.warn("REDIS_URL not set — reportWorker will not start");
 }
 
 /** Crea conexión Redis detectando automáticamente si necesita TLS (Upstash) */
@@ -24,106 +23,104 @@ let connection: IORedis | null = null;
 let worker: Worker | null = null;
 
 /**
- * Inicializa el worker de correos de recordatorio.
- * Envía un correo al admin del distrito cuando hay más de 5 reportes pendientes.
+ * Inicializa el worker de escalado de incidencias.
+ * Se ejecuta en segundo plano y no bloquea el servidor HTTP.
  */
-export function startEmailWorker(): void {
+export function startReportWorker(): void {
   if (!REDIS_URL) return;
-  if (worker) return;
+  if (worker) return; // Already started
 
   connection = createRedisConnection(REDIS_URL);
 
-  const queue = new Queue("email-notifications", { connection });
+  // Creamos una cola para programar el job cada hora
+  const queue = new Queue("report-escalation", { connection });
 
   worker = new Worker(
-    "email-notifications",
+    "report-escalation",
     async () => {
       try {
-        const twentyFourHoursAgo = new Date(
-          Date.now() - 24 * 60 * 60 * 1000,
-        );
+        // 1. Escalar reportes pendientes > 48h a estado reviewing
+        const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
-        const districtsWithBacklog = await db
-          .select({
-            districtId: reportsTable.districtId,
-            count: sql<number>`count(*)`,
-          })
+        const staleReports = await db
+          .select({ id: reportsTable.id })
           .from(reportsTable)
           .where(
             and(
               eq(reportsTable.status, "active"),
-              gte(reportsTable.createdAt, twentyFourHoursAgo),
+              lt(reportsTable.createdAt, fortyEightHoursAgo),
             ),
-          )
-          .groupBy(reportsTable.districtId)
-          .having(sql`count(*) > 5`);
+          );
 
-        for (const row of districtsWithBacklog) {
-          const admins = await db
-            .select({
-              id: usersTable.id,
-              email: usersTable.email,
-              name: usersTable.name,
-            })
-            .from(usersTable)
-            .where(
-              and(
-                eq(usersTable.districtId, row.districtId),
-                sql`${usersTable.role} IN ('admin', 'moderator', 'super_admin')`,
-              ),
-            )
-            .limit(5);
-
-          const [district] = await db
-            .select({ name: districtsTable.name })
-            .from(districtsTable)
-            .where(eq(districtsTable.id, row.districtId))
-            .limit(1);
-
-          for (const admin of admins) {
-            if (admin.email) {
-              sendStatusChangeEmail({
-                to: admin.email,
-                reportTitle: `Alerta: ${row.count} reportes pendientes en ${district?.name ?? "tu distrito"}`,
-                reportId: 0,
-                newStatus: "active",
-                districtName: district?.name ?? "",
-              }).catch(() => {});
-            }
-          }
+        for (const report of staleReports) {
+          await db
+            .update(reportsTable)
+            .set({ status: "reviewing" })
+            .where(eq(reportsTable.id, report.id));
         }
 
-        if (districtsWithBacklog.length > 0) {
+        if (staleReports.length > 0) {
           logger.info(
-            { districts: districtsWithBacklog.length },
-            "EmailWorker: recordatorios enviados a admins",
+            { count: staleReports.length },
+            "ReportWorker: escalados a reviewing por SLA",
+          );
+        }
+
+        // 2. Desactivar alertas de pánico > 1h
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+        const staleAlerts = await db
+          .select({ id: panicAlertsTable.id })
+          .from(panicAlertsTable)
+          .where(
+            and(
+              eq(panicAlertsTable.isActive, true),
+              lt(panicAlertsTable.createdAt, oneHourAgo),
+            ),
+          );
+
+        for (const alert of staleAlerts) {
+          await db
+            .update(panicAlertsTable)
+            .set({ isActive: false })
+            .where(eq(panicAlertsTable.id, alert.id));
+        }
+
+        if (staleAlerts.length > 0) {
+          logger.info(
+            { count: staleAlerts.length },
+            "ReportWorker: alertas de pánico desactivadas por expiración",
           );
         }
       } catch (err) {
-        logger.error({ err }, "EmailWorker job failed");
+        logger.error({ err }, "ReportWorker job failed");
       }
     },
     { connection },
   );
 
+  // Programar ejecución cada hora
   queue.add(
-    "pending-reports-reminder",
+    "escalate-stale-reports",
     {},
-    { repeat: { pattern: "0 */4 * * *" } },
+    { repeat: { pattern: "0 * * * *" } },
   );
 
   worker.on("completed", (job) => {
-    logger.info({ jobId: job.id }, "EmailWorker job completed");
+    logger.info({ jobId: job.id }, "ReportWorker job completed");
   });
 
   worker.on("failed", (job, err) => {
-    logger.error({ jobId: job?.id, err }, "EmailWorker job failed");
+    logger.error({ jobId: job?.id, err }, "ReportWorker job failed");
   });
 
-  logger.info("EmailWorker started — will run every 4 hours");
+  logger.info("ReportWorker started — will run every hour");
 }
 
-export async function stopEmailWorker(): Promise<void> {
+/**
+ * Detiene el worker de manera graceful.
+ */
+export async function stopReportWorker(): Promise<void> {
   if (worker) {
     await worker.close();
     worker = null;

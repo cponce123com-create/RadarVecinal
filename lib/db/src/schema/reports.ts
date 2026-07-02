@@ -256,3 +256,32 @@ export const districtResourcesTable = pgTable("district_resources", {
 
 export const insertVoteSchema = createInsertSchema(votesTable).omit({ id: true, createdAt: true });
 export const insertDistrictResourceSchema = createInsertSchema(districtResourcesTable).omit({ id: true, createdAt: true });
+
+// ── Civic Education (quizzes, lecciones gamificadas) ────────────────────────
+export const civicEducationTopicsTable = pgTable("civic_education_topics", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  content: text("content").notNull(), // Markdown/HTML content
+  icon: text("icon").notNull().default("BookOpen"),
+  difficulty: integer("difficulty").notNull().default(1), // 1-5
+  questions: text("questions").notNull().default("[]"), // JSON array of {question, options[], correctIndex}
+  xpReward: integer("xp_reward").notNull().default(50),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const userEducationProgressTable = pgTable("user_education_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  topicId: integer("topic_id").notNull().references(() => civicEducationTopicsTable.id),
+  completed: boolean("completed").notNull().default(false),
+  score: integer("score").notNull().default(0),
+  xpEarned: integer("xp_earned").notNull().default(0),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCivicTopicSchema = createInsertSchema(civicEducationTopicsTable).omit({ id: true, createdAt: true });

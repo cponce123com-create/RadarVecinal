@@ -10,13 +10,9 @@ echo "=== 1. Instalando dependencias ==="
 $PNPM install --no-frozen-lockfile
 
 echo "=== 2. Build del API Server ==="
-cd artifacts/api-server
-$PNPM exec node build.mjs
-cd "$OLDPWD"
+$PNPM --filter @workspace/api-server run build
 
 echo "=== 3. Build del Frontend ==="
-cd artifacts/radar-vecinal
-$PNPM run build
-cd "$OLDPWD"
+$PNPM --filter @workspace/radar-vecinal run build
 
 echo "=== Build completado exitosamente ==="

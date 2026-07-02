@@ -41,6 +41,8 @@ rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz && rm -rf package
 cd "$PKG_DIR"
 echo "--- checking after manual install ---"
 ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-react STILL MISSING"
+# @vitejs/plugin-react usa "exports" sin "main" - CJS require() no lo resuelve
+node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('node_modules/@vitejs/plugin-react/package.json','utf-8'));if(!p.main){p.main=p.exports?.['.']||'dist/index.js';fs.writeFileSync('node_modules/@vitejs/plugin-react/package.json',JSON.stringify(p,null,2));console.log('Added main:',p.main);}"
 # Instalar dependencias transitivas faltantes (@vitejs/plugin-react necesita @rolldown/pluginutils)
 echo "--- installing transitive deps ---"
 npm install --cache /tmp/npm-cache @rolldown/pluginutils 2>&1 | tail -3
@@ -53,7 +55,7 @@ for pkgdir in ../../lib/* ../../lib/integrations/* ../../artifacts/*; do
   ln -sfn "$(cd "$pkgdir" && pwd -P)" "node_modules/@workspace/$name" 2>/dev/null || true
 done
 echo "--- vite build ---"
-node --experimental-require-module vite-build.cjs 2>&1 | tail -15
+node vite-build.cjs 2>&1 | tail -15
 # Restaurar package.json y node_modules de pnpm para runtime
 mv package.json.bak package.json
 rm -rf node_modules 2>/dev/null || true

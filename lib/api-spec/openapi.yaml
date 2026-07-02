@@ -11,6 +11,8 @@ tags:
     description: Health operations
   - name: auth
     description: Authentication operations
+  - name: districts
+    description: District catalog
   - name: reports
     description: Incident reports
   - name: alerts
@@ -99,6 +101,26 @@ paths:
         "401":
           description: Not authenticated
 
+  /districts:
+    get:
+      operationId: getDistricts
+      tags: [districts]
+      summary: Get list of active districts (public)
+      responses:
+        "200":
+          description: List of districts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  districts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/District"
+                required:
+                  - districts
+
   /reports:
     get:
       operationId: getReports
@@ -121,10 +143,10 @@ paths:
           in: query
           schema:
             type: string
-        - name: district
+        - name: districtId
           in: query
           schema:
-            type: string
+            type: integer
         - name: limit
           in: query
           schema:
@@ -279,6 +301,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: Nearby reports
@@ -319,6 +345,10 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of panic alerts
@@ -356,6 +386,12 @@ paths:
       operationId: streamPanicAlerts
       tags: [alerts]
       summary: SSE stream of panic alerts
+      parameters:
+        - name: districtId
+          in: query
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
           description: SSE stream of panic alert events
@@ -374,6 +410,10 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of missing person alerts
@@ -430,12 +470,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MissingPerson"
+    delete:
+      operationId: deleteMissingPerson
+      tags: [missing]
+      summary: Delete a missing person alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Alert deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+                required:
+                  - success
+                  - id
 
   /stats:
     get:
       operationId: getStats
       tags: [stats]
       summary: Get statistics
+      parameters:
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: Statistics data
@@ -454,6 +526,10 @@ paths:
           in: query
           schema:
             type: number
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: Recent activity
@@ -474,6 +550,11 @@ paths:
       operationId: getUsers
       tags: [users]
       summary: Get all users (admin)
+      parameters:
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of users
@@ -542,6 +623,11 @@ paths:
       operationId: getAdSlots
       tags: [admin]
       summary: Get advertisement slots
+      parameters:
+        - name: districtId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of ad slots
@@ -604,6 +690,18 @@ paths:
       operationId: seedData
       tags: [admin]
       summary: Seed database with sample data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                districtSlug:
+                  type: string
+                  description: Slug del distrito a sembrar (ej. "san-ramon")
+              required:
+                - districtSlug
       responses:
         "200":
           description: Database seeded successfully
@@ -689,6 +787,12 @@ paths:
           description: Failed to serve public object.
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -697,6 +801,41 @@ components:
           type: string
       required:
         - status
+
+    District:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        province:
+          type: string
+        department:
+          type: string
+        centerLat:
+          type: number
+          nullable: true
+        centerLng:
+          type: number
+          nullable: true
+        defaultZoom:
+          type: integer
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - slug
+        - name
+        - province
+        - department
+        - isActive
+        - createdAt
 
     AuthRegisterInput:
       type: object
@@ -711,6 +850,8 @@ components:
           type: string
         district:
           type: string
+        districtId:
+          type: integer
         dni:
           type: string
           nullable: true
@@ -815,6 +956,8 @@ components:
           type: string
         district:
           type: string
+        districtId:
+          type: integer
         imageUrl:
           type: string
           nullable: true
@@ -841,6 +984,7 @@ components:
         - longitude
         - sector
         - district
+        - districtId
         - authorName
         - confirmedCount
         - createdAt
@@ -868,6 +1012,8 @@ components:
           type: string
         district:
           type: string
+        districtId:
+          type: integer
         imageUrl:
           type: string
           nullable: true
@@ -921,6 +1067,8 @@ components:
           type: string
         sector:
           type: string
+        districtId:
+          type: integer
         isActive:
           type: boolean
         createdAt:
@@ -932,6 +1080,7 @@ components:
         - longitude
         - authorName
         - sector
+        - districtId
         - isActive
         - createdAt
 
@@ -950,6 +1099,8 @@ components:
           type: string
         sector:
           type: string
+        districtId:
+          type: integer
       required:
         - type
         - latitude
@@ -990,6 +1141,8 @@ components:
             - archived
         reportedBy:
           type: string
+        districtId:
+          type: integer
         createdAt:
           type: string
       required:
@@ -1003,6 +1156,7 @@ components:
         - contactInfo
         - status
         - reportedBy
+        - districtId
         - createdAt
 
     CreateMissingPersonInput:
@@ -1030,6 +1184,8 @@ components:
           type: string
         reportedBy:
           type: string
+        districtId:
+          type: integer
       required:
         - name
         - clothing
@@ -1172,6 +1328,7 @@ components:
         role:
           type: string
           enum:
+            - super_admin
             - admin
             - moderator
             - user
@@ -1179,6 +1336,8 @@ components:
           type: string
         district:
           type: string
+        districtId:
+          type: integer
         isActive:
           type: boolean
         reportsCount:
@@ -1192,6 +1351,7 @@ components:
         - role
         - sector
         - district
+        - districtId
         - isActive
         - reportsCount
         - createdAt
@@ -1215,6 +1375,8 @@ components:
         sector:
           type: string
           nullable: true
+        districtId:
+          type: integer
       required:
         - id
         - businessName
@@ -1231,6 +1393,8 @@ components:
           type: string
         district:
           type: string
+        districtId:
+          type: integer
         dni:
           type: string
           nullable: true

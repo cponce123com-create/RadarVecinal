@@ -4,6 +4,7 @@ import { Thermometer, Radar, RotateCcw, Map as MapIcon } from "lucide-react";
 import { LeafletMap, MapMode } from "@/components/LeafletMap";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
 import { CAT_HEX, CATEGORY_CONFIG, DISTRICT } from "@/lib/constants";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { subDays, subMonths, isAfter } from "date-fns";
 
 const ALL_CATEGORY_FILTERS: { id: string; label: string }[] = [
@@ -34,8 +35,8 @@ export default function MapPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [viewMode, setViewMode] = useState<MapMode>("map");
 
-  const { district } = useDistrict();
-  const { data, isLoading } = useGetReports({ district });
+  const { currentDistrictId } = useDistrict();
+  const { data, isLoading } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const allReports = data?.reports ?? [];
 
   const cutoff15d   = subDays(new Date(), 15);

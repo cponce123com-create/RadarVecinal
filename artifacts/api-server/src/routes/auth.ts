@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
+import { usersTable, districtsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -9,7 +9,7 @@ import { OAuth2Client } from "google-auth-library";
 
 const router: IRouter = Router();
 
-const JWT_SECRET  = process.env.JWT_SECRET;
+const JWT_SECRET: string = process.env.JWT_SECRET!;
 if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
 const JWT_EXPIRES = "30d";
 
@@ -28,10 +28,26 @@ const loginSchema = z.object({
   password: z.string().min(1, "Contraseña requerida"),
 });
 
+// ── Helper: busca o falla al distrito por nombre ────────────────────────────
+async function resolveDistrict(name: string): Promise<number> {
+  const [d] = await db.select({ id: districtsTable.id })
+    .from(districtsTable)
+    .where(eq(districtsTable.name, name))
+    .limit(1);
+  if (!d) throw new Error(`Distrito "${name}" no encontrado en el catálogo.`);
+  return d.id;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function signToken(user: { id: number; email: string; role: string; district: string }) {
+function signToken(user: { id: number; email: string; role: string; district: string; districtId: number }) {
   return jwt.sign(
-    { sub: String(user.id), email: user.email, role: user.role, district: user.district },
+    {
+      sub: String(user.id),
+      email: user.email,
+      role: user.role,
+      district: user.district,
+      districtId: user.districtId,
+    },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES }
   );
@@ -45,6 +61,7 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     role:         u.role,
     sector:       u.sector,
     district:     u.district,
+    districtId:   u.districtId,
     isActive:     u.isActive,
     reportsCount: u.reportsCount,
     createdAt:    u.createdAt.toISOString(),
@@ -71,6 +88,14 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       return res.status(409).json({ error: "Ya existe una cuenta con ese correo." });
     }
 
+    // M-05: Resolver districtId desde el catálogo
+    let districtId: number;
+    try {
+      districtId = await resolveDistrict(district ?? "San Ramón");
+    } catch {
+      return res.status(400).json({ error: `Distrito "${district}" no válido. Selecciona un distrito del catálogo.` });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const [user] = await db.insert(usersTable).values({
@@ -78,6 +103,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       email:        email.toLowerCase().trim(),
       passwordHash,
       sector,
+      districtId,
       district:     district ?? "San Ramón",
       dni:          dni ?? null,
       role:         "user",
@@ -163,7 +189,6 @@ router.post("/auth/google", async (req: Request, res: Response) => {
       .limit(1);
 
     if (existing) {
-      // User exists — log in
       if (!existing.isActive) {
         return res.status(403).json({ error: "Cuenta desactivada." });
       }
@@ -171,10 +196,18 @@ router.post("/auth/google", async (req: Request, res: Response) => {
       return res.json({ token, user: formatUser(existing) });
     }
 
-    // New user — auto-register with Google data
+    // M-05: Resolver districtId por defecto (San Ramón)
+    let districtId: number;
+    try {
+      districtId = await resolveDistrict("San Ramón");
+    } catch {
+      return res.status(500).json({ error: "Error de configuración: distrito por defecto no encontrado." });
+    }
+
     const [user] = await db.insert(usersTable).values({
       name: googleName,
       email: googleEmail,
+      districtId,
       role: "user",
       sector: "Sin asignar",
       district: "San Ramón",
@@ -215,7 +248,7 @@ router.get("/auth/me", async (req: Request, res: Response) => {
 });
 
 // ── Token verification helper (used by other modules) ──────────────────────
-export function verifyToken(token: string): { sub: string; email: string; role: string } | null {
+export function verifyToken(token: string): { sub: string; email: string; role: string; district: string; districtId: number } | null {
   try {
     return jwt.verify(token, JWT_SECRET) as any;
   } catch {
@@ -246,7 +279,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as { sub: string };
 
     // Verify user still exists and is active in the database
-    const [user] = await db.select({ id: usersTable.id, isActive: usersTable.isActive, role: usersTable.role })
+    const [user] = await db.select({
+      id: usersTable.id,
+      isActive: usersTable.isActive,
+      role: usersTable.role,
+      districtId: usersTable.districtId,
+    })
       .from(usersTable)
       .where(eq(usersTable.id, parseInt(payload.sub)))
       .limit(1);
@@ -260,7 +298,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     // Attach full user info from DB (more reliable than JWT alone)
-    (req as any).jwtUser = { ...payload, role: user.role };
+    (req as any).jwtUser = { ...payload, role: user.role, districtId: user.districtId };
     return next();
   } catch (err) {
     if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
@@ -271,12 +309,58 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// ── Middleware: require admin/moderator role ──────────────────────────────────
+// ── Middleware: require admin/moderator/super_admin role ──────────────────────
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).jwtUser;
-  if (!user || !["admin", "moderator"].includes(user.role)) {
+  if (!user || !["admin", "moderator", "super_admin"].includes(user.role)) {
     return res.status(403).json({ error: "Acceso denegado. Se requiere rol de administrador." });
   }
+  return next();
+}
+
+// ── M-04: Middleware: require same district (tenant isolation) ───────────────
+// Evita que un admin/moderador acceda a recursos de otro distrito.
+// super_admin puede acceder a cualquier distrito.
+export function requireSameDistrict(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).jwtUser;
+  if (!user) {
+    return res.status(401).json({ error: "Autenticación requerida." });
+  }
+
+  // M-04: super_admin puede acceder a cualquier distrito
+  if (user.role === "super_admin") {
+    return next();
+  }
+
+  console.log("user", user);
+  const resourceDistrictId = parseInt(req.params.districtId || req.body.districtId || req.query.districtId as string);
+
+  if (user.districtId !== resourceDistrictId) {
+    return res.status(403).json({ error: "Acceso denegado. No perteneces a este distrito." });
+  }
+
+  return next();
+}
+
+// ── M-04: Middleware: filtra query por distrito del usuario ──────────────────
+// Para GET endpoints: si el usuario está autenticado, usa su districtId.
+// Si es anónimo, exige un districtId/slug en la query.
+// super_admin puede pasar sin filtro (verá todos los distritos).
+export function requireDistrictFilter(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).jwtUser;
+
+  if (user?.role === "super_admin") {
+    // super_admin puede pedir explícitamente un distrito o ver todo
+    return next();
+  }
+
+  if (user) {
+    // Usuario autenticado normal: forzar su distrito
+    req.query.districtId = String(user.districtId);
+  }
+  // Si es anónimo, debe proveer districtId en la query
+  // (se valida en cada ruta)
+
   return next();
 }
 

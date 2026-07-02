@@ -14,7 +14,7 @@ async function seed() {
 
   // ── Solo admin ───────────────────────────────────────────────────────
   await db.insert(usersTable).values([
-    { name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe", role: "admin", sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
+    { districtId: 1, name: "Admin Radar Vecinal", email: "cponce123.com@gmail.com", passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe", role: "admin", sector: "San Ramón Centro", district: "San Ramón", reportsCount: 0 },
   ]);
 
   const now = new Date();
@@ -31,6 +31,8 @@ async function seed() {
     // ════════════════ ÚLTIMOS 15 DÍAS (12 reportes) ════════════════
 
     {
+
+      districtId: 1,
       title: "Asalto a mano armada en Jr. Tarma",
       description: "Dos sujetos en moto asaltaron a señora frente al banco BN. Se llevaron cartera con documentos y celular Samsung. Uno de los delincuentes usó arma de fuego.",
       category: "robbery", urgency: "critical", status: "active", isAnonymous: false,
@@ -40,6 +42,7 @@ async function seed() {
       createdAt: ts(0, 0, 30), updatedAt: ts(0, 0, 30),
     },
     {
+      districtId: 1,
       title: "Grupo sospechoso merodeando el mercado",
       description: "Cuatro individuos desconocidos recorren el mercado central desde ayer, siguen a los compradores. Visten gorras y no compran nada. Parecen al acecho.",
       category: "suspicious", urgency: "high", status: "reviewing", isAnonymous: false,
@@ -49,6 +52,7 @@ async function seed() {
       createdAt: ts(0, 3), updatedAt: ts(0, 3),
     },
     {
+      districtId: 1,
       title: "Prostíbulo clandestino en Jr. Lima",
       description: "Local sin licencia opera desde las 10pm. Se han visto menores de edad ingresando. Los vecinos llevan semanas denunciando sin respuesta de la municipalidad.",
       category: "prostitution", urgency: "high", status: "reviewing", isAnonymous: true,
@@ -58,6 +62,7 @@ async function seed() {
       createdAt: ts(1, 2), updatedAt: ts(1, 2),
     },
     {
+      districtId: 1,
       title: "Pelea a la salida de cantina en Jr. Grau",
       description: "Riña entre 6 personas, botellazos y sillazos. Un herido con corte en la cabeza fue trasladado al hospital. La cantina no tiene permiso municipal.",
       category: "fight", urgency: "high", status: "active", isAnonymous: false,
@@ -67,6 +72,7 @@ async function seed() {
       createdAt: ts(2, 1), updatedAt: ts(2, 1),
     },
     {
+      districtId: 1,
       title: "Punto de venta de drogas frente a la Iglesia",
       description: "Grupo de jóvenes vende sustancias en motos. Operan principalmente viernes y sábados desde las 8pm. Se observan compras rápidas y alejamiento.",
       category: "drug_point", urgency: "high", status: "active", isAnonymous: true,
@@ -76,6 +82,7 @@ async function seed() {
       createdAt: ts(3), updatedAt: ts(3),
     },
     {
+      districtId: 1,
       title: "Bar sin licencia con música hasta el amanecer",
       description: "Cantina opera sin permiso, música a todo volumen hasta las 5am. Ebrios en la calle, peleas menores cada fin de semana. Los vecinos firmaron queja que nunca fue atendida.",
       category: "bar_trouble", urgency: "medium", status: "active", isAnonymous: true,
@@ -85,6 +92,7 @@ async function seed() {
       createdAt: ts(4, 8), updatedAt: ts(4, 8),
     },
     {
+      districtId: 1,
       title: "Robo de moto Honda Wave en la noche",
       description: "Mi Honda Wave color rojo, placa 3847-K, fue robada mientras estaba estacionada frente a mi casa. La cámara de mi vecino captó a dos sujetos a pie.",
       category: "robbery", urgency: "high", status: "active", isAnonymous: false,
@@ -94,6 +102,7 @@ async function seed() {
       createdAt: ts(5), updatedAt: ts(5),
     },
     {
+      districtId: 1,
       title: "Corte de agua sin previo aviso — 3ro día",
       description: "Llevamos tres días sin agua. EMAPA Chanchamayo no responde llamadas. Familias con niños y adultos mayores se ven afectadas. Pedimos urgente atención.",
       category: "water_cut", urgency: "medium", status: "active", isAnonymous: false,
@@ -103,6 +112,7 @@ async function seed() {
       createdAt: ts(6, 7), updatedAt: ts(6, 7),
     },
     {
+      districtId: 1,
       title: "Incendio en vivienda de material noble — San Luis",
       description: "Incendio originado por cortocircuito en segundo piso. Bomberos Chanchamayo tardaron 18 minutos en llegar. Familia de 4 personas quedó sin hogar. Se necesitan donaciones.",
       category: "fire", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -112,6 +122,7 @@ async function seed() {
       createdAt: ts(7, 22), updatedAt: ts(7, 2),
     },
     {
+      districtId: 1,
       title: "Basura acumulada 4 días sin recojo",
       description: "El camión de limpieza no pasa desde hace 4 días. Los montones de basura atraen ratas y generan mal olor. Ya pusimos queja en la municipalidad sin respuesta.",
       category: "garbage", urgency: "low", status: "active", isAnonymous: false,
@@ -121,6 +132,7 @@ async function seed() {
       createdAt: ts(8, 5), updatedAt: ts(8, 5),
     },
     {
+      districtId: 1,
       title: "Menor seguido por adulto desconocido",
       description: "Escolar de primaria fue seguido por un hombre adulto desde el colegio José Carlos Mariátegui hasta la cuadra 6 de Jr. Ramón Castilla. El hombre le hablaba e intentaba que subiera a un auto.",
       category: "suspicious", urgency: "critical", status: "reviewing", isAnonymous: false,
@@ -130,6 +142,7 @@ async function seed() {
       createdAt: ts(9, 14), updatedAt: ts(9, 14),
     },
     {
+      districtId: 1,
       title: "Comercio ambulatorio ilegal bloquea vía",
       description: "Vendedores ambulantes sin permiso ocupan toda la vereda y parte de la calzada en Jr. Tarma, impidiendo el paso peatonal y de vehículos. La municipalidad no actúa.",
       category: "informal_commerce", urgency: "low", status: "active", isAnonymous: false,
@@ -142,6 +155,8 @@ async function seed() {
     // ════════════════ DÍAS 15–44 (18 reportes) ════════════════
 
     {
+
+      districtId: 1,
       title: "Robo a vivienda en Jr. Bolívar",
       description: "Ladrones rompieron la luna de la puerta trasera mientras los dueños estaban de paseo. Robaron televisor, laptop y efectivo. Sucedió entre las 3pm y 6pm.",
       category: "robbery", urgency: "high", status: "active", isAnonymous: false,
@@ -151,6 +166,7 @@ async function seed() {
       createdAt: ts(15, 6), updatedAt: ts(15, 6),
     },
     {
+      districtId: 1,
       title: "Persona desaparecida — adulto mayor con demencia",
       description: "Mi abuelo Segundo Delgado, 78 años, salió de casa a las 9am y no regresó. Padece Alzheimer leve. Usa ropa verde y sombrero. Si lo ven llamen urgente.",
       category: "missing_person", urgency: "critical", status: "active", isAnonymous: false,
@@ -160,6 +176,7 @@ async function seed() {
       createdAt: ts(16, 10), updatedAt: ts(16, 10),
     },
     {
+      districtId: 1,
       title: "Asalto en grifo Carretera Central — madrugada",
       description: "Tres hombres encapuchados asaltaron al cajero del grifo amenazándolo con armas. Se llevaron el efectivo de la caja. Huyeron en camioneta doble cabina oscura.",
       category: "robbery", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -169,6 +186,7 @@ async function seed() {
       createdAt: ts(17, 3), updatedAt: ts(16),
     },
     {
+      districtId: 1,
       title: "Ruidos molestos — fiesta hasta las 5am",
       description: "Vecino del Jr. Puno organiza fiestas todos los sábados con sistema de sonido potente. Llevamos 3 semanas sin poder dormir. El serenazgo viene pero en 20 minutos ya regresa la música.",
       category: "noise", urgency: "low", status: "reviewing", isAnonymous: false,
@@ -178,6 +196,7 @@ async function seed() {
       createdAt: ts(18, 21), updatedAt: ts(18, 21),
     },
     {
+      districtId: 1,
       title: "Peleas entre pandillas en Pampa del Carmen",
       description: "Dos grupos de jóvenes se enfrentaron con palos y piedras en la calle principal. Tres personas resultaron heridas. Uno trasladado de emergencia al hospital.",
       category: "fight", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -187,6 +206,7 @@ async function seed() {
       createdAt: ts(19, 23), updatedAt: ts(19, 12),
     },
     {
+      districtId: 1,
       title: "Vehículo sospechoso ronda el colegio",
       description: "Auto de vidrios polarizados sin placa visible ronda el perímetro del colegio Santa Rosa durante el horario de salida. Los alumnos han comentado que les ofrecen dinero para subir.",
       category: "suspicious", urgency: "critical", status: "reviewing", isAnonymous: false,
@@ -196,6 +216,7 @@ async function seed() {
       createdAt: ts(20, 15), updatedAt: ts(20, 15),
     },
     {
+      districtId: 1,
       title: "Punto de drogas en parque Los Ángeles",
       description: "Tráfico de sustancias en el parque del AA.HH. Los Ángeles de noche. Distribución visible desde la calle. Familias con niños no pueden usar el parque.",
       category: "drug_point", urgency: "high", status: "reviewing", isAnonymous: true,
@@ -205,6 +226,7 @@ async function seed() {
       createdAt: ts(21), updatedAt: ts(21),
     },
     {
+      districtId: 1,
       title: "Emergencia médica — adulto mayor con derrame",
       description: "Señor Heráclito Roca, 72 años, sufrió probable derrame cerebral en la vía pública. Ambulancia tardó 28 minutos. El SAMU Chanchamayo no tiene cobertura adecuada.",
       category: "medical_emergency", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -214,6 +236,7 @@ async function seed() {
       createdAt: ts(23, 11), updatedAt: ts(23, 3),
     },
     {
+      districtId: 1,
       title: "Intento de robo a transeúnte armado con cuchillo",
       description: "Joven fue interceptado por sujeto con cuchillo quien exigió su celular. La víctima corrió y escapó. El delincuente huyó hacia el mercado. Descripción: 25 años, buzo negro, zapatillas blancas.",
       category: "robbery", urgency: "high", status: "active", isAnonymous: false,
@@ -223,6 +246,7 @@ async function seed() {
       createdAt: ts(25, 18), updatedAt: ts(25, 18),
     },
     {
+      districtId: 1,
       title: "Incendio de pastizales — margen del río Tarma",
       description: "Quema de pastizales fuera de control cerca del río Tarma. El fuego se acercó a viviendas del sector Río Tarma. Bomberos tardaron 25 minutos. Posible quema intencional.",
       category: "fire", urgency: "high", status: "resolved", isAnonymous: false,
@@ -232,6 +256,7 @@ async function seed() {
       createdAt: ts(27, 14), updatedAt: ts(27, 3),
     },
     {
+      districtId: 1,
       title: "Pelea en cantina El Paraíso — botellazo",
       description: "Riña entre clientes de discoteca. Un herido con corte profundo en el brazo. La discoteca no tiene vigías ni protocolo de seguridad. La zona se ha vuelto peligrosa los viernes.",
       category: "fight", urgency: "high", status: "resolved", isAnonymous: false,
@@ -241,6 +266,7 @@ async function seed() {
       createdAt: ts(28, 22), updatedAt: ts(28, 5),
     },
     {
+      districtId: 1,
       title: "Robo a negocio — vitrina rota de madrugada",
       description: "Ladrones rompieron la vitrina de la librería Escolar y se llevaron artículos escolares. El sistema de alarma no funcionó. Las cámaras municipales no graban de noche.",
       category: "robbery", urgency: "high", status: "resolved", isAnonymous: false,
@@ -250,6 +276,7 @@ async function seed() {
       createdAt: ts(30, 4), updatedAt: ts(29, 12),
     },
     {
+      districtId: 1,
       title: "Prostitución callejera en Jr. Salaverry",
       description: "Mujeres ejercen la prostitución en la vía pública desde las 9pm. Piden a los vecinos que apaguen sus luces. Se generan escenas inapropiadas frente a menores.",
       category: "prostitution", urgency: "medium", status: "reviewing", isAnonymous: true,
@@ -259,6 +286,7 @@ async function seed() {
       createdAt: ts(32), updatedAt: ts(32),
     },
     {
+      districtId: 1,
       title: "Robo de cable eléctrico — 2 cuadras sin luz",
       description: "Desconocidos cortaron y robaron el cable eléctrico de dos cuadras del Jr. Loreto. Las familias llevan 2 días sin electricidad. Electro Centro tardó en responder.",
       category: "robbery", urgency: "medium", status: "resolved", isAnonymous: false,
@@ -268,6 +296,7 @@ async function seed() {
       createdAt: ts(35, 18), updatedAt: ts(34),
     },
     {
+      districtId: 1,
       title: "Ruidos molestos — taller mecánico sin horario",
       description: "Taller mecánico trabaja hasta las 11pm y desde las 6am incluyendo domingos. El ruido de motores y martillazos no deja dormir a los vecinos. No tienen licencia de funcionamiento.",
       category: "noise", urgency: "low", status: "active", isAnonymous: false,
@@ -277,6 +306,7 @@ async function seed() {
       createdAt: ts(38, 8), updatedAt: ts(38, 8),
     },
     {
+      districtId: 1,
       title: "Sospechosos intentaron abrir puerta de vivienda",
       description: "Dos sujetos intentaron forzar la puerta de mi casa a las 2am. Mis hijos gritaron y se fueron corriendo. Calle sin alumbrado público, cuarta vez que ocurre algo similar en el barrio.",
       category: "suspicious", urgency: "high", status: "reviewing", isAnonymous: false,
@@ -286,6 +316,7 @@ async function seed() {
       createdAt: ts(40, 2), updatedAt: ts(40, 2),
     },
     {
+      districtId: 1,
       title: "Emergencia — niño con quemaduras graves",
       description: "Niño de 6 años volcó olla con agua hirviendo. Quemaduras en tórax y brazos. Trasladado a emergencias del Hospital Chanchamayo. La familia necesita apoyo económico.",
       category: "medical_emergency", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -295,6 +326,7 @@ async function seed() {
       createdAt: ts(42, 16), updatedAt: ts(42, 8),
     },
     {
+      districtId: 1,
       title: "Bar clandestino en El Milagro — 4 quejas ignoradas",
       description: "Bar opera sin permiso hace 5 meses. Hemos presentado 4 quejas a la municipalidad y ninguna fue atendida. Peleas todos los fines de semana con botellas en la calle.",
       category: "bar_trouble", urgency: "medium", status: "reviewing", isAnonymous: true,
@@ -307,6 +339,8 @@ async function seed() {
     // ════════════════ DÍAS 45–89 (20 reportes) ════════════════
 
     {
+
+      districtId: 1,
       title: "Robo en local comercial — Av. Juan Santos Atahualpa",
       description: "Ladrones se llevaron mercadería de farmacia valorada en más de S/ 5,000. Usaron llave falsa. Se detectó que habían robado días antes para copiar la cerradura.",
       category: "robbery", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -316,6 +350,7 @@ async function seed() {
       createdAt: ts(46, 3), updatedAt: ts(45, 10),
     },
     {
+      districtId: 1,
       title: "Punto de drogas en zona del aeródromo",
       description: "Vehículo estacionado en la berma de la carretera PE-22B vende drogas a quienes se acercan en moto. Operan de noche entre las 8pm y 1am.",
       category: "drug_point", urgency: "high", status: "resolved", isAnonymous: true,
@@ -325,6 +360,7 @@ async function seed() {
       createdAt: ts(49), updatedAt: ts(48, 10),
     },
     {
+      districtId: 1,
       title: "Pelea callejera en Jr. Callao — heridos",
       description: "Enfrentamiento entre grupos rivales, uso de objetos contundentes. Dos heridos fueron atendidos en el centro de salud. Zona sin cámaras de vigilancia.",
       category: "fight", urgency: "high", status: "resolved", isAnonymous: false,
@@ -334,6 +370,7 @@ async function seed() {
       createdAt: ts(51, 22), updatedAt: ts(51, 10),
     },
     {
+      districtId: 1,
       title: "Prostíbulo en Pampa del Carmen — 3er reporte",
       description: "Este es el tercer reporte del mismo local. Continúa funcionando. Los dueños habrían sobornado a los inspectores municipales. Se solicita intervención de la fiscalía.",
       category: "prostitution", urgency: "high", status: "archived", isAnonymous: true,
@@ -343,6 +380,7 @@ async function seed() {
       createdAt: ts(54), updatedAt: ts(53),
     },
     {
+      districtId: 1,
       title: "Robo a mano armada — tienda de abarrotes",
       description: "Tres sujetos encapuchados, uno con pistola, vaciaron la caja registradora. Se llevaron S/ 1,200 y el celular del dueño. Huyeron por Jr. Progreso en moto.",
       category: "robbery", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -352,6 +390,7 @@ async function seed() {
       createdAt: ts(56, 21), updatedAt: ts(56, 5),
     },
     {
+      districtId: 1,
       title: "Basura y desmonte en terreno baldío — San Luis",
       description: "Personas ajenas al sector descargan desmonte y basura de noche en terreno baldío. El terreno se ha convertido en basurero informal. Riesgo sanitario para el vecindario.",
       category: "garbage", urgency: "low", status: "resolved", isAnonymous: false,
@@ -361,6 +400,7 @@ async function seed() {
       createdAt: ts(58, 14), updatedAt: ts(57),
     },
     {
+      districtId: 1,
       title: "Actitud sospechosa — encuestadores falsos",
       description: "Dos sujetos van de casa en casa fingiendo ser encuestadores. Hacen preguntas sobre qué equipos eléctricos y vehículos tiene cada familia. Se les ha visto fotografiando interiores.",
       category: "suspicious", urgency: "high", status: "archived", isAnonymous: false,
@@ -370,6 +410,7 @@ async function seed() {
       createdAt: ts(60), updatedAt: ts(60),
     },
     {
+      districtId: 1,
       title: "Inundación y corte de agua simultáneo",
       description: "Paradójicamente, tubería rota inundó Jr. Ica mientras se daba corte en toda la zona. Reclamo a EMAPA respondido 4 días después.",
       category: "water_cut", urgency: "medium", status: "resolved", isAnonymous: false,
@@ -379,6 +420,7 @@ async function seed() {
       createdAt: ts(62, 10), updatedAt: ts(60),
     },
     {
+      districtId: 1,
       title: "Robo de cosecha en chacra del sector Miraflores",
       description: "Ladrones ingresaron a mi chacra de noche y cosecharon cacao maduro valorado en S/ 2,800. Dejaron huellas de botas y restos de costales. Cuarta vez que me roban.",
       category: "robbery", urgency: "high", status: "resolved", isAnonymous: false,
@@ -388,6 +430,7 @@ async function seed() {
       createdAt: ts(65, 7), updatedAt: ts(64),
     },
     {
+      districtId: 1,
       title: "Comercio ilícito en bodega — mercadería sin procedencia",
       description: "Bodega en Jr. San Martín vende artículos electrónicos sin factura ni garantía. Se presume que son productos robados. La bodega también vende alcohol a menores de edad.",
       category: "informal_commerce", urgency: "medium", status: "archived", isAnonymous: true,
@@ -397,6 +440,7 @@ async function seed() {
       createdAt: ts(67), updatedAt: ts(67),
     },
     {
+      districtId: 1,
       title: "Ruidos nocturnos — karaoke sin permiso",
       description: "Karaoke clandestino opera hasta las 3am todos los días. Los vecinos de tres cuadras a la redonda no pueden dormir. La municipalidad retiró el permiso pero sigue abierto.",
       category: "noise", urgency: "medium", status: "resolved", isAnonymous: false,
@@ -406,6 +450,7 @@ async function seed() {
       createdAt: ts(70, 23), updatedAt: ts(69),
     },
     {
+      districtId: 1,
       title: "Pelea en asentamiento humano — arma blanca",
       description: "Pelea entre vecinos por deuda en el AA.HH. Nueva Esperanza. Uno sacó cuchillo y amenazó al otro. Intervino la PNP pero no hubo detenidos por falta de testigos.",
       category: "fight", urgency: "critical", status: "resolved", isAnonymous: true,
@@ -415,6 +460,7 @@ async function seed() {
       createdAt: ts(72, 19), updatedAt: ts(72, 4),
     },
     {
+      districtId: 1,
       title: "Asalto a turistas — sector puente Tarma",
       description: "Pareja de turistas fue asaltada en el puente sobre el río Tarma por tres sujetos en moto que los amenazaron con arma de fuego. Se llevaron cámaras, mochilas y documentos.",
       category: "robbery", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -424,6 +470,7 @@ async function seed() {
       createdAt: ts(74, 17), updatedAt: ts(74, 2),
     },
     {
+      districtId: 1,
       title: "Envenenamiento de perros callejeros — denuncia",
       description: "Alguien ha puesto carne envenenada en el parque del barrio. Tres perros callejeros murieron. Los vecinos temen que también ponga veneno en áreas de juego de niños.",
       category: "suspicious", urgency: "high", status: "archived", isAnonymous: false,
@@ -433,6 +480,7 @@ async function seed() {
       createdAt: ts(76, 9), updatedAt: ts(76),
     },
     {
+      districtId: 1,
       title: "Extorsión a comerciante del mercado",
       description: "Dueño de puesto en el mercado central recibe amenazas telefónicas exigiéndole cupo semanal de S/ 200. Ya pagó tres veces por miedo. Solicita ayuda de la PNP con discreción.",
       category: "robbery", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -442,6 +490,7 @@ async function seed() {
       createdAt: ts(79, 11), updatedAt: ts(78),
     },
     {
+      districtId: 1,
       title: "Incendio en depósito de madera",
       description: "Incendio destruyó depósito de madera en sector industrial. Duró 3 horas, pérdidas por S/ 40,000. Bomberos de Chanchamayo y La Merced atendieron. Se investiga origen.",
       category: "fire", urgency: "critical", status: "resolved", isAnonymous: false,
@@ -451,6 +500,7 @@ async function seed() {
       createdAt: ts(81, 4), updatedAt: ts(81, 0),
     },
     {
+      districtId: 1,
       title: "Accidente de tránsito — mototaxi volcado",
       description: "Mototaxi volcó por exceso de velocidad y bache no señalizado. Conductor y dos pasajeros heridos. La pista tiene baches desde hace meses y la municipalidad no repara.",
       category: "medical_emergency", urgency: "high", status: "resolved", isAnonymous: false,
@@ -460,6 +510,7 @@ async function seed() {
       createdAt: ts(84, 16), updatedAt: ts(84, 8),
     },
     {
+      districtId: 1,
       title: "Robo de herramientas en obra de construcción",
       description: "Ladrones ingresaron a obra en construcción y robaron herramientas: mezcladora, taladros, andamios y materiales. Las pérdidas superan los S/ 8,000. Tres obreros quedaron sin trabajo.",
       category: "robbery", urgency: "medium", status: "resolved", isAnonymous: false,
@@ -469,6 +520,7 @@ async function seed() {
       createdAt: ts(86, 8), updatedAt: ts(85),
     },
     {
+      districtId: 1,
       title: "Punto de tráfico de drogas consolidado — 2 meses",
       description: "Durante dos meses hemos documentado venta de drogas en esta esquina. Adjuntamos fotos de vehículos y personas. El punto opera con vigilantes que avisan cuando viene la PNP.",
       category: "drug_point", urgency: "critical", status: "archived", isAnonymous: true,
@@ -478,6 +530,7 @@ async function seed() {
       createdAt: ts(88), updatedAt: ts(88),
     },
     {
+      districtId: 1,
       title: "Bar problemático — vecinos hartos de 3 meses de quejas",
       description: "Bar sin habilitación opera hace 3 meses. Llevamos 7 denuncias ante la municipalidad y la PNP. Peleas cada viernes, botellas en la calle, orines en las paredes. Exigimos cierre definitivo.",
       category: "bar_trouble", urgency: "high", status: "archived", isAnonymous: true,
@@ -491,6 +544,8 @@ async function seed() {
   // ── Panic Alerts ──────────────────────────────────────────────────────────
   await db.insert(panicAlertsTable).values([
     {
+
+      districtId: 1,
       type: "robbery",
       latitude: j(LAT), longitude: j(LNG),
       address: "Jr. Tarma cdra. 3, San Ramón Centro",
@@ -498,6 +553,7 @@ async function seed() {
       isActive: true, createdAt: ts(0, 0, 30),
     },
     {
+      districtId: 1,
       type: "medical",
       latitude: j(LAT), longitude: j(LNG),
       address: "Carretera Central PE-22B, km 94",
@@ -505,6 +561,7 @@ async function seed() {
       isActive: false, createdAt: ts(0, 8),
     },
     {
+      districtId: 1,
       type: "fight",
       latitude: j(LAT), longitude: j(LNG),
       address: "Jr. Grau cdra. 1, San Ramón",
@@ -512,6 +569,7 @@ async function seed() {
       isActive: false, createdAt: ts(0, 5),
     },
     {
+      districtId: 1,
       type: "robbery",
       latitude: j(LAT), longitude: j(LNG),
       address: "Pampa del Carmen, Calle Principal",
@@ -523,6 +581,8 @@ async function seed() {
   // ── Missing Persons ───────────────────────────────────────────────────────
   await db.insert(missingPersonsTable).values([
     {
+
+      districtId: 1,
       name: "Sebastián Flores",
       age: 9,
       clothing: "Uniforme escolar azul con mochila roja, zapatillas blancas Nike",
@@ -537,6 +597,7 @@ async function seed() {
       createdAt: ts(0, 4),
     },
     {
+      districtId: 1,
       name: "Segundo Delgado",
       age: 78,
       clothing: "Camisa verde manga larga, pantalón gris, sombrero de paja, bastón de madera",
@@ -555,18 +616,22 @@ async function seed() {
   // ── Ad Slots ──────────────────────────────────────────────────────────────
   await db.insert(adSlotsTable).values([
     {
+
+      districtId: 1,
       businessName: "Ferretería El Constructor",
       tagline: "Materiales de construcción y acabados — San Ramón",
       imageUrl: null, targetUrl: "https://example.com",
       isActive: true, sector: "San Ramón Centro",
     },
     {
+      districtId: 1,
       businessName: "Botica San Ramón",
       tagline: "Medicamentos al mejor precio. Delivery en toda Chanchamayo",
       imageUrl: null, targetUrl: "https://example.com",
       isActive: true, sector: null,
     },
     {
+      districtId: 1,
       businessName: "Hospedaje Río Tarma",
       tagline: "Habitaciones cómodas, wifi y desayuno incluido — desde S/ 45",
       imageUrl: null, targetUrl: "https://example.com",

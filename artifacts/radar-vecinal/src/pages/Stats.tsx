@@ -5,6 +5,7 @@ import {
   LineChart, Line, CartesianGrid,
 } from "recharts";
 import { useGetStats, useGetReports } from "@workspace/api-client-react";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { Activity, AlertTriangle, CheckCircle, TrendingUp, MapPin, Calendar } from "lucide-react";
 
 type Period = "7d" | "30d" | "90d" | "365d";
@@ -32,8 +33,8 @@ const CHART_TOOLTIP_STYLE = {
 export default function Stats() {
   const [period, setPeriod] = useState<Period>("30d");
   const { data: stats, isLoading } = useGetStats();
-  const { district } = useDistrict();
-  const { data: allReports } = useGetReports({ district });
+  const { currentDistrictId } = useDistrict();
+  const { data: allReports } = useGetReports({ districtId: currentDistrictId ?? undefined });
 
   // B-23: Filter reports by selected period for derived stats
   const periodDays = PERIODS.find(p => p.id === period)?.days ?? 30;

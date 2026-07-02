@@ -23,7 +23,7 @@ export const urgencyEnum = pgEnum("urgency_level", ["low", "medium", "high", "cr
 
 export const reportStatusEnum = pgEnum("report_status", ["active", "reviewing", "resolved", "archived"]);
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "moderator", "user"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "moderator", "user", "super_admin"]);
 
 export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
   "robbery",
@@ -36,6 +36,21 @@ export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
 
 export const missingPersonStatusEnum = pgEnum("missing_person_status", ["active", "found", "archived"]);
 
+// ── M-05: Catálogo oficial de distritos (multi-tenant) ───────────────────────
+export const districtsTable = pgTable("districts", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  province: text("province").notNull(),
+  department: text("department").notNull(),
+  centerLat: real("center_lat"),
+  centerLng: real("center_lng"),
+  defaultZoom: integer("default_zoom").default(15),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── M-03/M-05: M-13: Todos los usuarios ahora referencian districts ──────────
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -44,6 +59,9 @@ export const usersTable = pgTable("users", {
   dni: text("dni").unique(),
   role: userRoleEnum("role").notNull().default("user"),
   sector: text("sector").notNull().default(""),
+  // M-05: districtId es la fuente de verdad; district/province/department se
+  // mantienen como campos derivados de solo lectura para el frontend legacy.
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
   district: text("district").notNull().default("San Ramón"),
   province: text("province").notNull().default("Chanchamayo"),
   department: text("department").notNull().default("Junín"),
@@ -64,6 +82,8 @@ export const reportsTable = pgTable("reports", {
   longitude: real("longitude").notNull(),
   address: text("address").notNull().default(""),
   sector: text("sector").notNull(),
+  // M-05: districtId es la fuente de verdad
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
   district: text("district").notNull().default("San Ramón"),
   province: text("province").notNull().default("Chanchamayo"),
   department: text("department").notNull().default("Junín"),
@@ -75,8 +95,10 @@ export const reportsTable = pgTable("reports", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ── M-03: panic_alerts ahora tiene districtId ───────────────────────────────
 export const panicAlertsTable = pgTable("panic_alerts", {
   id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
   type: panicAlertTypeEnum("type").notNull(),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
@@ -87,8 +109,10 @@ export const panicAlertsTable = pgTable("panic_alerts", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── M-03: missing_persons ahora tiene districtId ────────────────────────────
 export const missingPersonsTable = pgTable("missing_persons", {
   id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
   name: text("name").notNull(),
   age: integer("age"),
   clothing: text("clothing").notNull(),
@@ -103,8 +127,10 @@ export const missingPersonsTable = pgTable("missing_persons", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
 export const adSlotsTable = pgTable("ad_slots", {
   id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
   businessName: text("business_name").notNull(),
   tagline: text("tagline").notNull(),
   imageUrl: text("image_url"),
@@ -122,8 +148,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "report_nearby",
 ]);
 
+// ── M-03: notifications ahora tiene districtId ──────────────────────────────
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
   userId: integer("user_id"),
   type: notificationTypeEnum("type").notNull().default("system"),
   title: text("title").notNull(),
@@ -151,3 +179,4 @@ export type User = typeof usersTable.$inferSelect;
 export type AdSlot = typeof adSlotsTable.$inferSelect;
 export type Notification = typeof notificationsTable.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type District = typeof districtsTable.$inferSelect;

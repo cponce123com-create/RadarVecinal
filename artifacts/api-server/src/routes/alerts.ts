@@ -1,173 +1,267 @@
 import { Router, type IRouter, type Response } from "express";
 import { db } from "@workspace/db";
-import { panicAlertsTable, missingPersonsTable, notificationsTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import {
+  panicAlertsTable,
+  missingPersonsTable,
+  notificationsTable,
+  districtsTable,
+} from "@workspace/db/schema";
+import { eq, desc, and } from "drizzle-orm";
+import { requireAuth, optionalAuth } from "./auth";
 
 const router: IRouter = Router();
 
-// ── B-13: SSE client registry for real-time panic alerts ───────────────────
-const sseClients = new Set<Response>();
-
-export function broadcastPanicAlert(payload: object) {
-  const data = `data: ${JSON.stringify(payload)}\n\n`;
-  for (const res of sseClients) {
-    try { res.write(data); } catch { sseClients.delete(res); }
-  }
+// ── Almacenar clientes SSE con su districtId ────────────────────────────────
+interface SseClient {
+  id: string;
+  res: Response;
+  districtId: number;
 }
 
-function formatPanic(a: typeof panicAlertsTable.$inferSelect) {
-  return {
-    id: String(a.id),
-    type: a.type,
-    latitude: a.latitude,
-    longitude: a.longitude,
-    address: a.address,
-    authorName: a.authorName,
-    sector: a.sector,
-    isActive: a.isActive,
-    createdAt: a.createdAt.toISOString(),
-  };
+let sseClients: SseClient[] = [];
+
+// ── Helper: obtener districtId del request ──────────────────────────────────
+function getDistrictId(req: any): number | null {
+  const user = req.jwtUser;
+  if (user?.districtId && user.role !== "super_admin") return Number(user.districtId);
+  const q = req.query.districtId || req.body.districtId;
+  if (q) return Number(q);
+  return null;
 }
 
-function formatMissing(m: typeof missingPersonsTable.$inferSelect) {
-  return {
-    id: String(m.id),
-    name: m.name,
-    age: m.age ?? null,
-    clothing: m.clothing,
-    photoUrl: m.photoUrl ?? null,
-    lastSeenLatitude: m.lastSeenLatitude,
-    lastSeenLongitude: m.lastSeenLongitude,
-    lastSeenAddress: m.lastSeenAddress,
-    lastSeenAt: m.lastSeenAt.toISOString(),
-    contactInfo: m.contactInfo,
-    status: m.status,
-    reportedBy: m.reportedBy,
-    createdAt: m.createdAt.toISOString(),
-  };
+// ── M-02: Broadcast de alerta solo a clientes del mismo distrito ────────────
+export function broadcastPanicAlert(alert: any) {
+  const alertDistrictId = Number(alert.districtId);
+  const body = `data: ${JSON.stringify({ ...alert, id: String(alert.id), createdAt: alert.createdAt?.toISO?.() ?? alert.createdAt })}
+
+`;
+  sseClients.forEach(client => {
+    if (client.districtId === alertDistrictId) {
+      client.res.write(body);
+    }
+  });
 }
 
-// B-13: SSE stream endpoint for real-time panic alerts
+// ── GET /panic-alerts/stream — M-02: SSE filtrado por distrito ──────────────
 router.get("/panic-alerts/stream", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.flushHeaders();
+  const districtId = parseInt(req.query.districtId as string);
+  if (!districtId) {
+    res.status(400).json({ error: "Se requiere districtId para conectar al stream." });
+    return;
+  }
 
-  res.write(": connected\n\n");
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
 
-  const keepAlive = setInterval(() => {
-    try { res.write(": ping\n\n"); } catch { clearInterval(keepAlive); }
-  }, 25000);
+  res.write("data: " + JSON.stringify({ connected: true }) + "\n\n");
 
-  sseClients.add(res);
+  const client: SseClient = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    res,
+    districtId,
+  };
+  sseClients.push(client);
 
   req.on("close", () => {
-    clearInterval(keepAlive);
-    sseClients.delete(res);
+    sseClients = sseClients.filter(c => c.id !== client.id);
   });
 });
 
-router.get("/panic-alerts", async (req, res) => {
+// ── M-01: GET /panic-alerts ─────────────────────────────────────────────────
+router.get("/panic-alerts", optionalAuth, async (req, res) => {
   try {
-    const alerts = await db.select().from(panicAlertsTable).orderBy(desc(panicAlertsTable.createdAt)).limit(50);
-    return res.json({ alerts: alerts.map(formatPanic) });
+    const { active } = req.query;
+    const districtId = getDistrictId(req);
+    if (!districtId) {
+      return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    }
+
+    const conditions = [eq(panicAlertsTable.districtId, districtId)];
+    if (active !== undefined) {
+      conditions.push(eq(panicAlertsTable.isActive, active === "true"));
+    }
+
+    const alerts = await db.select()
+      .from(panicAlertsTable)
+      .where(and(...conditions))
+      .orderBy(desc(panicAlertsTable.createdAt))
+      .limit(50);
+
+    return res.json({
+      alerts: alerts.map(a => ({
+        ...a,
+        id: String(a.id),
+        createdAt: a.createdAt.toISOString(),
+      })),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get panic alerts");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-router.post("/panic-alerts", async (req, res) => {
+// ── POST /panic-alerts ─────────────────────────────────────────────────────
+router.post("/panic-alerts", optionalAuth, async (req, res) => {
+  const { type, latitude, longitude, address, authorName, sector, districtId: bodyDistrictId } = req.body;
+  const user = (req as any).jwtUser;
+
+  let districtId: number;
+  if (user?.districtId && user.role !== "super_admin") {
+    districtId = Number(user.districtId);
+  } else if (bodyDistrictId) {
+    districtId = Number(bodyDistrictId);
+  } else {
+    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+  }
+
+  if (!type || !latitude || !longitude || !authorName || !sector) {
+    return res.status(400).json({ error: "Faltan campos requeridos: type, latitude, longitude, authorName, sector." });
+  }
+
   try {
-    const data = req.body;
     const [alert] = await db.insert(panicAlertsTable).values({
-      type: data.type,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      address: data.address ?? "",
-      authorName: data.authorName,
-      sector: data.sector,
-      isActive: true,
+      districtId,
+      type,
+      latitude,
+      longitude,
+      address: address ?? "",
+      authorName,
+      sector,
     }).returning();
-    const formatted = formatPanic(alert);
-    // B-13: Broadcast new alert to all SSE subscribers in real time
-    broadcastPanicAlert({ type: "new_alert", alert: formatted });
 
-    // B-16: Create notification for the new panic alert
-    const typeLabels: Record<string, string> = {
-      robbery: "Robo en curso",
-      medical: "Emergencia médica",
-      fight: "Pelea callejera",
-      fire: "Incendio",
-      missing_person: "Persona extraviada",
-      other: "Alerta de pánico",
-    };
-    const label = typeLabels[data.type] ?? "Alerta de pánico";
-    await db.insert(notificationsTable).values({
-      type: "panic_alert",
-      title: label,
-      body: `${data.authorName} reportó: ${data.address || `${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`}`,
-      referenceId: String(alert.id),
-      referenceType: "panic_alert",
-      isRead: false,
-    }).execute();
+    // Broadcast SSE solo a clientes del mismo distrito
+    broadcastPanicAlert(alert);
 
-    return res.status(201).json(formatted);
+    return res.status(201).json({
+      ...alert,
+      id: String(alert.id),
+      createdAt: alert.createdAt.toISOString(),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to create panic alert");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-router.get("/missing-persons", async (req, res) => {
+// ── M-01: GET /missing-persons ──────────────────────────────────────────────
+router.get("/missing-persons", optionalAuth, async (req, res) => {
   try {
-    const persons = await db.select().from(missingPersonsTable).orderBy(desc(missingPersonsTable.createdAt));
-    return res.json({ alerts: persons.map(formatMissing) });
+    const { active } = req.query;
+    const districtId = getDistrictId(req);
+    if (!districtId) {
+      return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    }
+
+    const conditions = [eq(missingPersonsTable.districtId, districtId)];
+    if (active !== undefined) {
+      conditions.push(eq(missingPersonsTable.status, active === "true" ? "active" : "found"));
+    }
+
+    const alerts = await db.select()
+      .from(missingPersonsTable)
+      .where(and(...conditions))
+      .orderBy(desc(missingPersonsTable.createdAt));
+
+    return res.json({
+      alerts: alerts.map(a => ({
+        ...a,
+        id: String(a.id),
+        createdAt: a.createdAt.toISOString(),
+        lastSeenAt: a.lastSeenAt.toISOString(),
+      })),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get missing persons");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-router.post("/missing-persons", async (req, res) => {
+// ── POST /missing-persons ──────────────────────────────────────────────────
+router.post("/missing-persons", optionalAuth, async (req, res) => {
+  const { name, age, clothing, photoUrl, lastSeenLatitude, lastSeenLongitude, lastSeenAddress, lastSeenAt, contactInfo, reportedBy, districtId: bodyDistrictId } = req.body;
+  const user = (req as any).jwtUser;
+
+  let districtId: number;
+  if (user?.districtId && user.role !== "super_admin") {
+    districtId = Number(user.districtId);
+  } else if (bodyDistrictId) {
+    districtId = Number(bodyDistrictId);
+  } else {
+    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+  }
+
+  if (!name || !clothing || !lastSeenLatitude || !lastSeenLongitude || !lastSeenAddress || !lastSeenAt || !contactInfo || !reportedBy) {
+    return res.status(400).json({ error: "Faltan campos requeridos." });
+  }
+
   try {
-    const data = req.body;
-    const [person] = await db.insert(missingPersonsTable).values({
-      name: data.name,
-      age: data.age ?? null,
-      clothing: data.clothing,
-      photoUrl: data.photoUrl ?? null,
-      lastSeenLatitude: data.lastSeenLatitude,
-      lastSeenLongitude: data.lastSeenLongitude,
-      lastSeenAddress: data.lastSeenAddress,
-      lastSeenAt: new Date(data.lastSeenAt),
-      contactInfo: data.contactInfo,
-      status: "active",
-      reportedBy: data.reportedBy,
+    const [alert] = await db.insert(missingPersonsTable).values({
+      districtId,
+      name,
+      age: age ?? null,
+      clothing,
+      photoUrl: photoUrl ?? null,
+      lastSeenLatitude,
+      lastSeenLongitude,
+      lastSeenAddress,
+      lastSeenAt: new Date(lastSeenAt),
+      contactInfo,
+      reportedBy,
     }).returning();
-    return res.status(201).json(formatMissing(person));
+
+    return res.status(201).json({
+      ...alert,
+      id: String(alert.id),
+      createdAt: alert.createdAt.toISOString(),
+      lastSeenAt: alert.lastSeenAt.toISOString(),
+    });
   } catch (err) {
-    req.log.error({ err }, "Failed to create missing person alert");
-    return res.status(500).json({ error: "Internal server error" });
+    req.log.error({ err }, "Failed to create missing person");
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-router.patch("/missing-persons/:id", async (req, res) => {
-  try {
-    const data = req.body;
-    const updates: Partial<typeof missingPersonsTable.$inferInsert> = {};
-    if (data.status !== undefined) updates.status = data.status;
-    if (data.clothing !== undefined) updates.clothing = data.clothing;
-    if (data.photoUrl !== undefined) updates.photoUrl = data.photoUrl;
+// ── M-06: PATCH /missing-persons/:id — AHORA CON AUTH ──────────────────────
+router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
+  const user = (req as any).jwtUser;
 
-    const [person] = await db.update(missingPersonsTable).set(updates).where(eq(missingPersonsTable.id, parseInt(req.params.id))).returning();
-    if (!person) return res.status(404).json({ error: "Not found" });
-    return res.json(formatMissing(person));
+  try {
+    const [person] = await db.select()
+      .from(missingPersonsTable)
+      .where(eq(missingPersonsTable.id, parseInt(req.params.id as string)))
+      .limit(1);
+
+    if (!person) return res.status(404).json({ error: "Persona no encontrada." });
+
+    // M-04: Chequeo de tenant
+    if (user.role !== "super_admin" && Number(user.districtId) !== Number(person.districtId)) {
+      return res.status(403).json({ error: "No puedes modificar registros de otro distrito." });
+    }
+
+    const { status, clothing: newClothing, photoUrl: newPhotoUrl } = req.body;
+
+    const [updated] = await db.update(missingPersonsTable)
+      .set({
+        ...(status ? { status } : {}),
+        ...(newClothing ? { clothing: newClothing } : {}),
+        ...(newPhotoUrl !== undefined ? { photoUrl: newPhotoUrl } : {}),
+      })
+      .where(eq(missingPersonsTable.id, parseInt(req.params.id as string)))
+      .returning();
+
+    return res.json({
+      ...updated,
+      id: String(updated.id),
+      createdAt: updated.createdAt.toISOString(),
+      lastSeenAt: updated.lastSeenAt.toISOString(),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to update missing person");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 

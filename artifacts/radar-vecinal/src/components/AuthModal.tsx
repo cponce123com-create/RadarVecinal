@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Mail, Lock, Phone, MapPin, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SECTORS, DISTRICT } from "@/lib/constants";
-import { DISTRICTS } from "@/contexts/DistrictContext";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -14,7 +13,7 @@ interface Props {
 type Mode = "login" | "register";
 
 export default function AuthModal({ open, onClose }: Props) {
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const { toast } = useToast();
   const [mode, setMode] = useState<Mode>("login");
   const [loading, setLoading] = useState(false);
@@ -37,17 +36,31 @@ export default function AuthModal({ open, onClose }: Props) {
     setLoading(true);
     try {
       if (mode === "login") {
-        await login(form.email, form.password);
+        const loginRes = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email, password: form.password }),
+        });
+        const loginData = await loginRes.json();
+        if (!loginRes.ok) throw new Error(loginData.error || "Credenciales inválidas");
+        login(loginData.token, loginData.user);
         toast({ title: "¡Bienvenido de vuelta!", description: "Sesión iniciada correctamente." });
       } else {
-        await register({
-          name:     form.name,
-          email:    form.email,
-          password: form.password,
-          sector:   form.sector,
-          district: form.district,
-          dni:      form.dni || undefined,
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            password: form.password,
+            sector: form.sector,
+            district: form.district,
+            dni: form.dni || undefined,
+          }),
         });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Error al registrarse");
+        login(data.token, data.user);
         toast({ title: "¡Cuenta creada!", description: "Ya puedes usar todas las funciones de Radar Vecinal." });
       }
       onClose();
@@ -201,7 +214,7 @@ export default function AuthModal({ open, onClose }: Props) {
                         <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <select name="district" value={form.district} onChange={handleChange}
                           className="w-full pl-9 pr-4 py-2.5 bg-background border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none">
-                          {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          <option value={DISTRICT.name}>{DISTRICT.name}</option>
                         </select>
                       </div>
                     </div>

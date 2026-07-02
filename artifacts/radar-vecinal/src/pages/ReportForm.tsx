@@ -71,8 +71,8 @@ function DraggableMarker({ position, onDrag }: {
 export default function ReportForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user, isLoggedIn } = useAuth();
-  const { selectedDistrict } = useDistrict();
+  const { user } = useAuth();
+  const { currentDistrict } = useDistrict();
   const createReport = useCreateReport();
 
   const [step, setStep] = useState(1);
@@ -193,8 +193,8 @@ export default function ReportForm() {
         address: formData.address,
         sector: formData.sector,
         contactPhone: formData.contactPhone || null,
-        authorName: formData.isAnonymous ? "Anónimo" : (isLoggedIn && user?.name ? user.name : (formData.authorName.trim() || "Vecino de San Ramón")),
-        district: selectedDistrict,
+        authorName: formData.isAnonymous ? "Anónimo" : (!!user && user?.name ? user.name : (formData.authorName.trim() || "Vecino de San Ramón")),
+        district: currentDistrict,
         imageUrl: imageUrl ?? null,
       }
     }, {
@@ -321,21 +321,21 @@ export default function ReportForm() {
                 <div>
                   <label className="block text-sm font-semibold text-white mb-2">
                     Tu nombre{" "}
-                    {isLoggedIn && <span className="text-xs text-primary font-normal ml-1">· Sesión iniciada</span>}
+                    {!!user && <span className="text-xs text-primary font-normal ml-1">· Sesión iniciada</span>}
                   </label>
                   <input
                     type="text"
-                    value={isLoggedIn && user?.name ? user.name : formData.authorName ?? ""}
-                    onChange={e => !isLoggedIn && setFormData(prev => ({ ...prev, authorName: e.target.value }))}
-                    readOnly={!!isLoggedIn}
+                    value={!!user && user?.name ? user.name : formData.authorName ?? ""}
+                    onChange={e => !user && setFormData(prev => ({ ...prev, authorName: e.target.value }))}
+                    readOnly={!!user}
                     placeholder="Tu nombre o alias (opcional)"
                     className={`w-full bg-background border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none transition-colors ${
-                      isLoggedIn
+                      !!user
                         ? "border-white/5 text-muted-foreground cursor-not-allowed opacity-70"
                         : "border-white/10 text-white focus:border-primary"
                     }`}
                   />
-                  {isLoggedIn && (
+                  {!!user && (
                     <p className="text-[10px] text-muted-foreground/50 mt-1.5">
                       Se usará el nombre de tu cuenta. Puedes marcar anónimo si prefieres.
                     </p>

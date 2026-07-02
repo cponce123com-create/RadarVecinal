@@ -65,7 +65,7 @@ function authAwareRateLimit(windowMs: number, authMax: number, anonMax: number, 
     keyGenerator: (req) => {
       const jwtUser = (req as any).jwtUser;
       if (jwtUser?.sub) return `user_${jwtUser.sub}`;
-      return ipKeyGenerator(req);
+      return ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "");
     },
     max: (req) => {
       const jwtUser = (req as any).jwtUser;

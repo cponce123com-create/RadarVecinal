@@ -9,7 +9,7 @@ import {
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDistrict, DISTRICTS } from "@/contexts/DistrictContext";
+import { useDistrict } from "@/contexts/DistrictContext";
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,7 +39,7 @@ const SIDE_NAV = [
 
 // ── District Selector ─────────────────────────────────────────────────────────
 function DistrictSelector({ compact = false }: { compact?: boolean }) {
-  const { district, setDistrict } = useDistrict();
+  const { currentDistrict, setDistrict, districts } = useDistrict();
   const [open, setOpen] = useState(false);
 
   return (
@@ -51,7 +51,7 @@ function DistrictSelector({ compact = false }: { compact?: boolean }) {
         }`}
       >
         <MapPin className="w-3 h-3 text-primary flex-shrink-0" />
-        <span className="font-medium truncate max-w-[120px]">{district}</span>
+        <span className="font-medium truncate max-w-[120px]">{currentDistrict}</span>
         <ChevronDown className={`w-3 h-3 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -67,16 +67,16 @@ function DistrictSelector({ compact = false }: { compact?: boolean }) {
               className="absolute left-0 top-full mt-1 z-50 bg-[#0f1220] border border-white/10 rounded-xl shadow-2xl min-w-[180px] overflow-hidden"
             >
               <div className="p-1.5 flex flex-col gap-0.5">
-                {DISTRICTS.map(d => (
-                  <button key={d} onClick={() => { setDistrict(d); setOpen(false); }}
+                {districts.map((d: any) => (
+                  <button key={d} onClick={() => { setDistrict(d.slug); setOpen(false); }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                      district === d
+                      currentDistrict === d
                         ? "bg-primary/15 text-primary font-semibold"
                         : "text-muted-foreground hover:bg-white/6 hover:text-white"
                     }`}>
                     <MapPin className="w-3 h-3 flex-shrink-0" />
                     {d}
-                    {district === d && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                    {currentDistrict === d && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
                   </button>
                 ))}
               </div>
@@ -101,7 +101,7 @@ export function Layout({ children }: LayoutProps) {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [location]);
-  const { user, isLoggedIn, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const isActive = (href: string) =>
     href === "/home" ? location === href : location.startsWith(href);
@@ -156,7 +156,7 @@ export function Layout({ children }: LayoutProps) {
 
         {/* Footer Zone — B-01: Auth user card */}
         <div className="p-4 border-t border-sidebar-border">
-          {isLoggedIn && user ? (
+          {!!user ? (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/6">
               <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                 {user.name.charAt(0).toUpperCase()}
@@ -190,7 +190,7 @@ export function Layout({ children }: LayoutProps) {
           {/* B-05: District selector in mobile header */}
           <DistrictSelector compact />
           {/* B-01: Auth button in mobile header */}
-          {isLoggedIn && user ? (
+          {!!user ? (
             <Link href="/perfil">
               <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary cursor-pointer">
                 {user.name.charAt(0).toUpperCase()}
@@ -275,7 +275,7 @@ export function Layout({ children }: LayoutProps) {
                 </Link>
 
                 {/* B-01: Auth in mobile drawer */}
-                {isLoggedIn && user ? (
+                {!!user ? (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/6">
                     <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                       {user.name.charAt(0).toUpperCase()}

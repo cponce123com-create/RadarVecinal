@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePanicAlerts } from "@workspace/api-client-react";
+import { useGetPanicAlerts } from "@workspace/api-client-react";
 
 // ── Haversine distance (meters) ─────────────────────────────────────────────
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -152,14 +152,14 @@ function playProximitySound(type: string) {
 // ── Hook ────────────────────────────────────────────────────────────────────
 export function useProximitySound(userLat?: number, userLng?: number) {
   const { toast } = useToast();
-  const { data } = usePanicAlerts();
+  const { data } = useGetPanicAlerts();
   const notifiedRef = useRef<Set<string>>(new Set());
 
   const checkProximity = useCallback(() => {
     if (userLat === undefined || userLng === undefined) return;
     if (!data?.alerts) return;
 
-    const activeAlerts = data.alerts.filter(a => a.isActive);
+    const activeAlerts = data.alerts.filter((a: any) => a.isActive);
 
     for (const alert of activeAlerts) {
       const distance = haversineMeters(userLat, userLng, alert.latitude, alert.longitude);

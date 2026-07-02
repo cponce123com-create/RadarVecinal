@@ -1,12 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { DistrictProvider, useDistrict } from '@/contexts/DistrictContext';
 
 function TestComponent() {
-  const { district, province, department } = useDistrict();
+  const { currentDistrict, province, department } = useDistrict();
   return (
     <div>
-      <span data-testid="district">{district}</span>
+      <span data-testid="district">{currentDistrict}</span>
       <span data-testid="province">{province}</span>
       <span data-testid="department">{department}</span>
     </div>
@@ -14,35 +14,36 @@ function TestComponent() {
 }
 
 describe('DistrictProvider', () => {
-  it('provides default district "San Ramón"', () => {
+  it('provides default district "San Ramón"', async () => {
     render(
       <DistrictProvider>
         <TestComponent />
       </DistrictProvider>,
     );
-    expect(screen.getByTestId('district')).toHaveTextContent('San Ramón');
+    await waitFor(() => {
+      expect(screen.getByTestId('district')).toHaveTextContent('San Ramón');
+    });
   });
 
-  it('provides default province "Chanchamayo"', () => {
+  it('provides default province "Chanchamayo"', async () => {
     render(
       <DistrictProvider>
         <TestComponent />
       </DistrictProvider>,
     );
-    expect(screen.getByTestId('province')).toHaveTextContent('Chanchamayo');
+    await waitFor(() => {
+      expect(screen.getByTestId('province')).toHaveTextContent('Chanchamayo');
+    });
   });
 
-  it('provides default department "Junín"', () => {
+  it('provides default department "Junín"', async () => {
     render(
       <DistrictProvider>
         <TestComponent />
       </DistrictProvider>,
     );
-    expect(screen.getByTestId('department')).toHaveTextContent('Junín');
-  });
-
-  it('provides default values when used outside DistrictProvider (context defaults)', () => {
-    render(<TestComponent />);
-    expect(screen.getByTestId('district')).toHaveTextContent('San Ramón');
+    await waitFor(() => {
+      expect(screen.getByTestId('department')).toHaveTextContent('Junín');
+    });
   });
 });

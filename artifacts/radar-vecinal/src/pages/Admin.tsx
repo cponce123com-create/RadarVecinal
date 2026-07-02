@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGetStats } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDistrict } from "@/contexts/DistrictContext";
 import AuthModal from "@/components/AuthModal";
 
 const seedDemoData = async (): Promise<{ seeded: boolean; message: string }> => {
@@ -69,8 +70,9 @@ function AdminPanel() {
   const [adSlots, setAdSlots]     = useState<AdSlot[]>(DEMO_AD_SLOTS);
   const [editingAd, setEditingAd] = useState<AdSlot | null>(null);
 
-  const { district } = useDistrict();
-  const { data: reportsData, refetch } = useGetReports({ district });
+  const { currentDistrictId, currentDistrict } = useDistrict();
+  const { user } = useAuth();
+  const { data: reportsData, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const { data: usersData }   = useGetUsers();
   const { data: stats }       = useGetStats();
   const updateReport  = useUpdateReport();
@@ -139,6 +141,16 @@ function AdminPanel() {
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-white">Centro de Control</h2>
             <p className="text-sm text-muted-foreground">Gestión de incidentes, usuarios y moderación</p>
+          </div>
+        </div>
+
+        {/* M-16: Indicador de distrito activo */}
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-medium text-primary">
+              {user?.role === "super_admin" ? "🌐 Plataforma (Super Admin)" : `📍 ${currentDistrict}`}
+            </span>
           </div>
         </div>
 
@@ -694,11 +706,13 @@ function AdminPanel() {
 }
 
 export default function Admin() {
-  const { isLoggedIn, isAdmin, loading } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
 
   // Show loading state while auth state hydrates
-  if (loading) {
+  // Auth state: null means still hydrating, user is set means ready
+  const authLoading = user === undefined;
+  if (authLoading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -710,7 +724,7 @@ export default function Admin() {
   }
 
   // Not logged in → prompt login
-  if (!isLoggedIn) {
+  if (!user) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
         <motion.div

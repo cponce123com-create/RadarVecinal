@@ -7,6 +7,7 @@ import statsRouter from "./stats";
 import activityRouter from "./activity";
 import usersRouter from "./users";
 import storageRouter from "./storage";
+import districtsRouter from "./districts";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(statsRouter);
 router.use(activityRouter);
 router.use(usersRouter);
 router.use(storageRouter);
+router.use(districtsRouter);
 
 export default router;

@@ -63,7 +63,6 @@ const cardVariants = {
 const DEMO_USER = {
   name: "Vecino de San Ramón",
   email: "",
-  dni: "",
   role: "user",
   sector: "San Ramón Centro",
   district: "San Ramón",
@@ -74,30 +73,14 @@ const DEMO_USER = {
 };
 
 export default function Profile() {
-  const { user: authUser, isLoggedIn, logout } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const { toast } = useToast();
   const user = authUser ?? DEMO_USER;
-
-  const [dniVisible, setDniVisible] = useState(false);
-  const [editDni, setEditDni] = useState(false);
-  const [dniInput, setDniInput] = useState(user.dni ?? "");
-  const [dniSaved, setDniSaved] = useState(true);
-  const [dniError, setDniError] = useState("");
 
   // B-22: Profile edit form
   const [editProfile, setEditProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: user.name, sector: user.sector });
   const [savingProfile, setSavingProfile] = useState(false);
-
-  const handleDniSave = () => {
-    if (!/^\d{8}$/.test(dniInput)) {
-      setDniError("El DNI debe tener exactamente 8 dígitos numéricos.");
-      return;
-    }
-    setDniError("");
-    setDniSaved(true);
-    setEditDni(false);
-  };
 
   const handleProfileSave = async () => {
     if (!profileForm.name.trim()) {
@@ -105,7 +88,7 @@ export default function Profile() {
     }
     setSavingProfile(true);
     try {
-      if (isLoggedIn && user.id) {
+      if (authUser && user.id) {
         const token = localStorage.getItem("radar_token");
         await fetch(`/api/users/${user.id}`, {
           method: "PATCH",
@@ -127,7 +110,7 @@ export default function Profile() {
     ? new Intl.DateTimeFormat("es-PE", { month: "short", year: "numeric" }).format(new Date(user.createdAt))
     : "—";
   const roleLabel = user.role === "admin" ? "Administrador" : user.role === "moderator" ? "Moderador" : "Vecino Verificado";
-  const maskedDni = user.dni && user.dni.length >= 4 ? `••••${user.dni.slice(-4)}` : "Sin registrar";
+  const maskedDni = "Sin registrar";
 
   return (
     <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-5">
@@ -157,7 +140,7 @@ export default function Profile() {
                 <Shield className="w-3 h-3" />
                 {roleLabel}
               </span>
-              {isLoggedIn && (
+              {!!authUser && (
                 <button
                   onClick={() => setEditProfile(true)}
                   className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground hover:text-white px-2 py-1 rounded-lg hover:bg-white/6 transition-all"
@@ -173,8 +156,8 @@ export default function Profile() {
             <div className="flex justify-center sm:justify-start gap-2 sm:gap-3 flex-wrap">
               {[
                 { value: user.reportsCount ?? 0,  label: "Reportes" },
-                { value: isLoggedIn ? "—" : "—",  label: "Validaciones" },
-                { value: isLoggedIn ? "100%" : "—", label: "Confiabilidad", green: true },
+                { value: !!authUser ? "—" : "—",  label: "Validaciones" },
+                { value: !!authUser ? "100%" : "—", label: "Confiabilidad", green: true },
               ].map(s => (
                 <div key={s.label} className="px-3 sm:px-4 py-2 rounded-xl bg-background border border-white/5 text-center min-w-[76px] sm:min-w-[88px]">
                   <p className={`text-lg sm:text-xl font-bold ${s.green ? "text-green-400" : "text-white"}`}>{s.value}</p>
@@ -190,115 +173,6 @@ export default function Profile() {
           <span className="text-xs text-muted-foreground">
             Contribuyente activo de San Ramón, Chanchamayo. Tus reportes ayudan a mantener la seguridad del distrito.
           </span>
-        </div>
-      </motion.div>
-
-      {/* DNI Verification Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08 }}
-        className="p-4 sm:p-5 rounded-2xl bg-card border border-white/5"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-primary/12 flex items-center justify-center flex-shrink-0">
-            <CreditCard className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white">Verificación de Identidad</h3>
-            <p className="text-[11px] text-muted-foreground">Tu DNI es tu identificador único en el sistema</p>
-          </div>
-          {dniSaved && !editDni && (
-            <span className="ml-auto flex items-center gap-1 text-[10px] text-green-400 bg-green-500/12 px-2 py-0.5 rounded-full border border-green-500/20 flex-shrink-0">
-              <CheckCircle2 className="w-3 h-3" />
-              Verificado
-            </span>
-          )}
-        </div>
-
-        {/* DNI Field */}
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-white/70 mb-1.5 uppercase tracking-wide">
-              Número de DNI peruano
-            </label>
-            {editDni ? (
-              <div className="space-y-2">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={dniInput}
-                    onChange={e => { setDniInput(e.target.value.replace(/\D/g, "").slice(0, 8)); setDniError(""); }}
-                    placeholder="Ej: 42516789"
-                    maxLength={8}
-                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors font-mono tracking-wider"
-                  />
-                  <Lock className="absolute right-3 top-3.5 w-4 h-4 text-muted-foreground/40" />
-                </div>
-                {dniError && (
-                  <div className="flex items-center gap-1.5 text-xs text-red-400">
-                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                    {dniError}
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleDniSave}
-                    className="flex-1 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all"
-                  >
-                    Guardar DNI
-                  </button>
-                  <button
-                    onClick={() => { setEditDni(false); setDniInput(user.dni ?? ""); setDniError(""); }}
-                    className="px-4 py-2 rounded-xl border border-white/10 text-sm text-muted-foreground hover:text-white hover:bg-white/6 transition-all"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl bg-background border border-white/8">
-                  <span className="font-mono text-sm text-white tracking-widest flex-1">
-                    {dniVisible ? user.dni : maskedDni}
-                  </span>
-                  <button
-                    onClick={() => setDniVisible(v => !v)}
-                    className="text-muted-foreground hover:text-white transition-colors flex-shrink-0"
-                  >
-                    {dniVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <button
-                  onClick={() => setEditDni(true)}
-                  className="px-3 py-2.5 rounded-xl border border-white/10 text-xs text-muted-foreground hover:text-white hover:bg-white/6 transition-all whitespace-nowrap"
-                >
-                  Editar
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Contact info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-white/70 mb-1.5 uppercase tracking-wide">Correo electrónico</label>
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-background border border-white/8">
-                <span className="text-sm text-white/70 truncate">{user.email || "—"}</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-white/70 mb-1.5 uppercase tracking-wide">Sector</label>
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-background border border-white/8">
-                <span className="text-sm text-white/70 truncate">{user.sector}</span>
-              </div>
-            </div>
-          </div>
-
-          <p className="text-[10px] text-muted-foreground/50 flex items-start gap-1.5">
-            <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-            Tu DNI es confidencial y solo lo ven los administradores del sistema. Nunca se muestra públicamente.
-          </p>
         </div>
       </motion.div>
 
@@ -411,7 +285,7 @@ export default function Profile() {
 
       {/* Sign out / Login CTA */}
       <motion.div custom={MENU_ITEMS.length} variants={cardVariants} initial="hidden" animate="visible">
-        {isLoggedIn ? (
+        {!!user ? (
           <button
             onClick={logout}
             className="w-full flex items-center gap-4 p-4 rounded-xl border border-red-900/25 bg-red-950/15 hover:bg-red-950/25 hover:border-red-800/40 transition-all group text-left"

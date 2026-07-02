@@ -73,7 +73,7 @@ function makeCategoryIcon(category: string, urgency: string): L.DivIcon {
 function RadarOverlay({ reports }: { reports: Report[] }) {
   const map = useMap();
   const sweepRef   = useRef(0);
-  const animRef    = useRef<number>();
+  const animRef    = useRef<number>(0);
   const reportsRef = useRef(reports);
 
   useEffect(() => { reportsRef.current = reports; }, [reports]);
@@ -280,7 +280,7 @@ function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
     draw();
     map.on("move zoom resize", draw);
     return () => { map.off("move zoom resize", draw); canvas.remove(); };
-  }, [map, heatOnly.length]);
+  }, [map, heatOnly]);
 
   return null;
 }

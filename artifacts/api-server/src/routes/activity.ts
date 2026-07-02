@@ -1,60 +1,91 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { reportsTable, panicAlertsTable, missingPersonsTable } from "@workspace/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq, and, sql } from "drizzle-orm";
+import { optionalAuth } from "./auth";
 
 const router: IRouter = Router();
 
-router.get("/activity", async (req, res) => {
+// ── Helper: obtener districtId del request ──────────────────────────────────
+function getDistrictId(req: any): number | null {
+  const user = req.jwtUser;
+  if (user?.districtId && user.role !== "super_admin") return Number(user.districtId);
+  const q = req.query.districtId;
+  if (q) return Number(q);
+  return null;
+}
+
+// ── M-01: GET /activity — filtrado por distrito ────────────────────────────
+router.get("/activity", optionalAuth, async (req, res) => {
   try {
-    const limit = parseInt(String(req.query.limit)) || 20;
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    const districtId = getDistrictId(req);
 
-    const reports = await db.select().from(reportsTable).orderBy(desc(reportsTable.createdAt)).limit(limit);
-    const panics = await db.select().from(panicAlertsTable).orderBy(desc(panicAlertsTable.createdAt)).limit(5);
-    const missing = await db.select().from(missingPersonsTable).orderBy(desc(missingPersonsTable.createdAt)).limit(5);
+    const filter = districtId
+      ? (table: any) => and(eq(table.districtId, districtId))
+      : () => undefined;
 
-    const items = [
-      ...reports.map(r => ({
-        id: `report-${r.id}`,
-        type: r.status === "resolved" ? "resolved" : "report",
-        title: r.title,
-        description: r.description.substring(0, 100),
-        category: r.category,
-        urgency: r.urgency,
-        sector: r.sector,
-        authorName: r.authorName,
-        createdAt: r.createdAt.toISOString(),
-      })),
-      ...panics.map(a => ({
-        id: `panic-${a.id}`,
-        type: "panic",
-        title: "Alerta de pánico",
-        description: `Emergencia tipo: ${a.type}`,
-        category: null,
-        urgency: "critical",
-        sector: a.sector,
-        authorName: a.authorName,
-        createdAt: a.createdAt.toISOString(),
-      })),
-      ...missing.map(m => ({
-        id: `missing-${m.id}`,
-        type: "missing",
-        title: `Menor perdido: ${m.name}`,
-        description: `Visto por última vez en ${m.lastSeenAddress}`,
-        category: null,
-        urgency: "high",
-        sector: "Desconocido",
-        authorName: m.reportedBy,
-        createdAt: m.createdAt.toISOString(),
-      })),
-    ]
+    const [reports, panics, missing] = await Promise.all([
+      db.select({
+        id: reportsTable.id,
+        type: sql<"report">`'report'`,
+        title: reportsTable.title,
+        description: reportsTable.description,
+        category: reportsTable.category,
+        urgency: reportsTable.urgency,
+        sector: reportsTable.sector,
+        authorName: reportsTable.authorName,
+        createdAt: reportsTable.createdAt,
+      }).from(reportsTable)
+        .where(filter(reportsTable) as any ?? sql`TRUE`)
+        .orderBy(desc(reportsTable.createdAt))
+        .limit(limit),
+
+      db.select({
+        id: panicAlertsTable.id,
+        type: sql<"panic">`'panic'`,
+        title: panicAlertsTable.type,
+        description: sql<string>`''`,
+        category: sql<string | null>`NULL`,
+        urgency: sql<string | null>`NULL`,
+        sector: panicAlertsTable.sector,
+        authorName: panicAlertsTable.authorName,
+        createdAt: panicAlertsTable.createdAt,
+      }).from(panicAlertsTable)
+        .where(filter(panicAlertsTable) as any ?? sql`TRUE`)
+        .orderBy(desc(panicAlertsTable.createdAt))
+        .limit(limit),
+
+      db.select({
+        id: missingPersonsTable.id,
+        type: sql<"missing">`'missing'`,
+        title: missingPersonsTable.name,
+        description: missingPersonsTable.clothing,
+        category: sql<string | null>`NULL`,
+        urgency: sql<string | null>`NULL`,
+        sector: sql<string>`''`,
+        authorName: missingPersonsTable.reportedBy,
+        createdAt: missingPersonsTable.createdAt,
+      }).from(missingPersonsTable)
+        .where(filter(missingPersonsTable) as any ?? sql`TRUE`)
+        .orderBy(desc(missingPersonsTable.createdAt))
+        .limit(limit),
+    ]);
+
+    const items = [...reports, ...panics, ...missing]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit);
 
-    res.json({ items });
+    return res.json({
+      items: items.map(i => ({
+        ...i,
+        id: String(i.id),
+        createdAt: i.createdAt.toISOString(),
+      })),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get activity");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 

@@ -7,116 +7,63 @@ export interface AuthUser {
   role:         string;
   sector:       string;
   district:     string;
+  districtId:   number;
   isActive:     boolean;
   reportsCount: number;
   createdAt:    string;
 }
 
-interface AuthState {
-  user:    AuthUser | null;
-  token:   string | null;
-  loading: boolean;
-}
-
-interface AuthContextValue extends AuthState {
-  login:    (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  googleLogin: (credential: string) => Promise<void>;
-  logout:   () => void;
-  isLoggedIn: boolean;
+interface AuthContextValue {
+  user:       AuthUser | null;
+  token:      string | null;
+  login:      (token: string, user: AuthUser) => void;
+  logout:     () => void;
   isAdmin:    boolean;
-}
-
-export interface RegisterData {
-  name:     string;
-  email:    string;
-  password: string;
-  sector:   string;
-  district: string;
-  dni?:     string;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY   = "radar_token";
-const BASE_URL    = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    headers: { "Content-Type": "application/json", ...(options as any)?.headers },
-    ...options,
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "Error desconocido");
-  return json;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user:    null,
-    token:   null,
-    loading: true,
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
-  // Hydrate from localStorage on mount
+  // Rehydrate from localStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      setState(s => ({ ...s, loading: false }));
-      return;
+    const savedToken = localStorage.getItem("radarvecinal_token");
+    if (savedToken) {
+      fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("Invalid token");
+          return res.json();
+        })
+        .then((data: AuthUser) => {
+          setToken(savedToken);
+          setUser(data);
+        })
+        .catch(() => {
+          localStorage.removeItem("radarvecinal_token");
+        });
     }
-    apiFetch("/auth/me", {
-      headers: { Authorization: `Bearer ${token}` } as any,
-    })
-      .then(data => setState({ user: data.user, token, loading: false }))
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        setState({ user: null, token: null, loading: false });
-      });
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const data = await apiFetch("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    localStorage.setItem(TOKEN_KEY, data.token);
-    setState({ user: data.user, token: data.token, loading: false });
-  };
-
-  const register = async (form: RegisterData) => {
-    const data = await apiFetch("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(form),
-    });
-    localStorage.setItem(TOKEN_KEY, data.token);
-    setState({ user: data.user, token: data.token, loading: false });
-  };
-
-  const googleLogin = async (credential: string) => {
-    const data = await apiFetch("/auth/google", {
-      method: "POST",
-      body: JSON.stringify({ credential }),
-    });
-    localStorage.setItem(TOKEN_KEY, data.token);
-    setState({ user: data.user, token: data.token, loading: false });
+  const login = (newToken: string, newUser: AuthUser) => {
+    localStorage.setItem("radarvecinal_token", newToken);
+    setToken(newToken);
+    setUser(newUser);
   };
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setState({ user: null, token: null, loading: false });
+    localStorage.removeItem("radarvecinal_token");
+    setToken(null);
+    setUser(null);
   };
 
+  const isAdmin = !!(user && ["admin", "moderator", "super_admin"].includes(user.role));
+
   return (
-    <AuthContext.Provider value={{
-      ...state,
-      login,
-      register,
-      googleLogin,
-      logout,
-      isLoggedIn: !!state.user,
-      isAdmin:    state.user?.role === "admin" || state.user?.role === "moderator",
-    }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

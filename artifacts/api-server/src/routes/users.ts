@@ -2,14 +2,25 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable } from "@workspace/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "./auth";
 
 const router: IRouter = Router();
 
-router.get("/users", async (req, res) => {
+// ── M-07: GET /users — AHORA CON AUTH + filtro por distrito ────────────────
+router.get("/users", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const users = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
+    const user = (req as any).jwtUser;
+
+    // super_admin: ver todos los usuarios
+    // admin/moderator: ver solo usuarios de su distrito
+    const users = user.role === "super_admin"
+      ? await db.select().from(usersTable).orderBy(desc(usersTable.createdAt)).limit(200)
+      : await db.select().from(usersTable)
+          .where(eq(usersTable.districtId, Number(user.districtId)))
+          .orderBy(desc(usersTable.createdAt))
+          .limit(200);
+
     return res.json({
       users: users.map(u => ({
         id: String(u.id),
@@ -18,6 +29,7 @@ router.get("/users", async (req, res) => {
         role: u.role,
         sector: u.sector,
         district: u.district,
+        districtId: u.districtId,
         isActive: u.isActive,
         reportsCount: u.reportsCount,
         createdAt: u.createdAt.toISOString(),
@@ -25,196 +37,221 @@ router.get("/users", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get users");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// B-22: Update user profile (name, sector, district, dni)
-const patchUserSchema = z.object({
-  name:     z.string().min(2).max(100).optional(),
-  sector:   z.string().max(100).optional(),
-  district: z.string().max(100).optional(),
-  dni:      z.string().regex(/^\d{8}$/, "DNI debe tener 8 dígitos").optional().nullable(),
-});
+// ── M-06: PATCH /users/:id — AHORA CON AUTH ──────────────────────────────
+router.patch("/users/:id", requireAuth, async (req, res) => {
+  const schema = z.object({
+    name: z.string().optional(),
+    sector: z.string().optional(),
+    district: z.string().optional(),
+    dni: z.string().nullable().optional(),
+  });
 
-router.patch("/users/:id", async (req, res) => {
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+  }
+
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+    const authUser = (req as any).jwtUser;
+    const targetId = parseInt(req.params.id as string);
 
-    const parsed = patchUserSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+    const [target] = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
+
+    if (!target) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    // Solo el propio usuario o admin/super_admin pueden editar
+    const isSelf = authUser.sub === String(targetId);
+    const isAdmin = ["admin", "moderator", "super_admin"].includes(authUser.role);
+
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({ error: "No tienes permiso para editar este usuario." });
     }
 
-    const updates: Partial<typeof usersTable.$inferInsert> = {};
-    if (parsed.data.name     !== undefined) updates.name     = parsed.data.name;
-    if (parsed.data.sector   !== undefined) updates.sector   = parsed.data.sector;
-    if (parsed.data.district !== undefined) updates.district = parsed.data.district;
-    if (parsed.data.dni      !== undefined) updates.dni      = parsed.data.dni ?? undefined;
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: "Sin campos para actualizar" });
+    // Si es admin (no super_admin), solo puede editar usuarios de su mismo distrito
+    if (isAdmin && authUser.role !== "super_admin" && Number(authUser.districtId) !== Number(target.districtId)) {
+      return res.status(403).json({ error: "No puedes editar usuarios de otro distrito." });
     }
 
-    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    const [updated] = await db.update(usersTable)
+      .set(parsed.data)
+      .where(eq(usersTable.id, targetId))
+      .returning();
 
     return res.json({
-      id: String(user.id),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      sector: user.sector,
-      district: user.district,
-      dni: user.dni ?? null,
-      isActive: user.isActive,
-      reportsCount: user.reportsCount,
-      createdAt: user.createdAt.toISOString(),
+      id: String(updated.id),
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      sector: updated.sector,
+      district: updated.district,
+      districtId: updated.districtId,
+      isActive: updated.isActive,
+      reportsCount: updated.reportsCount,
+      createdAt: updated.createdAt.toISOString(),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update user");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// B-16: Notifications — real DB-backed notifications
-router.get("/notifications", async (req, res) => {
+// ── M-01: GET /notifications — filtrado por distrito ────────────────────────
+router.get("/notifications", requireAuth, async (req, res) => {
   try {
-    const userId = (req as any).jwtUser?.sub
-      ? parseInt((req as any).jwtUser.sub)
-      : null;
+    const user = (req as any).jwtUser;
 
-    const notifs = await db.select()
+    const notifications = await db.select()
       .from(notificationsTable)
+      .where(and(
+        eq(notificationsTable.userId, parseInt(user.sub)),
+        eq(notificationsTable.districtId, Number(user.districtId)),
+      ))
       .orderBy(desc(notificationsTable.createdAt))
       .limit(50);
 
-    const unreadCount = notifs.filter(n => !n.isRead).length;
-
     return res.json({
-      notifications: notifs.map(n => ({
+      notifications: notifications.map(n => ({
+        ...n,
         id: String(n.id),
-        type: n.type,
-        title: n.title,
-        body: n.body,
-        referenceId: n.referenceId,
-        referenceType: n.referenceType,
-        read: n.isRead,
         createdAt: n.createdAt.toISOString(),
       })),
-      unreadCount,
+      unreadCount: notifications.filter(n => !n.isRead).length,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get notifications");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
+// ── GET /ad-slots ───────────────────────────────────────────────────────────
 router.get("/ad-slots", async (req, res) => {
   try {
-    const ads = await db.select().from(adSlotsTable);
+    const districtId = req.query.districtId ? Number(req.query.districtId as string) : null;
+    const query = districtId
+      ? db.select().from(adSlotsTable).where(eq(adSlotsTable.districtId, districtId))
+      : db.select().from(adSlotsTable);
+
+    const ads = await query;
+
     return res.json({
-      ads: ads.map(a => ({
-        id: String(a.id),
-        businessName: a.businessName,
-        tagline: a.tagline,
-        imageUrl: a.imageUrl ?? null,
-        targetUrl: a.targetUrl,
-        isActive: a.isActive,
-        sector: a.sector ?? null,
+      ads: ads.map(ad => ({
+        id: String(ad.id),
+        businessName: ad.businessName,
+        tagline: ad.tagline,
+        imageUrl: ad.imageUrl,
+        targetUrl: ad.targetUrl,
+        isActive: ad.isActive,
+        sector: ad.sector ?? null,
       })),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get ad slots");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// POST /ad-slots — Create a new ad slot (admin only)
-const createAdSlotSchema = z.object({
-  businessName: z.string().min(2, "businessName requerido"),
-  tagline:      z.string().min(2, "tagline requerido"),
-  imageUrl:     z.string().nullable().optional(),
-  targetUrl:    z.string().min(1, "targetUrl requerido"),
-  isActive:     z.boolean().optional(),
-  sector:       z.string().nullable().optional(),
-});
-
+// ── POST /ad-slots ──────────────────────────────────────────────────────────
 router.post("/ad-slots", requireAuth, requireAdmin, async (req, res) => {
+  const schema = z.object({
+    businessName: z.string().min(1),
+    tagline: z.string().min(1),
+    imageUrl: z.string().optional().nullable(),
+    targetUrl: z.string().min(1),
+    sector: z.string().optional().nullable(),
+    districtId: z.number().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+  }
+
+  const user = (req as any).jwtUser;
+  let districtId: number;
+  if (user.role === "super_admin" && parsed.data.districtId) {
+    districtId = parsed.data.districtId;
+  } else {
+    districtId = Number(user.districtId);
+  }
+
   try {
-    const parsed = createAdSlotSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Datos inválidos", detail: parsed.error.issues });
-    }
-    const data = parsed.data;
     const [ad] = await db.insert(adSlotsTable).values({
-      businessName: data.businessName,
-      tagline:      data.tagline,
-      imageUrl:     data.imageUrl ?? null,
-      targetUrl:    data.targetUrl,
-      isActive:     data.isActive ?? true,
-      sector:       data.sector ?? null,
+      districtId,
+      businessName: parsed.data.businessName,
+      tagline: parsed.data.tagline,
+      imageUrl: parsed.data.imageUrl ?? null,
+      targetUrl: parsed.data.targetUrl,
+      sector: parsed.data.sector ?? null,
     }).returning();
+
     return res.status(201).json({
-      id:           String(ad.id),
+      id: String(ad.id),
       businessName: ad.businessName,
-      tagline:      ad.tagline,
-      imageUrl:     ad.imageUrl ?? null,
-      targetUrl:    ad.targetUrl,
-      isActive:     ad.isActive,
-      sector:       ad.sector ?? null,
+      tagline: ad.tagline,
+      imageUrl: ad.imageUrl,
+      targetUrl: ad.targetUrl,
+      isActive: ad.isActive,
+      sector: ad.sector ?? null,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to create ad slot");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
-// PATCH /ad-slots/:id — Update an ad slot (admin only)
-const updateAdSlotSchema = z.object({
-  businessName: z.string().min(2).optional(),
-  tagline:      z.string().min(2).optional(),
-  imageUrl:     z.string().nullable().optional(),
-  targetUrl:    z.string().min(1).optional(),
-  isActive:     z.boolean().optional(),
-  sector:       z.string().nullable().optional(),
-});
-
+// ── PATCH /ad-slots/:id — M-04: con chequeo de tenant ─────────────────────
 router.patch("/ad-slots/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(String(req.params.id));
-    if (isNaN(id)) return res.status(400).json({ error: "ID inválido" });
+    const [ad] = await db.select()
+      .from(adSlotsTable)
+      .where(eq(adSlotsTable.id, parseInt(req.params.id as string)))
+      .limit(1);
 
-    const parsed = updateAdSlotSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Datos inválidos", detail: parsed.error.issues });
+    if (!ad) return res.status(404).json({ error: "Ad slot no encontrado." });
+
+    const user = (req as any).jwtUser;
+    if (user.role !== "super_admin" && Number(user.districtId) !== Number(ad.districtId)) {
+      return res.status(403).json({ error: "No puedes modificar slots de otro distrito." });
     }
 
-    const data = parsed.data;
-    const updates: Record<string, any> = {};
-    if (data.businessName !== undefined) updates.businessName = data.businessName;
-    if (data.tagline !== undefined)      updates.tagline      = data.tagline;
-    if (data.imageUrl !== undefined)     updates.imageUrl     = data.imageUrl;
-    if (data.targetUrl !== undefined)    updates.targetUrl    = data.targetUrl;
-    if (data.isActive !== undefined)     updates.isActive     = data.isActive;
-    if (data.sector !== undefined)       updates.sector       = data.sector;
+    const schema = z.object({
+      businessName: z.string().optional(),
+      tagline: z.string().optional(),
+      imageUrl: z.string().optional().nullable(),
+      targetUrl: z.string().optional(),
+      isActive: z.boolean().optional(),
+      sector: z.string().optional().nullable(),
+    });
 
-    const [ad] = await db.update(adSlotsTable).set(updates).where(eq(adSlotsTable.id, id)).returning();
-    if (!ad) return res.status(404).json({ error: "Ad slot no encontrado" });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+    }
+
+    const [updated] = await db.update(adSlotsTable)
+      .set(parsed.data)
+      .where(eq(adSlotsTable.id, parseInt(req.params.id as string)))
+      .returning();
 
     return res.json({
-      id:           String(ad.id),
-      businessName: ad.businessName,
-      tagline:      ad.tagline,
-      imageUrl:     ad.imageUrl ?? null,
-      targetUrl:    ad.targetUrl,
-      isActive:     ad.isActive,
-      sector:       ad.sector ?? null,
+      id: String(updated.id),
+      businessName: updated.businessName,
+      tagline: updated.tagline,
+      imageUrl: updated.imageUrl,
+      targetUrl: updated.targetUrl,
+      isActive: updated.isActive,
+      sector: updated.sector ?? null,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update ad slot");
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 

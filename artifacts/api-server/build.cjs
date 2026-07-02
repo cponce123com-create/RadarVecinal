@@ -1,15 +1,59 @@
-const esbuild = require("esbuild");
-const esbuildPluginPino = require("esbuild-plugin-pino");
-const path = require("path");
+// build.cjs — Radar Vecinal
+// Encuentra módulos directamente en node_modules/.pnpm/ iterando sobre
+// todas las versiones disponibles. NO depende de symlinks en node_modules/
+// que pueden estar rotos en Render.
+
+const fs = require("fs");
+const p = require("path");
 const { rm } = require("fs/promises");
+
+function resolveFromPnpm(name, startDir) {
+  let dir = startDir;
+  while (dir) {
+    const pnpmDir = p.join(dir, "node_modules", ".pnpm");
+    if (fs.existsSync(pnpmDir)) {
+      const entries = fs.readdirSync(pnpmDir);
+      // Probar TODAS las versiones, no solo la primera
+      for (const entry of entries) {
+        if (entry.startsWith(name + "@")) {
+          const pkgDir = p.join(pnpmDir, entry, "node_modules", name);
+          const pkgJson = p.join(pkgDir, "package.json");
+          if (fs.existsSync(pkgJson)) {
+            const pkg = JSON.parse(fs.readFileSync(pkgJson, "utf-8"));
+            const main = pkg.main || "index.js";
+            const mainPath = p.join(pkgDir, main);
+            if (fs.existsSync(mainPath)) {
+              return mainPath;
+            }
+          }
+        }
+      }
+    }
+    const parent = p.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(`Cannot resolve ${name} from .pnpm store`);
+}
+
+// Cargar esbuild y plugin desde .pnpm
+const esbuild = require(resolveFromPnpm("esbuild", __dirname));
+
+// esbuild-plugin-pino tiene peer deps, su entry tiene _ en el nombre
+let esbuildPluginPino;
+try {
+  esbuildPluginPino = require(resolveFromPnpm("esbuild-plugin-pino", __dirname));
+} catch {
+  esbuildPluginPino = null;
+}
 
 const artifactDir = __dirname;
 
 async function buildAll() {
-  const distDir = path.resolve(artifactDir, "dist");
+  const distDir = p.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
   await esbuild.build({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [p.resolve(artifactDir, "src/index.ts")],
     platform: "node", bundle: true, format: "esm",
     outdir: distDir, outExtension: { ".js": ".mjs" }, logLevel: "info",
     external: [
@@ -25,7 +69,7 @@ async function buildAll() {
       "zeromq","zeromq-prebuilt","playwright","puppeteer","puppeteer-core","electron",
     ],
     sourcemap: "linked",
-    plugins: [ esbuildPluginPino({ transports: ["pino-pretty"] }) ],
+    plugins: esbuildPluginPino ? [esbuildPluginPino({ transports: ["pino-pretty"] })] : [],
     banner: { js: "import { createRequire as __bannerCrReq } from 'node:module';" + String.fromCharCode(92,110) + "import __bannerPath from 'node:path';" + String.fromCharCode(92,110) + "import __bannerUrl from 'node:url';" + String.fromCharCode(92,110) + String.fromCharCode(92,110) + "globalThis.require = __bannerCrReq(import.meta.url);" + String.fromCharCode(92,110) + "globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);" + String.fromCharCode(92,110) + "globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);" },
   });
 }

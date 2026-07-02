@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== 1. Instalando dependencias (hoisted) ==="
+echo "=== Instalando dependencias ==="
 npx pnpm@9 install --no-frozen-lockfile 2>&1 | tail -3
 
-echo "=== 2. Build del API Server ==="
-# Ejecutamos desde la raíz para que Node resuelva módulos desde node_modules/ raíz
-node artifacts/api-server/build.cjs 2>&1
+echo "=== Build del API Server ==="
+node artifacts/api-server/build.cjs
 
-echo "=== 3. Build del Frontend ==="
-cd artifacts/radar-vecinal
-node vite-build.cjs 2>&1 | tail -15
-cd "$OLDPWD"
+echo "=== Build del Frontend ==="
+node artifacts/radar-vecinal/vite-build.cjs 2>&1 | tail -10
 
-echo "=== Build completado exitosamente ==="
+echo "=== Build completado ==="

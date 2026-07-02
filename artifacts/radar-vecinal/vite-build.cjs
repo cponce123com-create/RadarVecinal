@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
+const startDir = __dirname;
 console.log("=== VITE DEBUG ===");
 console.log("startDir:", __dirname);
 try {

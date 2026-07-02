@@ -117,7 +117,7 @@ router.get("/reports/:id/vote", optionalAuth, async (req, res) => {
 router.get("/district-resources", async (req, res) => {
   try {
     const districtId = getDistrictId(req);
-    if (!districtId) return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    if (!districtId) return res.json({ resources: [] });
 
     const resources = await db.select()
       .from(districtResourcesTable)

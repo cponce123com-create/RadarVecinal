@@ -96,7 +96,7 @@ router.get("/panic-alerts", optionalAuth, async (req, res) => {
     const { active } = req.query;
     const districtId = getDistrictId(req);
     if (!districtId) {
-      return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+      return res.json({ panicAlerts: [] });
     }
 
     const conditions = [eq(panicAlertsTable.districtId, districtId)];
@@ -176,7 +176,7 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
     const { active } = req.query;
     const districtId = getDistrictId(req);
     if (!districtId) {
-      return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+      return res.json({ missingPersons: [] });
     }
 
     const conditions = [eq(missingPersonsTable.districtId, districtId)];

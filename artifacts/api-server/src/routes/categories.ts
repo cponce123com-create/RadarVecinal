@@ -57,7 +57,7 @@ router.post("/categories", requireAuth, requireAdmin, async (req, res) => {
 router.get("/departments", async (req, res) => {
   try {
     const districtId = getDistrictId(req);
-    if (!districtId) return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    if (!districtId) return res.json({ departments: [] });
 
     const departments = await db.select()
       .from(departmentsTable)

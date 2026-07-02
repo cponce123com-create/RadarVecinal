@@ -54,7 +54,7 @@ router.get("/reports", optionalAuth, async (req, res) => {
     const { category, status, urgency, sector, limit, offset } = req.query;
     const districtId = getDistrictId(req);
     if (!districtId) {
-      return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+      return res.json({ reports: [] });
     }
 
     const conditions = [eq(reportsTable.districtId, districtId)];

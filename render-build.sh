@@ -37,10 +37,13 @@ tar -xzf tailwindcss-vite-4.3.2.tgz 2>&1
 mkdir -p "$PKG_DIR/node_modules/@tailwindcss/vite"
 cp -r package/* "$PKG_DIR/node_modules/@tailwindcss/vite/" 2>&1
 ls "$PKG_DIR/node_modules/@tailwindcss/vite/package.json" 2>&1 || echo "T COPY FAILED!"
-rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz package/ -rf 2>/dev/null || true
+rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz && rm -rf package
 cd "$PKG_DIR"
 echo "--- checking after manual install ---"
 ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-react STILL MISSING"
+# Instalar dependencias transitivas faltantes (@vitejs/plugin-react necesita @rolldown/pluginutils)
+echo "--- installing transitive deps ---"
+npm install --cache /tmp/npm-cache @rolldown/pluginutils 2>&1 | tail -3
 echo "--- vite build ---"
 mkdir -p node_modules/@workspace
 # Todos los paquetes del workspace que puedan necesitarse

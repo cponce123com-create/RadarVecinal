@@ -1,20 +1,28 @@
 const fs = require("fs");
 const path = require("path");
 
-console.log("=== VITE DEBUG 2 ===");
-const startDir = __dirname;
-try {
-  const entries = fs.readdirSync("/opt/render/project/src/node_modules/.pnpm");
-  // Check what tailwind-related entries exist
-  const tailwind = entries.filter(e => e.includes("tailwind") || e.includes("@tailwind"));
-  console.log("tailwind entries:", tailwind.length);
-  tailwind.sort().forEach(e => console.log("  -", e));
-  // Also check @vitejs entries
-  const vitejs = entries.filter(e => e.includes("@vitejs"));
-  console.log("@vitejs entries:", vitejs.length);
-  vitejs.forEach(e => console.log("  -", e));
-} catch(e) {
-  console.log("ERROR:", e.message);
+const startDir = __dirname; // /opt/render/project/src/artifacts/radar-vecinal
+console.log("=== VITE DEBUG 3 ===");
+console.log("startDir:", startDir);
+
+// Check radar-vecinal's own .pnpm
+const localPnpm = path.join(startDir, "node_modules", ".pnpm");
+console.log("local .pnpm exists:", fs.existsSync(localPnpm));
+if (fs.existsSync(localPnpm)) {
+  const e = fs.readdirSync(localPnpm);
+  console.log("local .pnpm entries:", e.length);
+  console.log("local @vitejs:", e.filter(x => x.includes("@vitejs")).length);
+  console.log("local tailwind:", e.filter(x => x.includes("tailwind")).length);
+}
+
+// Check root .pnpm
+const rootPnpm = "/opt/render/project/src/node_modules/.pnpm";
+console.log("root .pnpm exists:", fs.existsSync(rootPnpm));
+if (fs.existsSync(rootPnpm)) {
+  const e = fs.readdirSync(rootPnpm);
+  console.log("root .pnpm entries:", e.length);
+  console.log("root @vitejs:", e.filter(x => x.includes("@vitejs")).length);
+  console.log("root tailwind:", e.filter(x => x.includes("tailwind")).length);
 }
 console.log("=== END DEBUG ===");
 

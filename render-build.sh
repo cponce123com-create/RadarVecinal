@@ -16,7 +16,7 @@ cp package.json package.json.bak
 node fix-pkg.cjs
 echo "--- npm install (fresh) ---"
 rm -rf node_modules 2>/dev/null || true
-npm install --cache /tmp/npm-cache --no-package-lock 2>&1 | tail -10
+npm install --cache /tmp/npm-cache --no-package-lock --prefer-offline=false 2>&1 | tail -10
 # Instalar paquetes que npm a veces omite por peer deps
 npm install --cache /tmp/npm-cache @vitejs/plugin-react@5.2.0 @tailwindcss/vite@4.3.2 2>&1 | tail -5
 # DEBUG: check if vite was installed

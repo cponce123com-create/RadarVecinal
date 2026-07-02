@@ -17,6 +17,9 @@ node fix-pkg.cjs
 echo "--- npm install (fresh) ---"
 rm -rf node_modules 2>/dev/null || true
 npm install --cache /tmp/npm-cache --no-package-lock --ignore-scripts 2>&1
+# @vitejs/plugin-react y @tailwindcss/vite tienen peer deps que npm a veces omite.
+# Los instalamos explícitamente para asegurar que estén disponibles.
+npm install --cache /tmp/npm-cache --no-save @vitejs/plugin-react@5.2.0 @tailwindcss/vite@4.3.2 2>&1 | tail -5
 # DEBUG: check if vite was installed
 echo "--- checking install ---"
 ls node_modules/vite/bin/vite.js 2>&1 || echo "vite bin NOT FOUND"

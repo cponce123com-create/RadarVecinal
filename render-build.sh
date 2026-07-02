@@ -11,11 +11,11 @@ set -euo pipefail
 PNPM="corepack pnpm"
 
 echo "=== 1. pnpm install ==="
-# minimumReleaseAge=0 desactiva la política supply-chain (pnpm-workspace.yaml
-# tiene 1440 min = 24h). En Render los paquetes se descargan frescos del
-# registro npm y algunos pueden violar esa ventana — es seguro ignorarla
-# aquí porque el build es efímero y aislado.
-PNPM_MINIMUM_RELEASE_AGE=0 $PNPM install --no-frozen-lockfile
+# --config.minimumReleaseAge=0 desactiva la política supply-chain
+# (pnpm-workspace.yaml tiene 1440 min = 24h). En Render los paquetes
+# se descargan frescos del registro npm y algunos violan esa ventana;
+# es seguro ignorarla porque el build es efímero y aislado.
+$PNPM install --no-frozen-lockfile --config.minimumReleaseAge=0
 
 echo "=== 2. Build API Server ==="
 # Construye el backend Express con esbuild → dist/index.mjs

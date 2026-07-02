@@ -33,6 +33,9 @@ onlyBuiltDependencies:
   - esbuild
   - msw
   - unrs-resolver
+  - '@firebase/util'
+  - '@scarf/scarf'
+  - protobufjs
 
 overrides:
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0

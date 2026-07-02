@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 export interface AuthUser {
   id:           string;
@@ -48,6 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
   }, []);
+
+  // Sincronizar token JWT con el API client (customFetch) para que todas
+  // las llamadas a la API incluyan el Authorization header automáticamente.
+  useEffect(() => {
+    setAuthTokenGetter(() => token);
+  }, [token]);
 
   const login = (newToken: string, newUser: AuthUser) => {
     localStorage.setItem("radarvecinal_token", newToken);

@@ -114,6 +114,14 @@ const reportLimiter = authAwareRateLimit(60 * 1000, 30, 5, "Límite de reportes 
 
 const panicLimiter = authAwareRateLimit(60 * 1000, 15, 3, "Límite de alertas de pánico alcanzado. Máximo 15 por minuto (autenticados) o 3 por minuto (anónimo).");
 
+const sseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas conexiones SSE. Intenta reconectar en un minuto." },
+});
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -123,6 +131,7 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/auth", authLimiter);
+app.use("/api/panic-alerts/stream", sseLimiter);
 app.use("/api/panic-alerts", panicLimiter);
 app.use("/api/reports", reportLimiter);
 app.use("/api", generalLimiter);

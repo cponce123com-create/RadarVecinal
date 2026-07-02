@@ -1,23 +1,24 @@
 const fs = require("fs");
 const path = require("path");
 
-// DEBUG: console.log doesn't need embedding newlines
-const startDir = __dirname;
 console.log("=== VITE DEBUG ===");
-console.log("startDir:", startDir);
-console.log("exists .pnpm at startDir:", fs.existsSync(path.join(startDir, "node_modules", ".pnpm")));
-console.log("exists .pnpm at root:", fs.existsSync("/opt/render/project/src/node_modules/.pnpm"));
-console.log("exists node_modules at root:", fs.existsSync("/opt/render/project/src/node_modules"));
+console.log("startDir:", __dirname);
 try {
   const entries = fs.readdirSync("/opt/render/project/src/node_modules/.pnpm");
   console.log("pnpm entries count:", entries.length);
-  console.log("@vitejs+plugin-react found:", !!entries.find(e => e.startsWith("@vitejs+plugin-react@")));
+  // Search all entries containing 'vite' or 'plugin' 
+  const viteEntries = entries.filter(e => e.includes("vite") || e.includes("plugin") || e.includes("react"));
+  console.log("entries with vite/plugin/react:", viteEntries.length);
+  viteEntries.sort().forEach(e => console.log("  -", e));
+  // Also check if @vitejs exists anywhere
+  const scoped = entries.filter(e => e.includes("@vitejs") || e.includes("@tailwindcss") || e.includes("vite-plugin"));
+  console.log("scoped vite entries:", scoped.length);
+  scoped.forEach(e => console.log("  -", e));
 } catch(e) {
   console.log("ERROR:", e.message);
 }
 console.log("=== END DEBUG ===");
 
-// Clean version without embedded newlines
 function resolveFromPnpm(name, startDir) {
   let dir = startDir;
   while (dir) {

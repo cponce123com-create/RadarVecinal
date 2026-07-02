@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search, BarChart3 } from "lucide-react";
+import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown } from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,6 +58,13 @@ export default function AdminPanel() {
 
         {/* DistrictSwitcher: dropdown para super_admin, badge fijo para admin municipal */}
         <DistrictSwitcher isSuperAdmin={isSuperAdmin} />
+
+        {tab === "reports" && (
+          <a href={`/api/reports/export/pdf?districtId=${currentDistrictId}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
+            <FileDown className="w-3.5 h-3.5" /> PDF
+          </a>
+        )}
 
         <button
           onClick={handleSeed}

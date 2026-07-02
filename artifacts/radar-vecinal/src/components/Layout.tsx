@@ -9,6 +9,7 @@ import {
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
 import ThemeToggle from "./ThemeToggle";
+import OfflineBanner from "./OfflineBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 
@@ -310,6 +311,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* ── Main Content ── */}
       <main className="flex-1 flex flex-col min-h-screen md:max-h-screen md:overflow-y-auto hide-scrollbar pb-20 md:pb-0">
+        <OfflineBanner />
         <div className="w-full max-w-6xl mx-auto p-4 md:p-6 flex-1">
           {children}
         </div>

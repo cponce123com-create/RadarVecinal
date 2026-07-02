@@ -31,7 +31,7 @@ for pkgdir in ../../lib/* ../../lib/integrations/* ../../artifacts/*; do
   ln -sfn "$(cd "$pkgdir" && pwd -P)" "node_modules/@workspace/$name" 2>/dev/null || true
 done
 echo "--- vite build ---"
-node node_modules/vite/bin/vite.js build --config vite.config.ts 2>&1 | tail -15
+node --experimental-require-module vite-build.cjs 2>&1 | tail -15
 # Restaurar package.json y node_modules de pnpm para runtime
 mv package.json.bak package.json
 rm -rf node_modules 2>/dev/null || true

@@ -1,6 +1,23 @@
 const fs = require("fs");
 const path = require("path");
 
+// DEBUG: verify .pnpm is accessible
+const startDir = __dirname;
+console.error("=== VITE BUILD DEBUG ===");
+console.error("startDir:", startDir);
+console.error("cwd:", process.cwd());
+// Check first 5 levels for .pnpm  
+let d = startDir;
+for (let i = 0; i < 10 && d; i++) {
+  const pn = path.join(d, "node_modules", ".pnpm");
+  const parentExists = fs.existsSync(path.join(d, "node_modules"));
+  console.error(`level ${i}: ${d} | node_modules exists: ${parentExists} | .pnpm exists: ${fs.existsSync(pn)}`);
+  const p = path.dirname(d);
+  if (p === d) break;
+  d = p;
+}
+console.error("=== END DEBUG ===");
+
 function resolveFromPnpm(name, startDir) {
   let dir = startDir;
   while (dir) {
@@ -28,9 +45,7 @@ function resolveFromPnpm(name, startDir) {
   throw new Error(`Cannot resolve ${name} (checked from ${startDir})`);
 }
 
-const startDir = __dirname;
-
-// Pre-load key Vite deps to warm the module cache
+// Pre-load + build
 for (const pkg of ["esbuild", "rollup", "react", "react-dom", "react-dom/client", "@vitejs/plugin-react", "@tailwindcss/vite", "vite-plugin-pwa"]) {
   try { require(resolveFromPnpm(pkg, startDir)); } catch {}
 }

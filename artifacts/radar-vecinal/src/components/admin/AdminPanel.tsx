@@ -9,14 +9,15 @@ import KpiCards from "./KpiCards";
 import ReportsTab from "./ReportsTab";
 import UsersTab from "./UsersTab";
 import AdSlotsTab from "./AdSlotsTab";
+import DistrictSwitcher from "./DistrictSwitcher";
 
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>("reports");
   const [search, setSearch] = useState("");
   const [seeding, setSeeding] = useState(false);
 
-  const { currentDistrictId, currentDistrict } = useDistrict();
-  const { user } = useAuth();
+  const { currentDistrictId } = useDistrict();
+  const { user, isSuperAdmin } = useAuth();
   const { data: reportsData, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const { data: usersData } = useGetUsers();
   const { data: stats } = useGetStats();
@@ -53,14 +54,8 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-medium text-primary">
-              {user?.role === "super_admin" ? "🌐 Plataforma (Super Admin)" : `📍 ${currentDistrict}`}
-            </span>
-          </div>
-        </div>
+        {/* DistrictSwitcher: dropdown para super_admin, badge fijo para admin municipal */}
+        <DistrictSwitcher isSuperAdmin={isSuperAdmin} />
 
         <button
           onClick={handleSeed}

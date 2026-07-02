@@ -28,12 +28,18 @@ app.use(helmet({
 app.set("etag", false);
 
 // RLS: setear variables de sesión PostgreSQL para Row Level Security (migración 0007)
-// Inspirado en FixNet (Supabase RLS). Cada request setea app.district_id usado por las políticas.
+// Inspirado en FixNet (Supabase RLS). Cada request setea app.district_id y app.role.
+// app.role se setea SIEMPRE (incluso sin auth) para que las políticas RLS puedan
+// diferenciar entre super_admin (bypass) y usuarios normales (filtrados por distrito).
+// Las políticas en DB usan current_setting(name, true) para no fallar si no está seteado.
 app.use("/api", (req, _res, next) => {
   const user = (req as any).jwtUser;
+  const role = user?.role ?? "anonymous";
+  db.execute(sql`SELECT set_config('app.role', ${role}, true)`).catch(() => {});
   if (user?.districtId) {
     db.execute(sql`SELECT set_config('app.district_id', ${String(user.districtId)}, true)`).catch(() => {});
-    db.execute(sql`SELECT set_config('app.role', ${user.role}, true)`).catch(() => {});
+  } else {
+    db.execute(sql`SELECT set_config('app.district_id', '0', true)`).catch(() => {});
   }
   next();
 });
@@ -69,7 +75,6 @@ app.use(
     },
   }),
 );
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

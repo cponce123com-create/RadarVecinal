@@ -24,20 +24,24 @@ node -e "const fs=require('fs');const nm='node_modules';if(!fs.existsSync(nm)){c
 echo "--- installing missing packages ---"
 PKG_DIR=$PWD
 cd /tmp
-# @vitejs/plugin-react
+# @vitejs/plugin-react@5.2.0
 npm pack @vitejs/plugin-react@5.2.0 2>&1 | tail -1
 tar -xzf vitejs-plugin-react-5.2.0.tgz 2>&1
-ls package/package.json 2>&1 || echo "NO package.json in tar!"
 mkdir -p "$PKG_DIR/node_modules/@vitejs/plugin-react"
 cp -r package/* "$PKG_DIR/node_modules/@vitejs/plugin-react/" 2>&1
-ls "$PKG_DIR/node_modules/@vitejs/plugin-react/package.json" 2>&1 || echo "COPY FAILED!"
-# @tailwindcss/vite
+rm -f vitejs-plugin-react-5.2.0.tgz && rm -rf package
+# @tailwindcss/vite@4.3.2
 npm pack @tailwindcss/vite@4.3.2 2>&1 | tail -1
 tar -xzf tailwindcss-vite-4.3.2.tgz 2>&1
 mkdir -p "$PKG_DIR/node_modules/@tailwindcss/vite"
 cp -r package/* "$PKG_DIR/node_modules/@tailwindcss/vite/" 2>&1
-ls "$PKG_DIR/node_modules/@tailwindcss/vite/package.json" 2>&1 || echo "T COPY FAILED!"
-rm -f vitejs-plugin-react-5.2.0.tgz tailwindcss-vite-4.3.2.tgz && rm -rf package
+rm -f tailwindcss-vite-4.3.2.tgz && rm -rf package
+# @rolldown/pluginutils (latest)
+npm pack @rolldown/pluginutils 2>&1 | tail -1
+tar -xzf rolldown-pluginutils-*.tgz 2>&1
+mkdir -p "$PKG_DIR/node_modules/@rolldown/pluginutils"
+cp -r package/* "$PKG_DIR/node_modules/@rolldown/pluginutils/" 2>&1
+rm -f rolldown-pluginutils-*.tgz && rm -rf package
 cd "$PKG_DIR"
 echo "--- checking after manual install ---"
 ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-react STILL MISSING"
@@ -56,7 +60,7 @@ for pkgdir in ../../lib/* ../../lib/integrations/* ../../artifacts/*; do
   ln -sfn "$(cd "$pkgdir" && pwd -P)" "node_modules/@workspace/$name" 2>/dev/null || true
 done
 echo "--- vite build ---"
-node --experimental-require-module vite-build.cjs 2>&1 | tail -15
+node vite-build.cjs 2>&1 | tail -15
 # Restaurar package.json y node_modules de pnpm para runtime
 mv package.json.bak package.json
 rm -rf node_modules 2>/dev/null || true

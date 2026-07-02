@@ -1,22 +1,15 @@
-const fs = require("fs");
-const p = require("path");
+const esbuild = require("esbuild");
+const esbuildPluginPino = require("esbuild-plugin-pino");
+const path = require("path");
 const { rm } = require("fs/promises");
 
-function findUp(name, dir) {
-  const candidate = p.join(dir, "node_modules", name);
-  try { require.resolve(candidate); return candidate; }
-  catch { const parent = p.dirname(dir); if (parent === dir) throw new Error("Cannot find " + name); return findUp(name, parent); }
-}
-
-const esbuild = require(findUp("esbuild", __dirname));
-const esbuildPluginPino = require(findUp("esbuild-plugin-pino", __dirname));
 const artifactDir = __dirname;
 
 async function buildAll() {
-  const distDir = p.resolve(artifactDir, "dist");
+  const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
   await esbuild.build({
-    entryPoints: [p.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node", bundle: true, format: "esm",
     outdir: distDir, outExtension: { ".js": ".mjs" }, logLevel: "info",
     external: [

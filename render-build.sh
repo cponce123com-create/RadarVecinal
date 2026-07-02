@@ -11,16 +11,7 @@ set -euo pipefail
 PNPM="corepack pnpm"
 
 echo "=== 1. pnpm install ==="
-# set +e: pnpm v11 sale con ERR_PNPM_IGNORED_BUILDS si hay build
-# scripts no aprobados en el lockfile (generado con pnpm v9).
-set +e
 $PNPM install --no-frozen-lockfile
-set -e
-
-# Rebuild ejecuta los build scripts (esbuild, etc.) que pnpm v11
-# omite durante install si no están aprobados en el lockfile.
-echo "=== 1b. pnpm rebuild (build scripts) ==="
-$PNPM rebuild
 
 echo "=== 2. Build API Server ==="
 # Construye el backend Express con esbuild → dist/index.mjs

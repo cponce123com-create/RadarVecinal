@@ -21,6 +21,18 @@ app.use(helmet({
 // Disable ETag so API responses are never cached as stale empty data
 app.set("etag", false);
 
+// CORS: solo orígenes explícitos. En producción el frontend se sirve
+// desde express.static (mismo origen), así que no necesita CORS.
+// Para desarrollo local (Vite en :5173) o entornos con frontend separado,
+// configurar CORS_ORIGIN como lista separada por comas.
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+  : ["http://localhost:5173", "http://localhost:3000"];
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 app.use(
   pinoHttp({
     logger,

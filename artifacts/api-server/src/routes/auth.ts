@@ -332,7 +332,6 @@ export function requireSameDistrict(req: Request, res: Response, next: NextFunct
     return next();
   }
 
-  console.log("user", user);
   const resourceDistrictId = parseInt(req.params.districtId || req.body.districtId || req.query.districtId as string);
 
   if (user.districtId !== resourceDistrictId) {

@@ -244,8 +244,8 @@ router.get("/reports/nearby", optionalAuth, async (req, res) => {
   }
 });
 
-// ── GET /reports/:id ────────────────────────────────────────────────────────
-router.get("/reports/:id", async (req, res) => {
+// ── GET /reports/:id — M-04: con auth opcional + tenant filter ────────────
+router.get("/reports/:id", optionalAuth, async (req, res) => {
   try {
     const [report] = await db.select()
       .from(reportsTable)
@@ -253,6 +253,12 @@ router.get("/reports/:id", async (req, res) => {
       .limit(1);
 
     if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    // M-04: Si el usuario está autenticado, verificar que pertenezca al mismo distrito
+    const user = (req as any).jwtUser;
+    if (user && !checkTenant(req, report.districtId)) {
+      return res.status(403).json({ error: "No puedes ver reportes de otro distrito." });
+    }
 
     return res.json({
       ...report,
@@ -325,8 +331,8 @@ router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ── POST /reports/:id/confirm ───────────────────────────────────────────────
-router.post("/reports/:id/confirm", async (req, res) => {
+// ── POST /reports/:id/confirm — M-04: con auth opcional + tenant filter ──
+router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
   try {
     const [report] = await db.select()
       .from(reportsTable)

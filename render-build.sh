@@ -19,11 +19,8 @@ rm -rf node_modules 2>/dev/null || true
 npm install --cache /tmp/npm-cache --no-package-lock --prefer-offline=false 2>&1 | tail -10
 # Instalar paquetes que npm a veces omite por peer deps
 npm install --cache /tmp/npm-cache @vitejs/plugin-react@5.2.0 @tailwindcss/vite@4.3.2 2>&1 | tail -5
-# DEBUG: check if vite was installed
-echo "--- checking install ---"
-ls node_modules/vite/bin/vite.js 2>&1 || echo "vite bin NOT FOUND"
-ls node_modules/@vitejs/plugin-react/package.json 2>&1 || echo "@vitejs/plugin-react NOT FOUND"
-echo "first 15 dirs:" $(ls node_modules/ 2>/dev/null | head -15) "..."
+echo "--- DEBUG node_modules ---"
+node -e "const fs=require('fs');const nm='node_modules';if(!fs.existsSync(nm)){console.log('node_modules MISSING');process.exit()};const d=fs.readdirSync(nm);console.log('count:',d.length,'scoped:',d.filter(x=>x.startsWith('@')).length);console.log('@vitejs:',fs.existsSync(nm+'/@vitejs'));console.log('vite find:',d.filter(x=>x.includes('vite')).join(','));const p=JSON.parse(fs.readFileSync('package.json','utf-8'));const a={...p.dependencies,...p.devDependencies};console.log('pkg has @vitejs:',!!a['@vitejs/plugin-react'],'vite:',!!a.vite,'tailwind:',!!a['@tailwindcss/vite']);"
 echo "--- vite build ---"
 mkdir -p node_modules/@workspace
 # Todos los paquetes del workspace que puedan necesitarse

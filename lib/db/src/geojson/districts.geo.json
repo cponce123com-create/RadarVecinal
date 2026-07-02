@@ -1,0 +1,47 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": 1, "slug": "san-ramon", "name": "San Ramón" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-75.3700, -11.1100],
+          [-75.3400, -11.1100],
+          [-75.3400, -11.1400],
+          [-75.3700, -11.1400],
+          [-75.3700, -11.1100]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 2, "slug": "chanchamayo", "name": "Chanchamayo" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-75.3800, -11.0500],
+          [-75.3200, -11.0500],
+          [-75.3200, -11.1000],
+          [-75.3800, -11.1000],
+          [-75.3800, -11.0500]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 3, "slug": "perene", "name": "Perené" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-75.3000, -11.0800],
+          [-75.2500, -11.0800],
+          [-75.2500, -11.1200],
+          [-75.3000, -11.1200],
+          [-75.3000, -11.0800]
+        ]]
+      }
+    }
+  ]
+}

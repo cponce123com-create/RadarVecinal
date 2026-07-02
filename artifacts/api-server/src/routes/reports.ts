@@ -10,7 +10,7 @@ import {
   districtsTable,
   auditLogTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, isNull } from "drizzle-orm";
 import rateLimit from "express-rate-limit";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
@@ -57,7 +57,10 @@ router.get("/reports", optionalAuth, async (req, res) => {
       return res.json({ reports: [] });
     }
 
-    const conditions = [eq(reportsTable.districtId, districtId)];
+    const conditions = [
+      eq(reportsTable.districtId, districtId),
+      isNull(reportsTable.deletedAt),
+    ];
     if (category) conditions.push(eq(reportsTable.category, category as any));
     if (status) conditions.push(eq(reportsTable.status, status as any));
     if (urgency) conditions.push(eq(reportsTable.urgency, urgency as any));
@@ -354,7 +357,7 @@ router.patch("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
 // ── DELETE /reports/:id — M-04: con chequeo de tenant ───────────────────────
 router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [report] = await db.select({ id: reportsTable.id, districtId: reportsTable.districtId })
+    const [report] = await db.select({ id: reportsTable.id, districtId: reportsTable.districtId, title: reportsTable.title })
       .from(reportsTable)
       .where(eq(reportsTable.id, parseInt(req.params.id as string)))
       .limit(1);
@@ -365,10 +368,28 @@ router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
       return res.status(403).json({ error: "No puedes eliminar reportes de otro distrito." });
     }
 
-    await db.delete(reportsTable).where(eq(reportsTable.id, parseInt(req.params.id as string)));
-    return res.json({ success: true, id: req.params.id });
+    // Soft delete: marcar como eliminado en lugar de borrar físicamente
+    const user = (req as any).jwtUser;
+    const now = new Date().toISOString();
+    await db.update(reportsTable)
+      .set({ deletedAt: now as any, deletedBy: user?.sub ?? "unknown" })
+      .where(eq(reportsTable.id, parseInt(req.params.id as string)));
+
+    // Audit log de eliminación
+    await db.insert(auditLogTable).values({
+      districtId: report.districtId,
+      entityType: "report",
+      entityId: report.id,
+      action: "deleted",
+      previousValue: "active",
+      newValue: "soft_deleted",
+      changedBy: user?.email ?? "unknown",
+      changedById: user ? Number(user.sub) : undefined,
+    }).catch(() => {});
+
+    return res.json({ success: true, id: req.params.id, softDeleted: true });
   } catch (err) {
-    req.log.error({ err }, "Failed to delete report");
+    req.log.error({ err }, "Failed to soft-delete report");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

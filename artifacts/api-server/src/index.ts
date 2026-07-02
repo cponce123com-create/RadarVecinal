@@ -1,6 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { autoSeedIfEmpty } from "./lib/autoSeed";
+import { startReportWorker } from "./workers/reportWorker";
+import { startEmailWorker } from "./workers/emailWorker";
 
 const rawPort = process.env["PORT"];
 
@@ -24,6 +26,14 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // Seed demo data automatically if DB is empty (production cold start)
-  autoSeedIfEmpty().catch((e) => logger.error({ e }, "autoSeed failed"));
+  // Seed demo data only in development — never in production
+  if (process.env.NODE_ENV !== "production") {
+    autoSeedIfEmpty().catch((e) => logger.error({ e }, "autoSeed failed"));
+  } else {
+    logger.info("Production mode — auto-seed skipped. Use POST /api/seed with x-seed-key to seed manually.");
+  }
+
+  // Start background workers (non-blocking)
+  startReportWorker();
+  startEmailWorker();
 });

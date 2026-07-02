@@ -92,6 +92,8 @@ export const reportsTable = pgTable("reports", {
   contactPhone: text("contact_phone"),
   confirmedCount: integer("confirmed_count").notNull().default(0),
   assignedTo: integer("assigned_to").references(() => departmentsTable.id),
+  deletedAt: timestamp("deleted_at", { mode: "string" }),
+  deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -125,6 +127,8 @@ export const missingPersonsTable = pgTable("missing_persons", {
   contactInfo: text("contact_info").notNull(),
   status: missingPersonStatusEnum("status").notNull().default("active"),
   reportedBy: text("reported_by").notNull(),
+  deletedAt: timestamp("deleted_at", { mode: "string" }),
+  deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

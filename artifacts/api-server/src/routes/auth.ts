@@ -319,6 +319,11 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 // ── M-04: Middleware: require same district (tenant isolation) ───────────────
+// NOTA: Estos middlewares están disponibles para usarse como middleware de ruta,
+// pero actualmente el proyecto implementa el aislamiento via helpers inline
+// (getDistrictId / checkTenant en tenant.ts), que son más flexibles para
+// combinar con optionalAuth. Si agregas rutas nuevas, importa esos helpers
+// de "./tenant" en vez de usar estos middlewares directamente.
 // Evita que un admin/moderador acceda a recursos de otro distrito.
 // super_admin puede acceder a cualquier distrito.
 export function requireSameDistrict(req: Request, res: Response, next: NextFunction) {

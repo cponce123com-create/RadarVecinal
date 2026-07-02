@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
+import { z } from "zod";
 import { db } from "@workspace/db";
 import {
   panicAlertsTable,
@@ -11,6 +12,31 @@ import { requireAuth, optionalAuth } from "./auth";
 import { getDistrictId } from "./tenant";
 
 const router: IRouter = Router();
+
+// ── Zod schemas ─────────────────────────────────────────────────────────────
+const panicAlertSchema = z.object({
+  type: z.enum(["robbery", "medical", "fight", "fire", "missing_person", "other"]),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  address: z.string().optional().default(""),
+  authorName: z.string().min(1, "Nombre del autor requerido"),
+  sector: z.string().min(1, "Sector requerido"),
+  districtId: z.number().optional(),
+});
+
+const missingPersonSchema = z.object({
+  name: z.string().min(1, "Nombre requerido"),
+  age: z.number().int().positive().optional().nullable(),
+  clothing: z.string().min(1, "Descripción de vestimenta requerida"),
+  photoUrl: z.string().optional().nullable(),
+  lastSeenLatitude: z.number().min(-90).max(90),
+  lastSeenLongitude: z.number().min(-180).max(180),
+  lastSeenAddress: z.string().min(1, "Dirección requerida"),
+  lastSeenAt: z.string().min(1, "Fecha/hora requerida"),
+  contactInfo: z.string().min(1, "Información de contacto requerida"),
+  reportedBy: z.string().min(1, "Nombre del reportante requerido"),
+  districtId: z.number().optional(),
+});
 
 // ── Almacenar clientes SSE con su districtId ────────────────────────────────
 interface SseClient {
@@ -98,31 +124,32 @@ router.get("/panic-alerts", optionalAuth, async (req, res) => {
 
 // ── POST /panic-alerts ─────────────────────────────────────────────────────
 router.post("/panic-alerts", optionalAuth, async (req, res) => {
-  const { type, latitude, longitude, address, authorName, sector, districtId: bodyDistrictId } = req.body;
+  const parsed = panicAlertSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+  }
+
+  const data = parsed.data;
   const user = (req as any).jwtUser;
 
   let districtId: number;
   if (user?.districtId && user.role !== "super_admin") {
     districtId = Number(user.districtId);
-  } else if (bodyDistrictId) {
-    districtId = Number(bodyDistrictId);
+  } else if (data.districtId) {
+    districtId = Number(data.districtId);
   } else {
     return res.status(400).json({ error: "Se requiere distrito (districtId)." });
-  }
-
-  if (!type || !latitude || !longitude || !authorName || !sector) {
-    return res.status(400).json({ error: "Faltan campos requeridos: type, latitude, longitude, authorName, sector." });
   }
 
   try {
     const [alert] = await db.insert(panicAlertsTable).values({
       districtId,
-      type,
-      latitude,
-      longitude,
-      address: address ?? "",
-      authorName,
-      sector,
+      type: data.type as any,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.address ?? "",
+      authorName: data.authorName,
+      sector: data.sector,
     }).returning();
 
     // Broadcast SSE solo a clientes del mismo distrito
@@ -174,35 +201,36 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
 
 // ── POST /missing-persons ──────────────────────────────────────────────────
 router.post("/missing-persons", optionalAuth, async (req, res) => {
-  const { name, age, clothing, photoUrl, lastSeenLatitude, lastSeenLongitude, lastSeenAddress, lastSeenAt, contactInfo, reportedBy, districtId: bodyDistrictId } = req.body;
+  const parsed = missingPersonSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+  }
+
+  const data = parsed.data;
   const user = (req as any).jwtUser;
 
   let districtId: number;
   if (user?.districtId && user.role !== "super_admin") {
     districtId = Number(user.districtId);
-  } else if (bodyDistrictId) {
-    districtId = Number(bodyDistrictId);
+  } else if (data.districtId) {
+    districtId = Number(data.districtId);
   } else {
     return res.status(400).json({ error: "Se requiere distrito (districtId)." });
-  }
-
-  if (!name || !clothing || !lastSeenLatitude || !lastSeenLongitude || !lastSeenAddress || !lastSeenAt || !contactInfo || !reportedBy) {
-    return res.status(400).json({ error: "Faltan campos requeridos." });
   }
 
   try {
     const [alert] = await db.insert(missingPersonsTable).values({
       districtId,
-      name,
-      age: age ?? null,
-      clothing,
-      photoUrl: photoUrl ?? null,
-      lastSeenLatitude,
-      lastSeenLongitude,
-      lastSeenAddress,
-      lastSeenAt: new Date(lastSeenAt),
-      contactInfo,
-      reportedBy,
+      name: data.name,
+      age: data.age ?? null,
+      clothing: data.clothing,
+      photoUrl: data.photoUrl ?? null,
+      lastSeenLatitude: data.lastSeenLatitude,
+      lastSeenLongitude: data.lastSeenLongitude,
+      lastSeenAddress: data.lastSeenAddress,
+      lastSeenAt: new Date(data.lastSeenAt),
+      contactInfo: data.contactInfo,
+      reportedBy: data.reportedBy,
     }).returning();
 
     return res.status(201).json({

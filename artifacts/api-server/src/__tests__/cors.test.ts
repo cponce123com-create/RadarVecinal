@@ -2,7 +2,7 @@
  * Tests de CORS.
  * Verifica que un origin fuera de la whitelist recibe rechazo.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 
 describe.skipIf(!process.env.DATABASE_URL)("CORS", () => {
   let app: any;

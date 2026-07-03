@@ -6,6 +6,7 @@ import {
   missingPersonsTable,
   notificationsTable,
   districtsTable,
+  reportsTable,
 } from "@workspace/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth, optionalAuth } from "./auth";
@@ -174,6 +175,53 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
       authorName: data.authorName,
       sector: data.sector,
     }).returning();
+
+    // ── También crear un reporte visible en el radar, mapa y feed ─────
+    // Mapeo de tipo de pánico → categoría de reporte
+    const PANIC_CATEGORY_MAP: Record<string, string> = {
+      robbery: "robbery",
+      medical: "medical_emergency",
+      fight: "fight",
+      fire: "fire",
+      missing_person: "missing_person",
+      other: "other",
+    };
+    const PANIC_TITLE_MAP: Record<string, string> = {
+      robbery: "🚨 Alerta de Pánico - Asalto",
+      medical: "🚨 Alerta de Pánico - Emergencia Médica",
+      fight: "🚨 Alerta de Pánico - Violencia Física",
+      fire: "🚨 Alerta de Pánico - Incendio",
+      missing_person: "🚨 Alerta de Pánico - Persona Extraviada",
+      other: "🚨 Alerta de Pánico - Otra Emergencia",
+    };
+
+    const [district] = await db.select({
+      name: districtsTable.name,
+      province: districtsTable.province,
+      department: districtsTable.department,
+    }).from(districtsTable)
+      .where(eq(districtsTable.id, districtId))
+      .limit(1);
+
+    await db.insert(reportsTable).values({
+      title: PANIC_TITLE_MAP[data.type] ?? "🚨 Alerta de Pánico",
+      description: `Alerta de pánico generada automáticamente. Tipo: ${data.type}.${data.address ? ` Ubicación: ${data.address}` : ""}`,
+      category: (PANIC_CATEGORY_MAP[data.type] ?? "other") as any,
+      urgency: "critical" as const,
+      isAnonymous: false,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.address ?? "",
+      sector: data.sector,
+      districtId,
+      district: district?.name ?? "San Ramón",
+      province: district?.province ?? "Chanchamayo",
+      department: district?.department ?? "Junín",
+      authorName: data.authorName,
+    }).catch((err2: any) => {
+      // No crítico — no debe impedir la respuesta exitosa de la alerta
+      req.log.error({ err: err2 }, "Failed to create report from panic alert");
+    });
 
     // Broadcast SSE solo a clientes del mismo distrito
     broadcastPanicAlert(alert);

@@ -475,10 +475,29 @@ export function LeafletMap({
   isAdmin = false,
   onContextMenu,
 }: LeafletMapProps) {
-  const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(DISTRICT.center);
-  const [simulated, setSimulated] = useState(true);
+  const geo = useGeolocation();
+  const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(
+    geo.position ?? DISTRICT.center
+  );
+  const [simulated, setSimulated] = useState(!geo.position);
+
+  // Auto-solicitar ubicación real al montar el mapa
+  useEffect(() => {
+    if (!geo.position && !geo.loading && !geo.error) {
+      geo.request();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (geo.position) {
+      setUserPos(geo.position);
+      setSimulated(false);
+    }
+  }, [geo.position]);
 
   const heatData = heatReports ?? reports;
+
+  const mapCenter = userPos ?? DISTRICT.center;
 
   return (
     <div className={`relative w-full h-full ${className}`}>

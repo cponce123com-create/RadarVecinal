@@ -15,6 +15,7 @@ import embedRouter from "./embed";
 import reportsPdfRouter from "./reportsPdf";
 import messagesRouter from "./messages";
 import reniecRouter from "./reniec";
+import clearDemoRouter from "./clearDemo";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(civicEducationRouter);
 router.use(embedRouter);
 router.use(reportsPdfRouter);
 router.use(messagesRouter);
+router.use(clearDemoRouter);
 
 export default router;

@@ -482,7 +482,9 @@ export function LeafletMap({
 
   // Auto-solicitar ubicación real al montar el mapa
   useEffect(() => {
+    console.log("[GPS] LeafletMap montado, estado inicial:", { supported: geo.supported, loading: geo.loading, hasPosition: !!geo.position, error: geo.error });
     if (!geo.position && !geo.loading && !geo.error && !gpsError) {
+      console.log("[GPS] Solicitando ubicación vía hook...");
       geo.request();
     }
   }, []);
@@ -490,27 +492,35 @@ export function LeafletMap({
   // Cuando geo.position cambia (vía watchPosition/getCurrentPosition del hook)
   useEffect(() => {
     if (geo.position) {
+      console.log("[GPS] Posición recibida del hook:", geo.position.lat, geo.position.lng);
       setUserPos(geo.position);
       setSimulated(false);
       setGpsError(null);
     } else if (geo.error) {
+      console.log("[GPS] Error del hook:", geo.error);
       setGpsError(geo.error);
     }
   }, [geo.position, geo.error]);
 
   // Doble fallback: llamar DIRECTAMENTE a navigator.geolocation si el hook no responde
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      console.log("[GPS] navigator.geolocation NO disponible");
+      return;
+    }
     const timeout = setTimeout(() => {
+      console.log("[GPS] Fallback: intentando getCurrentPosition directo... userPos=", !!userPos, "simulated=", simulated);
       if (!userPos && simulated) {
         navigator.geolocation.getCurrentPosition(
           pos => {
+            console.log("[GPS] Fallback ÉXITO:", pos.coords.latitude, pos.coords.longitude);
             const posObj = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
             setUserPos(posObj);
             setSimulated(false);
             setGpsError(null);
           },
           err => {
+            console.log("[GPS] Fallback ERROR:", err.code, err.message);
             setGpsError(
               err.code === 1 ? "⚠️ Permiso denegado. Activa ubicación en ajustes del navegador." :
               err.code === 2 ? "⚠️ GPS no disponible." :

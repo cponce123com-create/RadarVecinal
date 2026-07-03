@@ -85,7 +85,7 @@ function RadarHero({ reports }: { reports: any[] }) {
 }
 
 export default function Home() {
-  const { currentDistrict, province, districtInfo } = useDistrict();
+  const { currentDistrict, province, districtInfo, setDistrict, districts } = useDistrict();
   const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "San Ramón, Chanchamayo";
   const { data: stats } = useGetStats();
   const { data: reportsData, isLoading: reportsLoading } = useGetReports({ limit: 6 });
@@ -95,6 +95,28 @@ export default function Home() {
   const geofence = useGeofenceWatcher({ radius: 1000 });
 
   useEffect(() => { geofence.start(); return () => geofence.stop(); }, []);
+
+  // Auto-detectar distrito por GPS cuando se obtiene ubicación
+  useEffect(() => {
+    if (geofence.currentPosition) {
+      const { lat, lng } = geofence.currentPosition;
+      // Solo si el distrito actual es el default (San Ramón) o no se ha cambiado manualmente
+      const manualSelection = localStorage.getItem("radarvecinal_district_slug");
+      if (!manualSelection || manualSelection === "san-ramon") {
+        fetch(`/api/districts/nearby?lat=${lat}&lng=${lng}&limit=1`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data?.districts?.length > 0) {
+              const nearest = data.districts[0];
+              if (nearest.distance < 30000 && nearest.slug !== "san-ramon") {
+                setDistrict(nearest.slug);
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [geofence.currentPosition]);
 
   const reports = reportsData?.reports ?? [];
   const activeAlerts = alertsData?.alerts?.filter(a => a.isActive) ?? [];

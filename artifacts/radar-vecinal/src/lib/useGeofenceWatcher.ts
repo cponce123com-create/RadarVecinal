@@ -26,6 +26,7 @@ interface GeofenceConfig {
   maximumAge?: number;
   distanceFilter?: number; // minimum meters to trigger a refresh
   radius?: number; // search radius in meters
+  districtId?: number; // district ID for the nearby query
 }
 
 const DEFAULT_CONFIG: GeofenceConfig = {
@@ -33,6 +34,7 @@ const DEFAULT_CONFIG: GeofenceConfig = {
   maximumAge: 10000,
   distanceFilter: 50,
   radius: 1000,
+  districtId: 1, // default: San Ramón
 };
 
 export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherState {
@@ -49,8 +51,12 @@ export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherStat
   const fetchNearby = useCallback(async (lat: number, lng: number) => {
     try {
       const radius = cfg.radius ?? 1000;
-      const res = await fetch(`/api/reports/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
-      if (!res.ok) return;
+      const districtId = cfg.districtId ?? 1;
+      const res = await fetch(`/api/reports/nearby?lat=${lat}&lng=${lng}&radius=${radius}&districtId=${districtId}`);
+      if (!res.ok) {
+        console.warn('[Geofence] nearby fetch failed:', res.status, res.statusText);
+        return;
+      }
       const data = await res.json();
       const alerts: NearbyAlert[] = data.reports ?? [];
 
@@ -65,7 +71,7 @@ export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherStat
     } catch {
       // silent fail
     }
-  }, [cfg.radius]);
+  }, [cfg.radius, cfg.districtId]);
 
   const handlePosition = useCallback((pos: GeolocationPosition) => {
     const { latitude, longitude } = pos.coords;

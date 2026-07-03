@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { useGeofenceWatcher } from "@/lib/useGeofenceWatcher";
+import { useDistrict } from "@/contexts/DistrictContext";
 import ProximityBanner from "@/components/ProximityBanner";
 
 const PANIC_TYPE_ICONS: Record<string, any> = {
@@ -36,6 +37,10 @@ const cardVariants = {
 };
 
 function RadarHero({ reports }: { reports: any[] }) {
+  const { currentDistrict, province, districtInfo } = useDistrict();
+  const lat = districtInfo?.centerLat ?? -11.1231;
+  const lng = districtInfo?.centerLng ?? -75.3565;
+  const districtName = currentDistrict || "San Ramón";
   const blips = reports.slice(0, 6).map((r, i) => ({
     ...BLIP_POS[i],
     color: CAT_HEX[r.category] ?? "#6b7280",
@@ -43,8 +48,8 @@ function RadarHero({ reports }: { reports: any[] }) {
   return (
     <div className="relative rounded-[20px] overflow-hidden border border-white/7 bg-[radial-gradient(circle_at_50%_50%,#0b1420,#070a11)] shadow-[0_24px_60px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.04)] min-h-[400px]">
       <div className="absolute top-4 left-[18px] z-[5]">
-        <div className="label-mono text-[10px] text-[#3d7fff] tracking-[0.14em]">RADAR_SYS · SAN RAMÓN</div>
-        <div className="label-mono text-[9px] text-[#4a5568] tracking-[0.1em] mt-0.5">LAT -11.1231 · LON -75.3565</div>
+        <div className="label-mono text-[10px] text-[#3d7fff] tracking-[0.14em]">RADAR_SYS · {districtName.toUpperCase()}</div>
+        <div className="label-mono text-[9px] text-[#4a5568] tracking-[0.1em] mt-0.5">LAT {lat.toFixed(4)} · LON {lng.toFixed(4)}</div>
       </div>
       <div className="absolute top-4 right-4 z-[5] flex items-center gap-1.5 px-2.5 py-[5px] rounded-full bg-primary/12 border border-primary/28">
         <span className="w-1.5 h-1.5 rounded-full bg-[#3d7fff] status-blink" />
@@ -80,6 +85,8 @@ function RadarHero({ reports }: { reports: any[] }) {
 }
 
 export default function Home() {
+  const { currentDistrict, province, districtInfo } = useDistrict();
+  const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "San Ramón, Chanchamayo";
   const { data: stats } = useGetStats();
   const { data: reportsData, isLoading: reportsLoading } = useGetReports({ limit: 6 });
   const { data: alertsData } = useGetPanicAlerts({ active: true });
@@ -135,7 +142,7 @@ export default function Home() {
           <h1 className="font-display text-[30px] font-bold text-white tracking-tight m-0">Hola, Vecino</h1>
           <p className="text-[13px] text-muted-foreground mt-1.5 flex items-center gap-2">
             <span className="w-[7px] h-[7px] rounded-full bg-success shadow-[0_0_8px_hsl(142_71%_55%)]" />
-            Conectado — San Ramón, Chanchamayo
+            Conectado — {districtDisplay}
           </p>
         </div>
         <div className="flex gap-2.5">

@@ -3,15 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, BellOff, AlertTriangle, CheckCircle2, UserX, ShieldAlert,
   RefreshCw, Flame, Info, Filter, Check, ChevronRight, Trash2,
-  Volume2, Zap,
+  Volume2, Zap, Building2, MessageSquare,
 } from "lucide-react";
 import { formatDistanceToNow, isToday, isYesterday, subDays, isAfter } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useGetNotifications } from "@workspace/api-client-react";
 
-type NotifType = "panic" | "confirmation" | "missing" | "update" | "system" | "fire";
-type NotifFilter = "all" | "unread" | "alerts" | "system";
+type NotifType = "panic" | "confirmation" | "missing" | "update" | "system" | "fire" | "municipal";
+type NotifFilter = "all" | "unread" | "alerts" | "system" | "municipal";
 
 interface Notification {
   id: string;
@@ -23,6 +23,8 @@ interface Notification {
   actionLabel?: string;
   actionHref?: string;
   critical?: boolean;
+  adminName?: string;
+  reportTitle?: string;
 }
 
 const DEMO_NOTIFS: Notification[] = [
@@ -110,6 +112,18 @@ const DEMO_NOTIFS: Notification[] = [
     time: subDays(new Date(), 2),
     read: true,
   },
+  {
+    id: "n10",
+    type: "municipal",
+    title: "📩 Mensaje de la Municipalidad",
+    body: "Estimado vecino, su reporte ha sido recibido y estamos evaluando la situación. Nuestro personal se encuentra en camino para atender la incidencia.",
+    time: new Date(Date.now() - 45 * 60000),
+    read: false,
+    adminName: "Carlos Quispe — Serenazgo",
+    reportTitle: "Asalto a mano armada en Jr. Tarma",
+    actionLabel: "Ver reporte",
+    actionHref: "/historial",
+  },
 ];
 
 const TYPE_META: Record<NotifType, { icon: React.ElementType; color: string; bg: string; label: string }> = {
@@ -119,13 +133,15 @@ const TYPE_META: Record<NotifType, { icon: React.ElementType; color: string; bg:
   update:       { icon: RefreshCw,     color: "#3b82f6", bg: "rgba(59,130,246,0.15)",   label: "Actualización" },
   fire:         { icon: Flame,         color: "#f97316", bg: "rgba(249,115,22,0.15)",   label: "Incendio" },
   system:       { icon: Info,          color: "#6b7280", bg: "rgba(107,114,128,0.15)",  label: "Sistema" },
+  municipal:    { icon: Building2,     color: "#8b5cf6", bg: "rgba(139,92,246,0.15)",   label: "Municipalidad" },
 };
 
-const FILTER_TABS: { id: NotifFilter; label: string }[] = [
-  { id: "all",     label: "Todas" },
-  { id: "unread",  label: "No leídas" },
-  { id: "alerts",  label: "Alertas" },
-  { id: "system",  label: "Sistema" },
+const FILTER_TABS: { id: NotifFilter; label: string; icon?: React.ElementType }[] = [
+  { id: "all",        label: "Todas" },
+  { id: "unread",     label: "No leídas" },
+  { id: "alerts",     label: "Alertas" },
+  { id: "municipal",  label: "Municipalidad", icon: Building2 },
+  { id: "system",     label: "Sistema" },
 ];
 
 function groupByDate(notifs: Notification[]) {
@@ -163,26 +179,35 @@ export default function Notifications() {
       const existingIds = new Set(prev.map(n => n.id));
       const merged = apiNotifs.notifications
         .filter((n: any) => !existingIds.has(n.id))
-        .map((n: any) => ({
-          id: n.id,
-          type: (n.type ?? "system") as NotifType,
-          title: n.title ?? "Notificación del sistema",
-          body: n.message ?? "",
-          time: new Date(n.createdAt ?? Date.now()),
-          read: false,
-        }));
+        .map((n: any) => {
+          // Detectar mensajes de la municipalidad por referenceType
+          const isMunicipal = n.referenceType === "report_message" || n.type === "municipal_message";
+          return {
+            id: n.id,
+            type: isMunicipal ? "municipal" as NotifType : (n.type ?? "system") as NotifType,
+            title: n.title ?? "Notificación del sistema",
+            body: n.body ?? n.message ?? "",
+            time: new Date(n.createdAt ?? Date.now()),
+            read: n.isRead ?? false,
+            adminName: n.adminName ?? undefined,
+            reportTitle: n.reportTitle ?? undefined,
+            referenceId: n.referenceId,
+          };
+        });
       return merged.length > 0 ? [...merged, ...prev] : prev;
     });
   }, [apiNotifs]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
+  const municipalCount = notifs.filter(n => n.type === "municipal").length;
 
   const filtered = useMemo(() => {
     switch (filter) {
-      case "unread":  return notifs.filter(n => !n.read);
-      case "alerts":  return notifs.filter(n => n.type === "panic" || n.type === "fire" || n.type === "missing");
-      case "system":  return notifs.filter(n => n.type === "system" || n.type === "update");
-      default:        return notifs;
+      case "unread":   return notifs.filter(n => !n.read);
+      case "alerts":   return notifs.filter(n => n.type === "panic" || n.type === "fire" || n.type === "missing");
+      case "municipal": return notifs.filter(n => n.type === "municipal");
+      case "system":   return notifs.filter(n => n.type === "system" || n.type === "update");
+      default:         return notifs;
     }
   }, [notifs, filter]);
 
@@ -220,7 +245,7 @@ export default function Notifications() {
             )}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Alertas, actualizaciones y actividad del distrito
+            Alertas, actualizaciones y comunicados de la municipalidad
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -263,20 +288,26 @@ export default function Notifications() {
       {/* Filter tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
         {FILTER_TABS.map(tab => {
-          const count = tab.id === "unread" ? unreadCount : undefined;
+          const count = tab.id === "unread" ? unreadCount : tab.id === "municipal" ? municipalCount : undefined;
+          const TabIcon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-all ${
                 filter === tab.id
-                  ? "bg-primary/20 text-primary border-primary/40"
+                  ? tab.id === "municipal"
+                    ? "bg-violet-500/20 text-violet-400 border-violet-500/40"
+                    : "bg-primary/20 text-primary border-primary/40"
                   : "bg-card border-white/8 text-muted-foreground hover:text-white hover:border-white/15"
               }`}
             >
+              {TabIcon && <TabIcon className="w-3 h-3" />}
               {tab.label}
               {count !== undefined && count > 0 && (
-                <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                <span className={`w-4 h-4 rounded-full text-white text-[9px] font-bold flex items-center justify-center ${
+                  tab.id === "municipal" ? "bg-violet-500" : "bg-red-500"
+                }`}>
                   {count}
                 </span>
               )}
@@ -327,6 +358,8 @@ export default function Notifications() {
                   {group.items.map((notif, idx) => {
                     const meta = TYPE_META[notif.type];
                     const Icon = meta.icon;
+                    const isMunicipal = notif.type === "municipal";
+
                     return (
                       <motion.div
                         key={notif.id}
@@ -335,19 +368,28 @@ export default function Notifications() {
                         exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                         transition={{ delay: idx * 0.04 }}
                         className={`relative flex items-start gap-3 p-3.5 rounded-xl border transition-all group ${
-                          !notif.read
-                            ? "bg-white/[0.035] border-white/10 hover:border-white/15"
-                            : "bg-card border-white/5 hover:border-white/8 opacity-75 hover:opacity-100"
+                          isMunicipal
+                            ? "bg-violet-500/[0.04] border-violet-500/20 hover:border-violet-500/30"
+                            : !notif.read
+                              ? "bg-white/[0.035] border-white/10 hover:border-white/15"
+                              : "bg-card border-white/5 hover:border-white/8 opacity-75 hover:opacity-100"
                         }`}
                       >
+                        {/* Accent bar para mensajes municipales */}
+                        {isMunicipal && (
+                          <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-violet-500/50" />
+                        )}
+
                         {/* Unread dot */}
-                        {!notif.read && (
+                        {!notif.read && !isMunicipal && (
                           <span className="absolute left-1.5 top-4 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
                         )}
 
                         {/* Icon */}
                         <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            isMunicipal ? "border border-violet-500/20" : ""
+                          }`}
                           style={{ background: meta.bg }}
                         >
                           <Icon className="w-4.5 h-4.5" style={{ color: meta.color, width: "18px", height: "18px" }} />
@@ -357,12 +399,20 @@ export default function Notifications() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-white leading-snug">
+                              <span className={`text-sm font-semibold leading-snug ${
+                                isMunicipal ? "text-violet-200" : "text-white"
+                              }`}>
                                 {notif.title}
                               </span>
                               {notif.critical && (
                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 uppercase tracking-wide">
                                   Urgente
+                                </span>
+                              )}
+                              {/* Badge "Funcionario" para mensajes municipales */}
+                              {isMunicipal && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                                  Funcionario
                                 </span>
                               )}
                             </div>
@@ -373,9 +423,30 @@ export default function Notifications() {
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                          <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${
+                            isMunicipal ? "text-violet-300/70" : "text-muted-foreground"
+                          }`}>
                             {notif.body}
                           </p>
+
+                          {/* Admin name para mensajes municipales */}
+                          {isMunicipal && notif.adminName && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <Building2 className="w-3 h-3 text-violet-500/50" />
+                              <span className="text-[10px] text-violet-400/60 font-medium">
+                                {notif.adminName}
+                              </span>
+                              {notif.reportTitle && (
+                                <>
+                                  <span className="text-[9px] text-violet-500/30">·</span>
+                                  <span className="text-[10px] text-violet-400/40">
+                                    {notif.reportTitle}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           <div className="flex items-center gap-3 mt-2">
                             <span className="text-[10px] text-muted-foreground/50">
                               {formatDistanceToNow(notif.time, { locale: es, addSuffix: true })}
@@ -390,7 +461,11 @@ export default function Notifications() {
                               <a
                                 href={notif.actionHref}
                                 onClick={() => markRead(notif.id)}
-                                className="text-[10px] text-primary hover:text-blue-300 font-medium flex items-center gap-0.5 transition-colors ml-auto"
+                                className={`text-[10px] font-medium flex items-center gap-0.5 transition-colors ml-auto ${
+                                  isMunicipal
+                                    ? "text-violet-400 hover:text-violet-300"
+                                    : "text-primary hover:text-blue-300"
+                                }`}
                               >
                                 {notif.actionLabel}
                                 <ChevronRight className="w-3 h-3" />
@@ -400,7 +475,7 @@ export default function Notifications() {
                         </div>
 
                         {/* Mark read button */}
-                        {!notif.read && (
+                        {!notif.read && !isMunicipal && (
                           <button
                             onClick={() => markRead(notif.id)}
                             className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-green-400 hover:bg-green-500/10 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
@@ -422,7 +497,7 @@ export default function Notifications() {
       {/* Tip */}
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-white/2 border border-white/5 text-xs text-muted-foreground/50">
         <Zap className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-yellow-500/40" />
-        Las alertas de pánico y búsqueda de personas extraviadas siempre aparecerán aquí aunque no tengas alertas sonoras activadas.
+        Los mensajes enviados por funcionarios municipales aparecen con un distintivo violeta. Las alertas de pánico y búsqueda de personas extraviadas siempre aparecerán aunque no tengas alertas sonoras activadas.
       </div>
     </div>
   );

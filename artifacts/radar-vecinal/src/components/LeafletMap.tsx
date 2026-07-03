@@ -382,12 +382,12 @@ function UserMarker({ position, simulated }: { position: { lat: number; lng: num
 }
 
 // ── F-10: Custom map controls (locate + zoom) — all grouped top-right ─────────
-function MapControls({ onLocate, simulated }: {
+function MapControls({ geo, onLocate, simulated }: {
+  geo: ReturnType<typeof useGeolocation>;
   onLocate: (lat: number, lng: number, sim: boolean) => void;
   simulated: boolean;
 }) {
   const map = useMap();
-  const geo = useGeolocation();
 
   const handleLocate = () => {
     if (geo.position) {
@@ -515,6 +515,7 @@ export function LeafletMap({
 
         {/* F-10: Custom zoom + locate controls grouped at top-right */}
         <MapControls
+          geo={geo}
           simulated={simulated}
           onLocate={(lat, lng, sim) => { setUserPos({ lat, lng }); setSimulated(sim); }}
         />

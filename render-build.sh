@@ -13,6 +13,11 @@ PNPM="corepack pnpm"
 echo "=== 1. pnpm install ==="
 $PNPM install --no-frozen-lockfile
 
+echo "=== 1.5. Migraciones de BD ==="
+# Ejecuta todas las migraciones SQL pendientes (0000 a 0015)
+# Requiere DATABASE_URL configurada en las variables de entorno de Render
+node run_all_migrations.js
+
 echo "=== 2. Build API Server ==="
 # Construye el backend Express con esbuild → dist/index.mjs
 $PNPM --filter @workspace/api-server run build

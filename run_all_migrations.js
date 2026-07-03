@@ -2,7 +2,7 @@ const { Pool } = require("pg");
 const fs = require("fs");
 const path = require("path");
 
-const migrationsDir = "/home/user/almacen/lib/db/migrations";
+const migrationsDir = path.join(__dirname, "lib", "db", "migrations");
 const migrationFiles = fs.readdirSync(migrationsDir)
   .filter(f => f.endsWith(".sql"))
   .sort();

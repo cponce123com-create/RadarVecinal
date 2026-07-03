@@ -403,21 +403,6 @@ export default function Notifications() {
     </div>
   );
 }
-(
-                                <>
-                                  <span className="text-[9px] text-violet-500/30">·</span>
-                                  <span className="text-[10px] text-violet-400/40">
-                                    {notif.reportTitle}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-3 mt-2">
-                            <span className="text-[10px] text-muted-foreground/50">
-                              {formatDistanceToNow(notif.time, { locale: es, addSuffix: true })}
-                            </span>
                             <span
                               className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
                               style={{ background: meta.bg, color: meta.color }}

@@ -29,7 +29,6 @@ export default function Alerts() {
   // vacía SIEMPRE. Ahora se pasa el distrito y la query espera a tenerlo.
   const { data, isLoading, refetch } = useGetPanicAlerts(
     currentDistrictId ? { districtId: currentDistrictId } : undefined,
-    { query: { enabled: !!currentDistrictId } },
   );
   const queryClient = useQueryClient();
   const alerts = data?.alerts ?? [];

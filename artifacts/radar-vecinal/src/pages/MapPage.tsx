@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Thermometer, Radar, RotateCcw, Map as MapIcon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Thermometer, Radar, RotateCcw, Map as MapIcon, ShieldAlert } from "lucide-react";
 import { LeafletMap, MapMode } from "@/components/LeafletMap";
+import PanicAlertsLayer from "@/components/PanicAlertsLayer";
 import ReportContextMenu from "@/components/ReportContextMenu";
-import { useGetReports, ReportCategory } from "@workspace/api-client-react";
-import { CAT_HEX, CATEGORY_CONFIG, DISTRICT } from "@/lib/constants";
+import { useGetReports, useGetPanicAlerts, ReportCategory } from "@workspace/api-client-react";
+import { CAT_HEX, CATEGORY_CONFIG } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { subDays, subMonths, isAfter } from "date-fns";
@@ -44,11 +45,20 @@ export default function MapPage() {
   const [contextReport, setContextReport] = useState<{ id: string; title: string; status: string } | null>(null);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
 
-  const { currentDistrictId } = useDistrict();
+  const { currentDistrictId, currentDistrict } = useDistrict();
   const { user } = useAuth();
   const isAdmin = !!user && (user.role === "admin" || user.role === "moderator" || user.role === "super_admin");
   const { data, isLoading, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const allReports = data?.reports ?? [];
+
+  // Alertas de pánico activas — comparte caché con PanicAlertsLayer (misma
+  // query key), así que NO genera una segunda petición al servidor.
+  const { data: panicData } = useGetPanicAlerts(
+    currentDistrictId ? { districtId: currentDistrictId, active: true } : undefined,
+    // Cast necesario: el tipo generado por Orval exige queryKey, pero el hook lo construye internamente
+    { query: { refetchInterval: 20000 } as any },
+  );
+  const activePanicCount = (panicData?.alerts ?? []).filter(a => a.isActive).length;
 
   const cutoff15d = subDays(new Date(), 15);
   const last15d = allReports.filter(r => isAfter(new Date(r.createdAt), cutoff15d));
@@ -73,7 +83,7 @@ export default function MapPage() {
           <div>
             <h2 className="font-display text-[20px] font-bold text-white tracking-tight leading-tight">Mapa de Incidentes</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {isLoading ? "Cargando..." : `${displayReports.length} visibles · ${DISTRICT.displayName}`}
+              {isLoading ? "Cargando..." : `${displayReports.length} visibles · ${currentDistrict || "Distrito"}`}
             </p>
           </div>
           <div className="flex items-center gap-0.5 p-1 rounded-xl bg-card border border-white/8">
@@ -92,6 +102,30 @@ export default function MapPage() {
             })}
           </div>
         </div>
+
+        {/* Banner de alertas de pánico activas */}
+        <AnimatePresence>
+          {activePanicCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: -8, height: 0 }}
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-destructive/15 border border-destructive/40"
+            >
+              <span className="relative flex w-2.5 h-2.5 flex-shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+              </span>
+              <ShieldAlert className="w-4 h-4 text-red-300 flex-shrink-0" />
+              <p className="text-xs font-semibold text-red-200">
+                {activePanicCount === 1
+                  ? "1 alerta de pánico activa en el mapa"
+                  : `${activePanicCount} alertas de pánico activas en el mapa`}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Category filter pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
           {ALL_CATEGORY_FILTERS.map(f => {
@@ -140,7 +174,10 @@ export default function MapPage() {
               setContextReport({ id: report.id, title: report.title, status: report.status });
               setContextPos(pos);
             }}
-          />
+          >
+            {/* Alertas de pánico activas — visibles en los 3 modos del mapa */}
+            <PanicAlertsLayer />
+          </LeafletMap>
         )}
 
         <ReportContextMenu report={contextReport} position={contextPos}
@@ -178,6 +215,7 @@ export default function MapPage() {
             <h4 className="label-mono text-[9px] text-white/40 mb-2">Leyenda</h4>
             <div className="space-y-1.5">
               {[
+                { label: "Alerta de pánico", color: "#ef4444", emoji: "🚨" },
                 { label: "Robo / Asalto", color: "#ef4444", emoji: "🔪" },
                 { label: "Pelea", color: "#f97316", emoji: "👊" },
                 { label: "Sospechoso", color: "#eab308", emoji: "👁️" },

@@ -4,6 +4,7 @@ import {
   Shield, Flame, Heart, ShieldAlert, AlertTriangle,
   Phone, UserX, Zap, Search
 } from "lucide-react";
+import { useDistrict } from "@/contexts/DistrictContext";
 
 interface EmergencyContact {
   name: string;
@@ -117,6 +118,7 @@ const cardVariants = {
 export default function Emergencias() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("todos");
+  const { currentDistrict, province } = useDistrict();
 
   const filtered = EMERGENCY_CONTACTS.filter(c => {
     const matchesSearch =
@@ -137,7 +139,7 @@ export default function Emergencias() {
           Números de Emergencia
         </h2>
         <p className="text-[13px] text-muted-foreground mt-1">
-          Contactos de emergencia para San Ramón, Chanchamayo
+          Contactos de emergencia para {currentDistrict ? `${currentDistrict}${province ? `, ${province}` : ""}` : "tu distrito"}
         </p>
       </div>
 

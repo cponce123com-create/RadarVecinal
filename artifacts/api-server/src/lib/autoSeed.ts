@@ -37,17 +37,39 @@ export async function autoSeedIfEmpty() {
 
     logger.info("DB is empty — auto-seeding 50 demo reports...");
 
-    // ── Usuario administrador ────────────────────────────────────────────
-    await db.insert(usersTable).values([{
-      name: "Admin Radar Vecinal",
-      email: "cponce123.com@gmail.com",
-      passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe",
-      role: "admin" as const,
-      sector: "San Ramón Centro",
-      districtId: sanRamonId,
-      district: "San Ramón",
-      reportsCount: 0,
-    }]).onConflictDoNothing();
+    // ── Usuarios demo ─────────────────────────────────────────────────
+    await db.insert(usersTable).values([
+      {
+        name: "Admin Radar Vecinal",
+        email: "cponce123.com@gmail.com",
+        passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe",
+        role: "admin" as const,
+        sector: "San Ramón Centro",
+        districtId: sanRamonId,
+        district: "San Ramón",
+        reportsCount: 0,
+      },
+      {
+        name: "Admin San Ramón",
+        email: "admin-san-ramon@radarvecinal.app",
+        passwordHash: "$2b$10$Wn2fesNFZ.uIZXJaAuqD/es0aN2TF5jB0EHT4ksFpSzgI5R/xiwqW",
+        role: "admin" as const,
+        sector: "San Ramón Centro",
+        districtId: sanRamonId,
+        district: "San Ramón",
+        reportsCount: 0,
+      },
+      {
+        name: "Vecino Demo San Ramón",
+        email: "vecino-san-ramon@radarvecinal.app",
+        passwordHash: "$2b$10$Wn2fesNFZ.uIZXJaAuqD/eHX8WJvdv.Ap52KR3WmrudFwXjqTgbGy",
+        role: "user" as const,
+        sector: "San Ramón Centro",
+        districtId: sanRamonId,
+        district: "San Ramón",
+        reportsCount: 0,
+      },
+    ]).onConflictDoNothing();
 
     // ── 50 Reportes ────────────────────────────────────────────────────────
     const reports = [

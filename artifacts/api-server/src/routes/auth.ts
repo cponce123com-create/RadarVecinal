@@ -451,4 +451,44 @@ router.get("/config/login-warning", (_req: Request, res: Response) => {
   });
 });
 
+// ── POST /auth/claim-superadmin — Reclamar rol de super_admin por email ─────
+// Permite que el dueño del SUPER_ADMIN_EMAIL (configurado en env)
+// actualice su rol a super_admin. Seguro: requiere autenticación previa.
+router.post("/auth/claim-superadmin", requireAuth, async (req: Request, res: Response) => {
+  const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "cponce123.com@gmail.com";
+  const user = (req as any).jwtUser;
+
+  try {
+    // Verificar que el email del usuario autenticado coincida
+    if (user.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()) {
+      return res.status(403).json({ error: "No tienes permiso para reclamar este rol." });
+    }
+
+    // Actualizar rol en la base de datos
+    const [updated] = await db.update(usersTable)
+      .set({ role: "super_admin" })
+      .where(eq(usersTable.id, parseInt(user.sub)))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Usuario no encontrado." });
+    }
+
+    // Generar nuevo token con el rol actualizado
+    const token = signToken(updated);
+    const newRefreshToken = await signRefreshToken(updated.id);
+
+    return res.json({
+      success: true,
+      message: "¡Ahora eres Super Administrador! Recarga la página.",
+      token,
+      refreshToken: newRefreshToken,
+      user: formatUser(updated),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to claim superadmin");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 export default router;

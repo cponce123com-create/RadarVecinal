@@ -1,19 +1,17 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable } from "@workspace/db/schema";
-import { desc, eq, and } from "drizzle-orm";
+import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable, reportsTable, auditLogTable } from "@workspace/db/schema";
+import { desc, eq, and, sql, count } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "./auth";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
-// ── M-07: GET /users — AHORA CON AUTH + filtro por distrito ────────────────
+// ── GET /users — listar usuarios (super_admin ve todos, admin/moderator ve su distrito) ──
 router.get("/users", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).jwtUser;
-
-    // super_admin: ver todos los usuarios
-    // admin/moderator: ver solo usuarios de su distrito
     const users = user.role === "super_admin"
       ? await db.select().from(usersTable).orderBy(desc(usersTable.createdAt)).limit(200)
       : await db.select().from(usersTable)
@@ -41,7 +39,166 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ── M-06: PATCH /users/:id — AHORA CON AUTH ──────────────────────────────
+// ── POST /users/manage — crear usuario (super_admin crea cualquiera, admin crea solo en su distrito) ──
+router.post("/users/manage", requireAuth, requireAdmin, async (req, res) => {
+  const createUserSchema = z.object({
+    name: z.string().min(2, "Nombre muy corto").max(100),
+    email: z.string().email("Email inválido"),
+    password: z.string().min(6, "Mínimo 6 caracteres"),
+    role: z.enum(["admin", "moderator", "user"]).default("user"),
+    sector: z.string().min(1, "Sector requerido").max(100),
+    district: z.string().min(1).max(100).optional(),
+    districtId: z.number().optional(),
+  });
+
+  const parsed = createUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+  }
+
+  const authUser = (req as any).jwtUser;
+  const { name, email, password, role, sector, district, districtId } = parsed.data;
+
+  // Validar permisos: super_admin puede crear cualquier rol
+  // Admin/moderator solo puede crear "user" en su distrito
+  if (authUser.role !== "super_admin" && role !== "user") {
+    return res.status(403).json({ error: "Solo el superadmin puede crear cuentas de administrador." });
+  }
+
+  try {
+    const existing = await db.select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email.toLowerCase().trim()))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: "Ya existe un usuario con ese correo." });
+    }
+
+    const finalDistrictId = districtId ?? Number(authUser.districtId);
+    const finalDistrict = district ?? authUser.district ?? "San Ramón";
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [user] = await db.insert(usersTable).values({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      role: role as any,
+      sector,
+      districtId: finalDistrictId,
+      district: finalDistrict,
+      isActive: true,
+      reportsCount: 0,
+    }).returning();
+
+    return res.status(201).json({
+      id: String(user.id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      sector: user.sector,
+      district: user.district,
+      districtId: user.districtId,
+      isActive: user.isActive,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create user");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /users/:id/stats — estadísticas de desempeño de un usuario admin ──
+router.get("/users/:id/stats", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const authUser = (req as any).jwtUser;
+    const targetId = parseInt(req.params.id as string);
+
+    const [target] = await db.select({ id: usersTable.id, districtId: usersTable.districtId, role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
+    if (!target) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    // super_admin ve stats de cualquiera; admin solo ve los de su distrito
+    if (authUser.role !== "super_admin" && Number(authUser.districtId) !== Number(target.districtId)) {
+      return res.status(403).json({ error: "No puedes ver estadísticas de usuarios de otro distrito." });
+    }
+
+    // Obtener métricas de este usuario desde audit_log
+    const [{ totalActions }] = await db.select({ totalActions: sql<number>`count(*)` })
+      .from(auditLogTable)
+      .where(eq(auditLogTable.changedById, targetId));
+
+    const [{ resolvedBy }] = await db.select({ resolvedBy: sql<number>`count(*)` })
+      .from(auditLogTable)
+      .where(and(
+        eq(auditLogTable.changedById, targetId),
+        eq(auditLogTable.action, "resolved_with_message"),
+      ));
+
+    const [{ messagesSent }] = await db.select({ messagesSent: sql<number>`count(*)` })
+      .from(auditLogTable)
+      .where(and(
+        eq(auditLogTable.changedById, targetId),
+        eq(auditLogTable.action, "message_sent"),
+      ));
+
+    return res.json({
+      userId: String(target.id),
+      totalActions: Number(totalActions),
+      resolvedReports: Number(resolvedBy),
+      messagesSent: Number(messagesSent),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get user stats");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── PATCH /users/:id/status — activar/desactivar usuario ─────────────────────
+router.patch("/users/:id/status", requireAuth, requireAdmin, async (req, res) => {
+  const schema = z.object({ isActive: z.boolean() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" });
+  }
+
+  try {
+    const authUser = (req as any).jwtUser;
+    const targetId = parseInt(req.params.id as string);
+
+    const [target] = await db.select({ id: usersTable.id, districtId: usersTable.districtId, role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
+    if (!target) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    // super_admin puede desactivar cualquiera; admin solo los de su distrito
+    if (authUser.role !== "super_admin" && Number(authUser.districtId) !== Number(target.districtId)) {
+      return res.status(403).json({ error: "No puedes modificar usuarios de otro distrito." });
+    }
+
+    // No permitir desactivarse a sí mismo
+    if (authUser.sub === String(targetId)) {
+      return res.status(400).json({ error: "No puedes desactivar tu propia cuenta." });
+    }
+
+    const [updated] = await db.update(usersTable)
+      .set({ isActive: parsed.data.isActive })
+      .where(eq(usersTable.id, targetId))
+      .returning();
+
+    return res.json({
+      id: String(updated.id),
+      name: updated.name,
+      isActive: updated.isActive,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update user status");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── PATCH /users/:id — actualizar perfil ─────────────────────────────────────
 router.patch("/users/:id", requireAuth, async (req, res) => {
   const schema = z.object({
     name: z.string().optional(),
@@ -66,7 +223,6 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
 
     if (!target) return res.status(404).json({ error: "Usuario no encontrado." });
 
-    // Solo el propio usuario o admin/super_admin pueden editar
     const isSelf = authUser.sub === String(targetId);
     const isAdmin = ["admin", "moderator", "super_admin"].includes(authUser.role);
 
@@ -74,7 +230,6 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "No tienes permiso para editar este usuario." });
     }
 
-    // Si es admin (no super_admin), solo puede editar usuarios de su mismo distrito
     if (isAdmin && authUser.role !== "super_admin" && Number(authUser.districtId) !== Number(target.districtId)) {
       return res.status(403).json({ error: "No puedes editar usuarios de otro distrito." });
     }
@@ -102,11 +257,10 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
   }
 });
 
-// ── M-01: GET /notifications — filtrado por distrito ────────────────────────
+// ── GET /notifications — notificaciones del usuario autenticado ─────────────
 router.get("/notifications", requireAuth, async (req, res) => {
   try {
     const user = (req as any).jwtUser;
-
     const notifications = await db.select()
       .from(notificationsTable)
       .where(and(
@@ -139,7 +293,6 @@ router.get("/ad-slots", async (req, res) => {
       : db.select().from(adSlotsTable);
 
     const ads = await query;
-
     return res.json({
       ads: ads.map(ad => ({
         id: String(ad.id),
@@ -206,7 +359,7 @@ router.post("/ad-slots", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ── PATCH /ad-slots/:id — M-04: con chequeo de tenant ─────────────────────
+// ── PATCH /ad-slots/:id ─────────────────────────────────────────────────────
 router.patch("/ad-slots/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const [ad] = await db.select()

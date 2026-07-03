@@ -476,28 +476,58 @@ export function LeafletMap({
   onContextMenu,
 }: LeafletMapProps) {
   const geo = useGeolocation();
-  const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(
-    geo.position ?? DISTRICT.center
-  );
-  const [simulated, setSimulated] = useState(!geo.position);
+  const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(null);
+  const [simulated, setSimulated] = useState(true);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
   // Auto-solicitar ubicación real al montar el mapa
   useEffect(() => {
-    if (!geo.position && !geo.loading && !geo.error) {
+    if (!geo.position && !geo.loading && !geo.error && !gpsError) {
       geo.request();
     }
   }, []);
 
+  // Cuando geo.position cambia (vía watchPosition/getCurrentPosition del hook)
   useEffect(() => {
     if (geo.position) {
       setUserPos(geo.position);
       setSimulated(false);
+      setGpsError(null);
+    } else if (geo.error) {
+      setGpsError(geo.error);
     }
-  }, [geo.position]);
+  }, [geo.position, geo.error]);
+
+  // Doble fallback: llamar DIRECTAMENTE a navigator.geolocation si el hook no responde
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    const timeout = setTimeout(() => {
+      if (!userPos && simulated) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const posObj = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+            setUserPos(posObj);
+            setSimulated(false);
+            setGpsError(null);
+          },
+          err => {
+            setGpsError(
+              err.code === 1 ? "⚠️ Permiso denegado. Activa ubicación en ajustes del navegador." :
+              err.code === 2 ? "⚠️ GPS no disponible." :
+              "⚠️ Tiempo agotado."
+            );
+          },
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 120000 }
+        );
+      }
+    }, 3000); // Esperar 3s por si el hook responde primero
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   const heatData = heatReports ?? reports;
 
-  const mapCenter = userPos ?? DISTRICT.center;
+  const displayPos = userPos ?? DISTRICT.center;
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -520,7 +550,7 @@ export function LeafletMap({
           onLocate={(lat, lng, sim) => { setUserPos({ lat, lng }); setSimulated(sim); }}
         />
 
-        <UserMarker position={userPos} simulated={simulated} />
+        <UserMarker position={displayPos} simulated={simulated} />
 
         {/* ── MAP mode: category-icon markers ── */}
         {mode === "map" && <CategoryMarkers reports={reports} />}
@@ -532,8 +562,8 @@ export function LeafletMap({
         {mode === "heat" && <SmokeHeatCanvas reports={heatData} />}
       </MapContainer>
 
-      {/* Demo GPS badge */}
-      {simulated && (
+      {/* GPS status badge */}
+      {simulated && !gpsError && (
         <div style={{
           position: "absolute", bottom: 12, right: 12, zIndex: 500,
           display: "flex", alignItems: "center", gap: 6,
@@ -542,7 +572,21 @@ export function LeafletMap({
           backdropFilter: "blur(8px)",
         }}>
           <MapPin style={{ width: 12, height: 12, color: "#f59e0b" }} />
-          <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>Demo · San Ramón Centro</span>
+          <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>📍 Buscando GPS... toca el botón 📍</span>
+        </div>
+      )}
+
+      {/* GPS error badge */}
+      {gpsError && (
+        <div style={{
+          position: "absolute", bottom: 12, right: 12, zIndex: 500,
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "6px 10px", borderRadius: 10,
+          background: "rgba(10,14,23,0.85)", border: "1px solid rgba(245,158,11,0.3)",
+          backdropFilter: "blur(8px)", maxWidth: 200,
+        }}>
+          <MapPin style={{ width: 12, height: 12, color: "#f59e0b", flexShrink: 0 }} />
+          <span style={{ fontSize: 9, color: "#f59e0b", fontWeight: 500 }}>{gpsError}</span>
         </div>
       )}
     </div>

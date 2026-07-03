@@ -35,7 +35,7 @@ const queryClient = new QueryClient({
 
 // Apply theme from localStorage (defaults to dark)
 if (typeof document !== "undefined") {
-  const savedTheme = localStorage.getItem("rvs_theme");
+  const savedTheme = localStorage.getItem("radar_theme");
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const isDark = savedTheme ? savedTheme === "dark" : prefersDark !== false;
   document.documentElement.classList.toggle("dark", isDark);

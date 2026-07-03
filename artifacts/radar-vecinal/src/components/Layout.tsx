@@ -70,15 +70,15 @@ function DistrictSelector({ compact = false }: { compact?: boolean }) {
             >
               <div className="p-1.5 flex flex-col gap-0.5">
                 {districts.map((d: any) => (
-                  <button key={d} onClick={() => { setDistrict(d.slug); setOpen(false); }}
+                  <button key={d.id} onClick={() => { setDistrict(d.slug); setOpen(false); }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                      currentDistrict === d
+                      currentDistrict === d.name
                         ? "bg-primary/15 text-primary font-semibold"
                         : "text-muted-foreground hover:bg-white/6 hover:text-white"
                     }`}>
                     <MapPin className="w-3 h-3 flex-shrink-0" />
-                    {d}
-                    {currentDistrict === d && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                    {d.name}
+                    {currentDistrict === d.name && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
                   </button>
                 ))}
               </div>

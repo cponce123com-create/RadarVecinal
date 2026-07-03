@@ -286,7 +286,11 @@ function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
 }
 
 // ── Category marker layer ─────────────────────────────────────────────────────
-function CategoryMarkers({ reports }: { reports: Report[] }) {
+function CategoryMarkers({ reports, isAdmin, onContextMenu }: {
+  reports: Report[];
+  isAdmin?: boolean;
+  onContextMenu?: (report: Report, pos: { x: number; y: number }) => void;
+}) {
   const map = useMap();
   const markersRef = useRef<L.Marker[]>([]);
 
@@ -302,6 +306,18 @@ function CategoryMarkers({ reports }: { reports: Report[] }) {
       const timeAgo = formatDistanceToNow(new Date(r.createdAt), { locale: es, addSuffix: true });
 
       const marker = L.marker([r.latitude, r.longitude], { icon }).addTo(map);
+
+      // ── Admin: clic derecho abre menú contextual ──
+      if (isAdmin && r.status !== "resolved" && r.status !== "archived") {
+        marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
+          const container = map.getContainer();
+          const rect = container.getBoundingClientRect();
+          onContextMenu?.(r, {
+            x: rect.left + e.containerPoint.x,
+            y: rect.top + e.containerPoint.y,
+          });
+        });
+      }
 
       const popupHtml = `
         <div style="
@@ -336,7 +352,7 @@ function CategoryMarkers({ reports }: { reports: Report[] }) {
     });
 
     return () => { markersRef.current.forEach(m => m.remove()); markersRef.current = []; };
-  }, [map, reports]);
+  }, [map, reports, isAdmin, onContextMenu]);
 
   return null;
 }
@@ -446,6 +462,8 @@ interface LeafletMapProps {
   heatReports?: Report[];
   mode?: MapMode;
   className?: string;
+  isAdmin?: boolean;
+  onContextMenu?: (report: Report, pos: { x: number; y: number }) => void;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -454,6 +472,8 @@ export function LeafletMap({
   heatReports,
   mode = "map",
   className = "",
+  isAdmin = false,
+  onContextMenu,
 }: LeafletMapProps) {
   const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(DISTRICT.center);
   const [simulated, setSimulated] = useState(true);

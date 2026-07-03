@@ -426,6 +426,68 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
   }
 });
 
+// ── POST /reports/:id/resolve — Admin resuelve con mensaje al vecino ──────
+router.post("/reports/:id/resolve", requireAuth, requireAdmin, async (req, res) => {
+  const resolveSchema = z.object({
+    message: z.string().min(1, "El mensaje es obligatorio").max(500),
+  });
+  const parsed = resolveSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Mensaje inválido" });
+  }
+
+  try {
+    const [report] = await db.select()
+      .from(reportsTable)
+      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    if (!checkTenant(req, report.districtId)) {
+      return res.status(403).json({ error: "No puedes resolver reportes de otro distrito." });
+    }
+
+    const user = (req as any).jwtUser;
+    const resolutionMsg = `🟢 RESUELTO — ${parsed.data.message}`;
+    const updatedDescription = report.description
+      ? `${report.description}\n\n---\n${resolutionMsg}\n— ${user?.name ?? "Administrador municipal"}`
+      : `${resolutionMsg}\n— ${user?.name ?? "Administrador municipal"}`;
+
+    const [updated] = await db.update(reportsTable)
+      .set({
+        status: "resolved" as const,
+        description: updatedDescription,
+        updatedAt: new Date(),
+      })
+      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+      .returning();
+
+    // Guardar en audit log
+    await db.insert(auditLogTable).values({
+      districtId: updated.districtId,
+      entityType: "report",
+      entityId: updated.id,
+      action: "resolved_with_message",
+      previousValue: report.status,
+      newValue: "resolved",
+      changedBy: user?.email ?? "unknown",
+      changedById: user ? Number(user.sub) : undefined,
+    }).catch(() => {});
+
+    return res.json({
+      ...updated,
+      id: String(updated.id),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+      resolutionMessage: parsed.data.message,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to resolve report");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── POST /seed — M-12: parametrizado por districtSlug ────────────────────────
 // Rate limiter estricto: máximo 5 intentos por hora por IP
 const seedLimiter = rateLimit({
@@ -470,16 +532,27 @@ router.post("/seed", seedLimiter, async (req, res) => {
     const ts = (daysAgo: number, hrsAgo = 0) =>
       new Date(Date.now() - daysAgo * 86400000 - hrsAgo * 3600000);
 
-    // Admin user for this district
-    await db.insert(usersTable).values({
-      name: `Admin ${district.name}`,
-      email: `admin-${district.slug}@radarvecinal.app`,
-      passwordHash: "$2b$10$fjXrnkPKElRJkoS2Jcq.iuJYERLKOUHjFikzaKlPpYPgqczub1fIe",
-      role: "admin" as const,
-      sector: `${district.name} Centro`,
-      districtId: district.id,
-      district: district.name,
-    }).onConflictDoNothing();
+    // ── 2 Usuarios demo para pruebas ─────────────────────────────────────
+    await db.insert(usersTable).values([
+      {
+        name: `Admin ${district.name}`,
+        email: `admin-${district.slug}@radarvecinal.app`,
+        passwordHash: "$2b$10$Wn2fesNFZ.uIZXJaAuqD/es0aN2TF5jB0EHT4ksFpSzgI5R/xiwqW",
+        role: "admin" as const,
+        sector: `${district.name} Centro`,
+        districtId: district.id,
+        district: district.name,
+      },
+      {
+        name: `Vecino Demo ${district.name}`,
+        email: `vecino-${district.slug}@radarvecinal.app`,
+        passwordHash: "$2b$10$Wn2fesNFZ.uIZXJaAuqD/eHX8WJvdv.Ap52KR3WmrudFwXjqTgbGy",
+        role: "user" as const,
+        sector: `${district.name} Centro`,
+        districtId: district.id,
+        district: district.name,
+      },
+    ]).onConflictDoNothing();
 
     // Reports for this district
     const reports = Array.from({ length: 20 }, (_, i) => ({

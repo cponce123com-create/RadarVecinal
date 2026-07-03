@@ -2,9 +2,11 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Thermometer, Radar, RotateCcw, Map as MapIcon } from "lucide-react";
 import { LeafletMap, MapMode } from "@/components/LeafletMap";
+import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
 import { CAT_HEX, CATEGORY_CONFIG, DISTRICT } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { subDays, subMonths, isAfter } from "date-fns";
 
 const ALL_CATEGORY_FILTERS: { id: string; label: string }[] = [
@@ -34,9 +36,13 @@ const VIEW_MODES: { id: MapMode; label: string; Icon: React.ElementType; sub: st
 export default function MapPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [viewMode, setViewMode] = useState<MapMode>("map");
+  const [contextReport, setContextReport] = useState<{ id: string; title: string; status: string } | null>(null);
+  const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
 
   const { currentDistrictId } = useDistrict();
-  const { data, isLoading } = useGetReports({ districtId: currentDistrictId ?? undefined });
+  const { user } = useAuth();
+  const isAdmin = !!user && (user.role === "admin" || user.role === "moderator" || user.role === "super_admin");
+  const { data, isLoading, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const allReports = data?.reports ?? [];
 
   const cutoff15d   = subDays(new Date(), 15);
@@ -151,8 +157,21 @@ export default function MapPage() {
             reports={displayReports}
             heatReports={heatReports}
             mode={viewMode}
+            isAdmin={isAdmin}
+            onContextMenu={(report, pos) => {
+              setContextReport({ id: report.id, title: report.title, status: report.status });
+              setContextPos(pos);
+            }}
           />
         )}
+
+        {/* Menu contextual para admin (clic derecho) */}
+        <ReportContextMenu
+          report={contextReport}
+          position={contextPos}
+          onClose={() => { setContextReport(null); setContextPos(null); }}
+          onResolved={() => { setContextReport(null); setContextPos(null); refetch(); }}
+        />
 
         {/* Mode info badge */}
         <div

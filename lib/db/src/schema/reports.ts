@@ -57,6 +57,13 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),
   dni: text("dni").unique(),
+  phone: text("phone"),
+  firstName: text("first_name").notNull().default(""),
+  lastName: text("last_name").notNull().default(""),
+  bannedAt: timestamp("banned_at", { mode: "string" }),
+  banReason: text("ban_reason"),
+  banReportedById: integer("ban_reported_by_id").references(() => usersTable.id),
+  helpfulReports: integer("helpful_reports").notNull().default(0),
   role: userRoleEnum("role").notNull().default("user"),
   sector: text("sector").notNull().default(""),
   // M-05: districtId es la fuente de verdad; district/province/department se
@@ -319,4 +326,25 @@ export const refreshTokensTable = pgTable("refresh_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   revoked: boolean("revoked").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Puntos estáticos (acumulan reportes en una misma ubicación) ──────────────
+export const staticPointsTable = pgTable("static_points", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  category: reportCategoryEnum("category").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  address: text("address").default(""),
+  sector: text("sector").notNull(),
+  reportCount: integer("report_count").notNull().default(0),
+  firstReportedAt: timestamp("first_reported_at").notNull().defaultNow(),
+  lastReportedAt: timestamp("last_reported_at").notNull().defaultNow(),
+  resolutionReports: integer("resolution_reports").notNull().default(0),
+  isResolved: boolean("is_resolved").notNull().default(false),
+  resolvedAt: timestamp("resolved_at", { mode: "string" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

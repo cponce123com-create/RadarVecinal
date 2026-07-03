@@ -18,12 +18,16 @@ const JWT_REFRESH_EXPIRES_DAYS = 30;
 
 // ── Zod schemas ─────────────────────────────────────────────────────────────
 const registerSchema = z.object({
-  name:     z.string().min(2, "Nombre muy corto").max(100),
-  email:    z.string().email("Email inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
-  sector:   z.string().min(1, "Sector requerido").max(100),
-  district: z.string().min(1).max(100).optional().default("San Ramón"),
-  dni:      z.string().min(8, "DNI inválido").max(12).optional().nullable(),
+  name:       z.string().min(2, "Nombre muy corto").max(100),
+  email:      z.string().email("Email inválido"),
+  password:   z.string().min(6, "Mínimo 6 caracteres"),
+  sector:     z.string().min(1, "Sector requerido").max(100),
+  district:   z.string().min(1).max(100).optional().default("San Ramón"),
+  dni:        z.string().min(8, "DNI inválido").max(12).optional().nullable(),
+  phone:      z.string().regex(/^[+\d\s\-()]{7,15}$/, "Teléfono inválido").optional().nullable(),
+  firstName:  z.string().min(1, "Nombre requerido").max(100).optional(),
+  lastName:   z.string().min(1, "Apellido requerido").max(100).optional(),
+  districtId: z.number().positive("Distrito requerido").optional(),
 });
 
 const loginSchema = z.object({
@@ -470,5 +474,13 @@ export function requireDistrictFilter(req: Request, res: Response, next: NextFun
 
   return next();
 }
+
+// ── GET /config/login-warning — Advertencia legal sobre reportes falsos ──────
+router.get("/config/login-warning", (_req: Request, res: Response) => {
+  return res.json({
+    warning: `⚠️ ADVERTENCIA LEGAL\n\nLa Municipalidad de San Ramón te recuerda que:\n\n• Reportar incidentes falsos es una falta grave.\n• Los datos personales (DNI, teléfono, dirección) se usarán exclusivamente para fines de verificación municipal.\n• El uso indebido del sistema puede resultar en la suspensión permanente de tu cuenta.\n• Los reportes falsos serán denunciados ante las autoridades competentes.\n\nAl registrarte, aceptas estos términos y condiciones.`,
+    enabled: true,
+  });
+});
 
 export default router;

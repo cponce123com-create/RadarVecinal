@@ -9,8 +9,9 @@ import {
   adSlotsTable,
   districtsTable,
   auditLogTable,
+  staticPointsTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, sql, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, isNull, gte, lte } from "drizzle-orm";
 import rateLimit from "express-rate-limit";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
@@ -597,4 +598,118 @@ router.post("/seed", seedLimiter, async (req, res) => {
   }
 });
 
+// ── POST /reports/:id/flag-fake — Admin marca reporte falso y banea usuario ──
+router.post("/reports/:id/flag-fake", requireAuth, requireAdmin, async (req, res) => {
+  const flagFakeSchema = z.object({
+    reason: z.string().min(1, "Motivo requerido").max(500),
+  });
+  const parsed = flagFakeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Motivo inválido" });
+  }
+
+  try {
+    const [report] = await db.select()
+      .from(reportsTable)
+      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    if (!checkTenant(req, report.districtId)) {
+      return res.status(403).json({ error: "No puedes moderar reportes de otro distrito." });
+    }
+
+    const adminUser = (req as any).jwtUser;
+
+    // Si el reporte tiene autorUserId, bannear al usuario autor
+    let bannedUserId: number | null = null;
+    if (report.authorUserId) {
+      await db.update(usersTable)
+        .set({
+          bannedAt: sql`NOW()`,
+          banReason: parsed.data.reason,
+          banReportedById: adminUser ? Number(adminUser.sub) : null,
+          isActive: false,
+        })
+        .where(eq(usersTable.id, report.authorUserId));
+      bannedUserId = report.authorUserId;
+    }
+
+    // Marcar reporte como archivado
+    await db.update(reportsTable)
+      .set({ status: "archived" as const, updatedAt: new Date() })
+      .where(eq(reportsTable.id, report.id));
+
+    // Audit log
+    await db.insert(auditLogTable).values({
+      districtId: report.districtId,
+      entityType: "report",
+      entityId: report.id,
+      action: "flagged_fake",
+      previousValue: report.status,
+      newValue: "archived",
+      changedBy: adminUser?.email ?? "unknown",
+      changedById: adminUser ? Number(adminUser.sub) : undefined,
+    }).catch(() => {});
+
+    return res.json({
+      success: true,
+      message: "Reporte marcado como falso y usuario baneado.",
+      bannedUserId,
+      banReason: parsed.data.reason,
+      reportId: String(report.id),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to flag report as fake");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /reports/:id/static-info — Obtener info de punto estático ───────────
+router.post("/reports/:id/static-info", optionalAuth, async (req, res) => {
+  try {
+    const [report] = await db.select()
+      .from(reportsTable)
+      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    // Buscar punto estático cercano (radio 50m)
+    const LAT_DEG = 50 / 111000;
+    const LNG_DEG = 50 / (111000 * Math.cos(report.latitude * Math.PI / 180));
+
+    const [staticPoint] = await db.select()
+      .from(staticPointsTable)
+      .where(and(
+        eq(staticPointsTable.districtId, report.districtId),
+        sql`${staticPointsTable.latitude} BETWEEN ${report.latitude - LAT_DEG} AND ${report.latitude + LAT_DEG}`,
+        sql`${staticPointsTable.longitude} BETWEEN ${report.longitude - LNG_DEG} AND ${report.longitude + LNG_DEG}`,
+      ))
+      .limit(1);
+
+    if (!staticPoint) {
+      return res.json({ hasStaticPoint: false, staticPoint: null });
+    }
+
+    return res.json({
+      hasStaticPoint: true,
+      staticPoint: {
+        id: String(staticPoint.id),
+        title: staticPoint.title,
+        category: staticPoint.category,
+        reportCount: staticPoint.reportCount,
+        isResolved: staticPoint.isResolved,
+        firstReportedAt: staticPoint.firstReportedAt.toISOString(),
+        lastReportedAt: staticPoint.lastReportedAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get static point info");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 export default router;
+

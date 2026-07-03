@@ -14,11 +14,13 @@ import civicEducationRouter from "./civicEducation";
 import embedRouter from "./embed";
 import reportsPdfRouter from "./reportsPdf";
 import messagesRouter from "./messages";
+import reniecRouter from "./reniec";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(reniecRouter);
 router.use(reportsRouter);
 router.use(alertsRouter);
 router.use(statsRouter);

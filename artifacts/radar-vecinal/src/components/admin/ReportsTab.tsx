@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Phone, CheckCircle, Eye, Clock, FileText, MessageSquare } from "lucide-react";
+import { Trash2, Phone, CheckCircle, Eye, Clock, FileText, MessageSquare, AlertTriangle, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUpdateReport, useDeleteReport, ReportStatus } from "@workspace/api-client-react";
@@ -159,6 +159,20 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
                             <Clock className="w-4 h-4" />
                           </button>
                         )}
+                        <button onClick={() => {
+                          if (confirm("¿Estás seguro? Se marcará como REPORTE FALSO y el usuario será BANEADO permanentemente.")) {
+                            fetch(`/api/reports/${r.id}/flag-fake`, {
+                              method: "POST",
+                              headers: { Authorization: `Bearer ${localStorage.getItem("radarvecinal_token")}` },
+                            }).then(res => {
+                              if (res.ok) { toast({ title: "⚠️ Reporte falso marcado", description: "Usuario baneado permanentemente.", variant: "destructive" }); onRefetch(); }
+                              else { res.json().then(d => toast({ title: "Error", description: d.error, variant: "destructive" })); }
+                            }).catch(() => toast({ title: "Error", variant: "destructive" }));
+                          }
+                        }} title="Marcar como reporte falso (banea al usuario)"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/15 transition-colors">
+                          <AlertTriangle className="w-4 h-4" />
+                        </button>
                         <button onClick={() => setDeleteId(r.id)} title="Eliminar reporte"
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/15 transition-colors">
                           <Trash2 className="w-4 h-4" />

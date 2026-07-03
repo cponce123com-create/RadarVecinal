@@ -16,10 +16,22 @@ app.use(swaggerRouter);
 // Trust proxy headers so rate-limit works correctly behind reverse proxy
 app.set("trust proxy", 1);
 
-// B-19: Security headers (helmet) — disable CSP/COEP to keep API accessible from frontend
+// B-19: Security headers (helmet) — CSP básico para prevenir XSS
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // necesario para React dev
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "https://*.googleapis.com", "https://*.firebaseio.com"],
+      fontSrc: ["'self'", "data:"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
 }));
 
 // Disable ETag so API responses are never cached as stale empty data
@@ -118,6 +130,12 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiados intentos. Intenta en 15 minutos." },
+  keyGenerator: (req) => {
+    // Rate limit por email (si disponible) + IP
+    const email = req.body?.email;
+    const ip = req.ip ?? req.socket.remoteAddress ?? "";
+    return email ? `auth_${email.toLowerCase().trim()}_${ip}` : `auth_ip_${ip}`;
+  },
 });
 
 app.use("/api/auth", authLimiter);

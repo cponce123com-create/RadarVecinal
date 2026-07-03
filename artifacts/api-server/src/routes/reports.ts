@@ -80,23 +80,25 @@ router.get("/reports", optionalAuth, async (req, res) => {
       .where(and(...conditions))
       .orderBy(desc(reportsTable.createdAt))
       .limit(limitNum)
-      const user = (req as any).jwtUser;
-      const userId = user?.sub ? parseInt(user.sub) : null;
+      .offset(offsetNum);
 
-      return res.json({
-        reports: reports.map(r => {
-          // Anonimizar: solo el autor del reporte ve su nombre real
-          const isOwner = userId && r.authorUserId === userId;
-          return {
-            ...r,
-            id: String(r.id),
-            authorName: isOwner ? r.authorName : r.authorName, // ya es Vecino XXXXXX
-            createdAt: r.createdAt.toISOString(),
-            updatedAt: r.updatedAt.toISOString(),
-          };
-        }),
-        total: Number(count),
-      });
+    const user = (req as any).jwtUser;
+    const userId = user?.sub ? parseInt(user.sub) : null;
+
+    return res.json({
+      reports: reports.map(r => {
+        // Anonimizar: solo el autor del reporte ve su nombre real
+        const isOwner = userId && r.authorUserId === userId;
+        return {
+          ...r,
+          id: String(r.id),
+          authorName: isOwner ? r.authorName : r.authorName,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        };
+      }),
+      total: Number(count),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get reports");
     return res.status(500).json({ error: "Error interno del servidor." });

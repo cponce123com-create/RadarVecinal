@@ -12,6 +12,8 @@ const router: IRouter = Router();
 router.get("/users", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).jwtUser;
+    const canSeeEmails = user.role === "super_admin";
+
     const users = user.role === "super_admin"
       ? await db.select().from(usersTable).orderBy(desc(usersTable.createdAt)).limit(200)
       : await db.select().from(usersTable)
@@ -23,7 +25,8 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
       users: users.map(u => ({
         id: String(u.id),
         name: u.name,
-        email: u.email,
+        // Solo super_admin ve emails de vecinos; admins ven emails de backoffice
+        email: (canSeeEmails || u.role !== "user") ? u.email : undefined,
         role: u.role,
         sector: u.sector,
         district: u.district,
@@ -44,7 +47,11 @@ router.post("/users/manage", requireAuth, requireAdmin, async (req, res) => {
   const createUserSchema = z.object({
     name: z.string().min(2, "Nombre muy corto").max(100),
     email: z.string().email("Email inválido"),
-    password: z.string().min(6, "Mínimo 6 caracteres"),
+    password: z.string()
+      .min(8, "Mínimo 8 caracteres")
+      .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+      .regex(/[a-z]/, "Debe contener al menos una minúscula")
+      .regex(/[0-9]/, "Debe contener al menos un número"),
     role: z.enum(["admin", "moderator", "user"]).default("user"),
     sector: z.string().min(1, "Sector requerido").max(100),
     district: z.string().min(1).max(100).optional(),

@@ -20,7 +20,11 @@ const JWT_REFRESH_EXPIRES_DAYS = 30;
 const registerSchema = z.object({
   name:       z.string().min(2, "Nombre muy corto").max(100),
   email:      z.string().email("Email inválido"),
-  password:   z.string().min(6, "Mínimo 6 caracteres"),
+  password:   z.string()
+    .min(8, "Mínimo 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+    .regex(/[a-z]/, "Debe contener al menos una minúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número"),
   sector:     z.string().min(1, "Sector requerido").max(100),
   district:   z.string().min(1).max(100).optional().default("San Ramón"),
   dni:        z.string().min(8, "DNI inválido").max(12).optional().nullable(),
@@ -45,7 +49,7 @@ async function resolveDistrict(name: string): Promise<number> {
     .from(districtsTable)
     .where(eq(districtsTable.name, name))
     .limit(1);
-  if (!d) throw new Error(`Distrito "${name}" no encontrado en el catálogo.`);
+  if (!d) throw new Error(`Distrito no válido.`);
   return d.id;
 }
 
@@ -143,7 +147,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     try {
       districtId = await resolveDistrict(district ?? "San Ramón");
     } catch {
-      return res.status(400).json({ error: `Distrito "${district}" no válido. Selecciona un distrito del catálogo.` });
+      return res.status(400).json({ error: "Distrito no válido. Verifica e intenta de nuevo." });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -251,7 +255,7 @@ router.post("/auth/google", async (req: Request, res: Response) => {
     try {
       districtId = await resolveDistrict("San Ramón");
     } catch {
-      return res.status(500).json({ error: "Error de configuración: distrito por defecto no encontrado." });
+      return res.status(500).json({ error: "Error de configuración del servidor. Contacta al administrador." });
     }
 
     const [user] = await db.insert(usersTable).values({

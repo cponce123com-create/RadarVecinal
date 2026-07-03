@@ -186,7 +186,7 @@ router.post("/admin/municipal-users", requireAuth, requireSuperAdmin, async (req
       .limit(1);
 
     if (!district) {
-      return res.status(400).json({ error: `Distrito "${data.districtName}" no encontrado en el catálogo.` });
+      return res.status(400).json({ error: "Distrito no encontrado. Verifica el nombre e intenta de nuevo." });
     }
 
     // 3. Crear usuario municipal

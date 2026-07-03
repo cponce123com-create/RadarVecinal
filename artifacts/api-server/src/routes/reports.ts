@@ -501,6 +501,10 @@ const seedLimiter = rateLimit({
 
 router.post("/seed", seedLimiter, async (req, res) => {
   try {
+    // Seguridad: en producción, seed solo si ALLOW_SEED=true explícitamente
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
+      return res.status(403).json({ error: "Seed deshabilitado en producción. Configura ALLOW_SEED=true para habilitarlo." });
+    }
     // Verificar seed key
     const seedKey = req.headers["x-seed-key"];
     if (process.env.NODE_ENV === "production" && seedKey !== process.env.SEED_KEY) {

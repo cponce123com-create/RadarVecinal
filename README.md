@@ -64,7 +64,7 @@ pnpm --filter @workspace/api-server run dev
 | `REDIS_URL` | Conexión Redis (workers) | Para Tarea 6 |
 | `CORS_ORIGIN` | Orígenes CORS permitidos | ❌ |
 | `GCS_BUCKET_NAME` | Bucket Google Cloud Storage | ❌ |
-| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | ❌ |
+| `GCS_SERVICE_ACCOUNT_KEY` | JSON service account GCS | ❌ |
 
 ## 🗺️ Despliegue
 

@@ -8,13 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Props { open: boolean; onClose: () => void; }
 type Mode = "login" | "register";
 
-const LOGIN_WARNING = "⚠️ ESTÁ PROHIBIDO REALIZAR REPORTES FALSOS.
-
-Según la Ley N° 30076 (Código Penal Peruano), realizar denuncias falsas es un delito. Los reportes falsos serán investigados y el responsable será BANEADO PERMANENTEMENTE de Radar Vecinal, sin posibilidad de crear una nueva cuenta.
-
-Tu identidad está protegida: tus datos personales (DNI, nombre, teléfono) son visibles SOLO para la Municipalidad. Los demás vecinos ven tu reporte como anónimo.
-
-La Municipalidad se compromete a NO difundir tu identidad. Tus reportes ayudan a construir un distrito más seguro para todos.";
+const LOGIN_WARNING = "⚠️ ESTÁ PROHIBIDO REALIZAR REPORTES FALSOS.\n\nSegún la Ley N° 30076 (Código Penal Peruano), realizar denuncias falsas es un delito. Los reportes falsos serán investigados y el responsable será BANEADO PERMANENTEMENTE de Radar Vecinal, sin posibilidad de crear una nueva cuenta.\n\nTu identidad está protegida: tus datos personales (DNI, nombre, teléfono) son visibles SOLO para la Municipalidad. Los demás vecinos ven tu reporte como anónimo.\n\nLa Municipalidad se compromete a NO difundir tu identidad. Tus reportes ayudan a construir un distrito más seguro para todos.";
 
 export default function AuthModal({ open, onClose }: Props) {
   const { login } = useAuth();

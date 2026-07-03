@@ -90,6 +90,16 @@ export async function sendStatusChangeEmail(data: StatusChangeEmail): Promise<vo
   }
 }
 
+// ── Bugfix 7: Escape HTML mínimo para prevenir inyección ─────────────────────
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // ── Interfaz para mensaje personalizado del admin ────────────────────────────
 interface CustomMessageEmail {
   to: string;
@@ -109,37 +119,43 @@ export async function sendCustomMessageEmail(data: CustomMessageEmail): Promise<
     const t = getTransporter();
     if (!t) return;
 
+    // Bugfix 7: Sanitizar todo lo que viene del usuario/admin
+    const safeMessage = escapeHtml(data.message);
+    const safeTitle = escapeHtml(data.reportTitle);
+    const safeAdmin = escapeHtml(data.adminName);
+    const safeDistrict = escapeHtml(data.districtName);
+
     await t.sendMail({
       from: process.env.SMTP_FROM || "noreply@radarvecinal.pe",
       to: data.to,
-      subject: `📩 Municipalidad de ${data.districtName} se comunicó contigo`,
+      subject: `📩 Municipalidad de ${safeDistrict} se comunicó contigo`,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0f1219;color:#e2e8f0;padding:24px;border-radius:12px">
           <div style="text-align:center;margin-bottom:20px">
             <span style="font-size:32px">🏛️</span>
           </div>
-          <h2 style="color:#fff;margin-top:0;text-align:center">Municipalidad de ${data.districtName}</h2>
+          <h2 style="color:#fff;margin-top:0;text-align:center">Municipalidad de ${safeDistrict}</h2>
           <p style="color:#94a3b8;text-align:center;font-size:13px">
-            Mensaje enviado por <strong style="color:#fff">${data.adminName}</strong>
+            Mensaje enviado por <strong style="color:#fff">${safeAdmin}</strong>
           </p>
           <div style="border-top:1px solid #1e293b;margin:16px 0" />
 
           <div style="background:#1e293b;border-radius:8px;padding:16px;margin:16px 0">
             <p style="margin:0;font-size:13px;color:#94a3b8;margin-bottom:8px">
-              Reporte: <strong style="color:#fff">"${data.reportTitle}"</strong>
+              Reporte: <strong style="color:#fff">"${safeTitle}"</strong>
             </p>
             <div style="border-top:1px solid #2d3748;margin:12px 0" />
             <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-wrap">
-              ${data.message}
+              ${safeMessage}
             </p>
           </div>
 
           <p style="color:#64748b;font-size:12px;text-align:center">
-            Este es un mensaje oficial de la Municipalidad de ${data.districtName}.
+            Este es un mensaje oficial de la Municipalidad de ${safeDistrict}.
             No respondas a este correo. Para cualquier consulta, acércate a la oficina de atención al vecino.
           </p>
           <p style="color:#64748b;font-size:12px;text-align:center">
-            — Radar Vecinal · ${data.districtName}
+            — Radar Vecinal · ${safeDistrict}
           </p>
         </div>
       `,

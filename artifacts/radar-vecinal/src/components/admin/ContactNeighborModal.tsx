@@ -12,8 +12,10 @@ interface ReportInfo {
   title: string;
   category: string;
   sector: string;
+  district: string;
   authorName: string;
   contactPhone: string | null;
+  contactEmail: string | null;
   isAnonymous: boolean;
   status: string;
 }
@@ -148,8 +150,9 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
     // WhatsApp: deep link directo (no requiere API)
     if (channel === "whatsapp") {
       const phone = formatPhoneForWa(report.contactPhone ?? "");
+      const districtName = report.district || "San Ramón";
       const waMsg = encodeURIComponent(
-        `🏛️ *Municipalidad de San Ramón*
+        `🏛️ *Municipalidad de ${districtName}*
 
 ` +
         `Reporte: "${report.title}"
@@ -257,7 +260,7 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
-                  <MessageSquare className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} className="text-primary" />
+                  <MessageSquare className="w-4.5 h-4.5 text-primary" />
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-white truncate">Contactar vecino</h3>

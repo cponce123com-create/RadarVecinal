@@ -90,6 +90,10 @@ export const reportsTable = pgTable("reports", {
   imageUrl: text("image_url"),
   authorName: text("author_name").notNull(),
   contactPhone: text("contact_phone"),
+  // Bugfix 1: Email real del vecino (no inferido de contactPhone)
+  contactEmail: text("contact_email"),
+  // Bugfix 4: Referencia directa al usuario autor
+  authorUserId: integer("author_user_id").references(() => usersTable.id),
   confirmedCount: integer("confirmed_count").notNull().default(0),
   assignedTo: integer("assigned_to").references(() => departmentsTable.id),
   deletedAt: timestamp("deleted_at", { mode: "string" }),

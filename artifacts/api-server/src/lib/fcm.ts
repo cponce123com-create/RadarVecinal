@@ -105,24 +105,52 @@ export async function sendPanicAlertPush(alert: {
 }
 
 /**
- * Envía una notificación push cuando el admin municipal envía un mensaje
- * al vecino. Best-effort: no lanza errores.
+ * Envía una notificación push dirigida SOLO al vecino destinatario.
+ * Bugfix 3: No usa topic del distrito — busca el fcmToken del usuario
+ * en la tabla subscriptions y envía a token individual.
+ * Si no hay token registrado, solo loggea y no envía nada.
  */
-export async function sendMunicipalPushAlert(data: {
+export async function sendMunicipalPushToUser(data: {
+  userId: number;
   districtId: number;
   title: string;
   body: string;
   reportId: number;
 }): Promise<void> {
   try {
-    if (!initFcm()) return;
+    if (!initFcm()) {
+      logger.warn({ userId: data.userId }, "[FCM] No disponible — push municipal no enviado");
+      return;
+    }
+
+    // Buscar token FCM del usuario en subscriptions
+    const { subscriptionsTable } = await import("@workspace/db/schema");
+    const { db } = await import("@workspace/db");
+    const { eq, and } = await import("drizzle-orm");
+
+    const [sub] = await db.select()
+      .from(subscriptionsTable)
+      .where(and(
+        eq(subscriptionsTable.email, String(data.userId)),
+        eq(subscriptionsTable.districtId, data.districtId),
+        eq(subscriptionsTable.isActive, true),
+      ))
+      .limit(1);
+
+    const fcmToken = sub?.fcmToken;
+
+    if (!fcmToken) {
+      logger.warn({ userId: data.userId, reportId: data.reportId },
+        "[FCM] Sin fcmToken registrado para este usuario — push no enviado. Solo notificación in-app.");
+      return;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const admin = require("firebase-admin");
 
     await admin.messaging().send({
       notification: { title: data.title, body: data.body },
-      topic: `district-${data.districtId}`,
+      token: fcmToken,
       android: {
         priority: "high",
         notification: {
@@ -139,7 +167,7 @@ export async function sendMunicipalPushAlert(data: {
       },
     });
 
-    logger.info({ reportId: data.reportId, districtId: data.districtId }, "[FCM] Push municipal enviado");
+    logger.info({ userId: data.userId, reportId: data.reportId }, "[FCM] Push municipal enviado al vecino");
   } catch (err) {
     logger.error({ err, reportId: data.reportId }, "[FCM] Error al enviar push municipal (best-effort)");
   }

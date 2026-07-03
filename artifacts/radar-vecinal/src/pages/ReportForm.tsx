@@ -86,6 +86,7 @@ export default function ReportForm() {
     sector: SECTORS[0],
     address: "",
     contactPhone: "",
+    contactEmail: "",
     authorName: "",
     latitude: DISTRICT.center.lat,
     longitude: DISTRICT.center.lng,

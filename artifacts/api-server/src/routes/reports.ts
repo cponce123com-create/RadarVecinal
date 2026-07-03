@@ -40,6 +40,7 @@ const createReportSchema = z.object({
   imageUrl: z.string().optional().nullable(),
   authorName: z.string().optional(),
   contactPhone: z.string().regex(/^[+\d\s\-()]{7,15}$/, "Teléfono inválido").optional().nullable(),
+  contactEmail: z.string().email("Correo inválido").optional().nullable(),
 });
 
 const updateReportSchema = z.object({

@@ -7,12 +7,13 @@ import {
   usersTable,
   notificationsTable,
   auditLogTable,
+  subscriptionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull } from "drizzle-orm";
-import { requireAuth, requireAdmin, optionalAuth } from "./auth";
-import { getDistrictId, checkTenant } from "./tenant";
+import { requireAuth, requireAdmin } from "./auth";
+import { checkTenant } from "./tenant";
 import { sendCustomMessageEmail } from "../lib/email";
-import { sendMunicipalPushAlert } from "../lib/fcm";
+import { sendMunicipalPushToUser } from "../lib/fcm";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -59,9 +60,9 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
       });
     }
 
-    // Validar disponibilidad del canal según datos de contacto
+    // Bugfix 1: Usar contactEmail real, no heuristicas
     const hasPhone = !!report.contactPhone;
-    const hasEmail = report.contactPhone?.includes("@") ?? false;
+    const hasEmail = !!report.contactEmail;
 
     if (channel === "whatsapp" && !hasPhone) {
       return res.status(400).json({ error: "Este reporte no tiene número de contacto registrado." });
@@ -78,7 +79,7 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
       content: content.trim(),
       adminName: user?.name ?? "Administrador Municipal",
       contactPhone: channel === "whatsapp" ? report.contactPhone : null,
-      contactEmail: channel === "email" ? report.contactPhone : null,
+      contactEmail: channel === "email" ? report.contactEmail : null,
     }).returning();
 
     // Disparar canal de comunicación correspondiente (best-effort)
@@ -87,7 +88,7 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
     if (channel === "email" && hasEmail) {
       deliverPromises.push(
         sendCustomMessageEmail({
-          to: report.contactPhone!,
+          to: report.contactEmail!,
           reportTitle: report.title,
           reportId: report.id,
           message: content.trim(),
@@ -99,22 +100,13 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
       );
     }
 
-    // Para canal "app": crear notificación en la base de datos
+    // Bugfix 4: Usar authorUserId real para vincular notificación
     if (channel === "app") {
-      // Buscar usuario por email o nombre en el mismo distrito
-      const [reportAuthor] = await db.select({ id: usersTable.id })
-        .from(usersTable)
-        .where(and(
-          eq(usersTable.email, report.authorName === "Anónimo" ? "" : report.authorName),
-          eq(usersTable.districtId, report.districtId),
-        ))
-        .limit(1);
-
-      const notifUserId = reportAuthor?.id ?? null;
+      const authorUserId = report.authorUserId;
 
       await db.insert(notificationsTable).values({
         districtId: report.districtId,
-        userId: notifUserId,
+        userId: authorUserId,
         type: "report_update",
         title: "📩 Mensaje de la Municipalidad",
         body: `${user?.name ?? "Administración"}: ${content.trim()}`,
@@ -124,17 +116,22 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
         logger.error({ err, reportId: report.id }, "[Messages] Error al crear notificación app");
       });
 
-      // Intentar push nativo FCM si está configurado
-      deliverPromises.push(
-        sendMunicipalPushAlert({
-          districtId: report.districtId,
-          title: "📩 Mensaje de la Municipalidad",
-          body: `${user?.name ?? "Administración"}: ${content.trim()}`,
-          reportId: report.id,
-        }).catch((err) => {
-          logger.error({ err, reportId: report.id }, "[Messages] Error al enviar push FCM");
-        }),
-      );
+      // Bugfix 3: Push dirigido solo al vecino, no a todo el distrito
+      if (authorUserId) {
+        deliverPromises.push(
+          sendMunicipalPushToUser({
+            userId: authorUserId,
+            districtId: report.districtId,
+            title: "📩 Mensaje de la Municipalidad",
+            body: `${user?.name ?? "Administración"}: ${content.trim()}`,
+            reportId: report.id,
+          }).catch((err) => {
+            logger.error({ err, reportId: report.id }, "[Messages] Error al enviar push al vecino");
+          }),
+        );
+      } else {
+        logger.warn({ reportId: report.id }, "[Messages] Sin authorUserId — push no enviado. Solo notificación in-app.");
+      }
     }
 
     // Auditoría
@@ -163,8 +160,9 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
   }
 });
 
-// ── GET /reports/:id/messages — Obtener historial de mensajes ────────────────
-router.get("/reports/:id/messages", optionalAuth, async (req, res) => {
+// ── GET /reports/:id/messages — Obtener historial de mensajes (solo admin) ───
+// Bugfix 2: requireAuth + requireAdmin — nunca acceso público
+router.get("/reports/:id/messages", requireAuth, requireAdmin, async (req, res) => {
   try {
     const [report] = await db.select({ id: reportsTable.id, districtId: reportsTable.districtId })
       .from(reportsTable)
@@ -178,9 +176,7 @@ router.get("/reports/:id/messages", optionalAuth, async (req, res) => {
       return res.status(404).json({ error: "Reporte no encontrado." });
     }
 
-    // Verificar tenant si el usuario está autenticado
-    const jwtUser = (req as any).jwtUser;
-    if (jwtUser && !checkTenant(req, report.districtId)) {
+    if (!checkTenant(req, report.districtId)) {
       return res.status(403).json({ error: "No puedes ver mensajes de otros distritos." });
     }
 

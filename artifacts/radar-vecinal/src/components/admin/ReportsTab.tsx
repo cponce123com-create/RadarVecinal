@@ -17,8 +17,10 @@ interface Report {
   category: string;
   status: string;
   sector: string;
+  district: string;
   createdAt: string;
   contactPhone?: string | null;
+  contactEmail?: string | null;
   authorName?: string;
   isAnonymous?: boolean;
 }

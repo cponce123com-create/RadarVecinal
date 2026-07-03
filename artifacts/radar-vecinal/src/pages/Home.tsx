@@ -85,12 +85,16 @@ function RadarHero({ reports }: { reports: any[] }) {
 }
 
 export default function Home() {
-  const { currentDistrict, province, districtInfo, setDistrict, districts } = useDistrict();
-  const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "San Ramón, Chanchamayo";
-  const { data: stats } = useGetStats();
-  const { data: reportsData, isLoading: reportsLoading } = useGetReports({ limit: 6 });
-  const { data: alertsData } = useGetPanicAlerts({ active: true });
-  const { data: missingData } = useGetMissingPersons({ active: true });
+  const { currentDistrict, currentDistrictId, province, districtInfo, setDistrict, districts } = useDistrict();
+  const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "Selecciona tu distrito";
+  // FIX: antes estas queries iban SIN districtId — para usuarios anónimos el
+  // backend devolvía estadísticas GLOBALES (todos los distritos mezclados).
+  // Por eso el "Resumen del Distrito" mostraba zonas de otro distrito.
+  const dq = currentDistrictId ? { districtId: currentDistrictId } : undefined;
+  const { data: stats } = useGetStats(dq);
+  const { data: reportsData, isLoading: reportsLoading } = useGetReports({ limit: 6, ...(dq ?? {}) });
+  const { data: alertsData } = useGetPanicAlerts({ active: true, ...(dq ?? {}) });
+  const { data: missingData } = useGetMissingPersons({ active: true, ...(dq ?? {}) });
   const { data: adsData } = useGetAdSlots();
   const geofence = useGeofenceWatcher({ radius: 1000 });
 

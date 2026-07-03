@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import GeocoderInput from "@/components/GeocoderInput";
+import { REPORT_TEMPLATES, type ReportTemplate } from "@/lib/reportTemplates";
 
 // Fix leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -73,7 +74,7 @@ export default function ReportForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { currentDistrict } = useDistrict();
+  const { currentDistrict, currentDistrictId } = useDistrict();
   const createReport = useCreateReport();
 
   const [step, setStep] = useState(1);
@@ -155,6 +156,21 @@ export default function ReportForm() {
     setFormData(prev => ({ ...prev, category: key, isAnonymous: sens ? true : prev.isAnonymous }));
   };
 
+  // ── Plantillas de problemas frecuentes del distrito ──
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+  const applyTemplate = (tpl: ReportTemplate) => {
+    const sens = SENSITIVE_CATEGORIES.has(tpl.category);
+    setActiveTemplate(tpl.id);
+    setFormData(prev => ({
+      ...prev,
+      category: tpl.category,
+      title: tpl.title,
+      description: tpl.description,
+      urgency: tpl.urgency,
+      isAnonymous: sens ? true : prev.isAnonymous,
+    }));
+  };
+
   const [showErrors, setShowErrors] = useState(false);
   const titleTrimmed = formData.title.trim();
   const descTrimmed  = formData.description.trim();
@@ -188,8 +204,10 @@ export default function ReportForm() {
         sector: formData.sector,
         contactPhone: formData.contactPhone || null,
         contactEmail: formData.contactEmail || null,
-        authorName: formData.isAnonymous ? "Anónimo" : (!!user && user?.name ? user.name : (formData.authorName.trim() || "Vecino de San Ramón")),
+        authorName: formData.isAnonymous ? "Anónimo" : (!!user && user?.name ? user.name : (formData.authorName.trim() || `Vecino de ${currentDistrict || "la zona"}`)),
         district: currentDistrict,
+        // FIX: sin districtId el backend rechaza reportes de usuarios anónimos (400)
+        districtId: currentDistrictId ?? undefined,
         imageUrl: imageUrl ?? null,
       }
     }, {
@@ -310,6 +328,25 @@ export default function ReportForm() {
             {/* ── STEP 2: DESCRIPCIÓN ── */}
             {step === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="p-5 md:p-6 space-y-5">
+
+                {/* Plantillas de problemas frecuentes */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-1">Problemas frecuentes del distrito</label>
+                  <p className="text-[11px] text-muted-foreground mb-2.5">Toca uno para prellenar el reporte y solo ajusta los detalles entre [corchetes].</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 hide-scrollbar">
+                    {REPORT_TEMPLATES.map(tpl => (
+                      <button key={tpl.id} type="button" onClick={() => applyTemplate(tpl)}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
+                          activeTemplate === tpl.id
+                            ? "bg-primary/15 text-primary border-primary/40"
+                            : "bg-white/[0.04] text-muted-foreground border-white/8 hover:text-white hover:border-white/20"
+                        }`}>
+                        <span className="text-sm">{tpl.emoji}</span>
+                        {tpl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Categoría */}
                 <div>

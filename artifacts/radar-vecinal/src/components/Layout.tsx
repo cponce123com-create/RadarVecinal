@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Map as MapIcon, PlusCircle, Bell, User, Menu, X,
   Radar, Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight,
   Siren, Phone, LogIn, LogOut, MapPin, ChevronDown,
+  Plus,
 } from "lucide-react";
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
@@ -12,6 +13,7 @@ import ThemeToggle from "./ThemeToggle";
 import OfflineBanner from "./OfflineBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
+import DistrictPicker from "@/components/DistrictPicker";
 
 interface LayoutProps {
   children: ReactNode;
@@ -54,18 +56,40 @@ const TITLES: { match: (l: string) => boolean; title: string; sub: string }[] = 
 ];
 
 function DistrictSelector({ compact = false }: { compact?: boolean }) {
-  const { currentDistrict, setDistrict, districts } = useDistrict();
+  const {
+    currentDistrict, districtInfo, setDistrict,
+    availableDistricts, locatedDistrict, detectingLocation, isLocked, needsSelection,
+  } = useDistrict();
   const [open, setOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Admin/moderator: distrito fijo, sin dropdown
+  if (isLocked) {
+    return (
+      <div className={`flex items-center gap-1.5 text-muted-foreground ${
+        compact ? "text-xs py-1 px-2" : "text-[11px] py-1 mt-0.5"
+      }`}>
+        <MapPin className="w-3 h-3 text-primary flex-shrink-0" />
+        <span className="font-medium truncate max-w-[130px]">{currentDistrict}</span>
+        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/6 border border-white/10">🔒</span>
+      </div>
+    );
+  }
+
+  const label = detectingLocation && !districtInfo
+    ? "Detectando..."
+    : currentDistrict || "Elegir distrito";
+
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className={`flex items-center gap-1.5 text-muted-foreground hover:text-white transition-colors ${
-          compact ? "text-xs py-1 px-2 rounded-lg hover:bg-white/8" : "text-[11px] py-1 mt-0.5"
-        }`}
+        className={`flex items-center gap-1.5 transition-colors ${
+          needsSelection ? "text-amber-300 hover:text-amber-200" : "text-muted-foreground hover:text-white"
+        } ${compact ? "text-xs py-1 px-2 rounded-lg hover:bg-white/8" : "text-[11px] py-1 mt-0.5"}`}
       >
-        <MapPin className="w-3 h-3 text-primary flex-shrink-0" />
-        <span className="font-medium truncate max-w-[130px]">{currentDistrict}</span>
+        <MapPin className={`w-3 h-3 flex-shrink-0 ${needsSelection ? "text-amber-300" : "text-primary"}`} />
+        <span className="font-medium truncate max-w-[130px]">{label}</span>
         <ChevronDown className={`w-3 h-3 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} />
       </button>
       <AnimatePresence>
@@ -77,26 +101,50 @@ function DistrictSelector({ compact = false }: { compact?: boolean }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.96 }}
               transition={{ duration: 0.12 }}
-              className="absolute left-0 top-full mt-1 z-50 bg-popover border border-white/10 rounded-xl shadow-2xl min-w-[190px] overflow-hidden"
+              className="absolute left-0 top-full mt-1 z-50 bg-popover border border-white/10 rounded-xl shadow-2xl min-w-[230px] overflow-hidden"
             >
               <div className="p-1.5 flex flex-col gap-0.5">
-                {districts.map((d: any) => (
-                  <button key={d.id} onClick={() => { setDistrict(d.slug); setOpen(false); }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                      currentDistrict === d.name
-                        ? "bg-primary/15 text-primary font-semibold"
-                        : "text-muted-foreground hover:bg-white/6 hover:text-white"
-                    }`}>
-                    <MapPin className="w-3 h-3 flex-shrink-0" />
-                    {d.name}
-                    {currentDistrict === d.name && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
-                  </button>
-                ))}
+                <p className="px-3 pt-1.5 pb-1 text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                  Tus distritos (máx. 2)
+                </p>
+                {availableDistricts.map(d => {
+                  const isCurrent = districtInfo?.id === d.id;
+                  const isLocated = locatedDistrict?.id === d.id;
+                  return (
+                    <button key={d.id} onClick={() => { setDistrict(d.slug); setOpen(false); }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                        isCurrent
+                          ? "bg-primary/15 text-primary font-semibold"
+                          : "text-muted-foreground hover:bg-white/6 hover:text-white"
+                      }`}>
+                      <span className="text-xs flex-shrink-0">{isLocated ? "📍" : "⭐"}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate">{d.name}</span>
+                        <span className="block text-[9px] text-muted-foreground/60 truncate">
+                          {isLocated ? "Tu ubicación actual" : `${d.province}, ${d.department}`}
+                        </span>
+                      </span>
+                      {isCurrent && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+                {availableDistricts.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-muted-foreground">
+                    {detectingLocation ? "Detectando tu ubicación..." : "Sin distrito detectado. Elige uno:"}
+                  </p>
+                )}
+                <div className="h-px bg-white/6 my-0.5" />
+                <button onClick={() => { setPickerOpen(true); setOpen(false); }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left text-primary hover:bg-primary/10 transition-colors font-medium">
+                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                  {availableDistricts.some(d => locatedDistrict?.id !== d.id) ? "Cambiar distrito manual…" : "Añadir otro distrito…"}
+                </button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+      <DistrictPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   );
 }

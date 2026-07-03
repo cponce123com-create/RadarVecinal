@@ -271,7 +271,8 @@ export function Layout({ children }: LayoutProps) {
               className="fixed inset-0 bg-black/70 z-50 md:hidden" onClick={() => setMobileOpen(false)} />
             <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border flex flex-col md:hidden">
+              className="fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border flex flex-col md:hidden pt-[env(safe-area-inset-top,0px)]"
+              style={{ willChange: "transform", overscrollBehavior: "contain" }}>
               <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#1b4fd8] flex items-center justify-center">
@@ -289,7 +290,7 @@ export function Layout({ children }: LayoutProps) {
                   const active = isActive(item.href);
                   return (
                     <Link key={item.href} href={item.href}>
-                      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${
+                      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer min-h-[44px] ${
                         active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white"
                       }`} onClick={() => setMobileOpen(false)}>
                         <Icon className={`w-5 h-5 ${active ? "text-[#5b8dff]" : ""}`} />
@@ -360,7 +361,7 @@ export function Layout({ children }: LayoutProps) {
       </main>
 
       {/* ── Bottom nav móvil ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border pb-[env(safe-area-inset-bottom,0px)]">
         {MAIN_NAV.map(item => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -378,10 +379,10 @@ export function Layout({ children }: LayoutProps) {
           }
           return (
             <Link key={item.href} href={item.href}>
-              <div className={`flex-1 flex flex-col items-center justify-center py-2.5 px-3 cursor-pointer transition-colors ${
+              <div className={`flex-1 flex flex-col items-center justify-center py-2.5 px-3 cursor-pointer transition-colors min-h-[44px] ${
                 active ? "text-primary" : "text-muted-foreground/70 hover:text-white"
               }`}>
-                <Icon className="w-5 h-5 mb-1" />
+                <Icon className="w-6 h-6 mb-1" />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </div>
             </Link>
@@ -391,7 +392,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* ── Botón de pánico ── */}
       <button onClick={() => setPanicOpen(true)}
-        className="fixed bottom-24 md:bottom-8 right-4 md:right-8 w-14 h-14 md:w-[62px] md:h-[62px] rounded-full bg-gradient-to-br from-destructive to-red-600 flex items-center justify-center z-50 panic-glow border-2 border-red-400/40 hover:scale-105 active:scale-95 transition-transform"
+        className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] md:bottom-[calc(2rem+env(safe-area-inset-bottom,0px))] right-4 md:right-8 w-14 h-14 md:w-[62px] md:h-[62px] rounded-full bg-gradient-to-br from-destructive to-red-600 flex items-center justify-center z-50 panic-glow border-2 border-red-400/40 hover:scale-105 active:scale-95 transition-transform min-h-[44px] min-w-[44px]"
         aria-label="Botón de pánico">
         <ShieldAlert className="w-7 h-7 md:w-8 md:h-8 text-white" />
       </button>

@@ -253,3 +253,51 @@
 }
 .leaflet-control-attribution a { color: rgba(91,141,255,0.6) !important; }
 .leaflet-tile-pane { filter: invert(100%) hue-rotate(200deg) brightness(85%) contrast(84%) sepia(22%); }
+
+/* ══════════════════════════════════════════════════════════════
+   OPTIMIZACIONES MÓVILES
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-left { padding-left: env(safe-area-inset-left); }
+  .safe-right { padding-right: env(safe-area-inset-right); }
+}
+
+/* Touch target mínimo 44px para elementos táctiles */
+.min-touch { min-height: 44px; min-width: 44px; }
+
+/* iOS: prevenir zoom automático en inputs (requiere 16px mínimo) */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
+/* Respetar preferencias de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Smooth scroll global */
+html { scroll-behavior: smooth; }
+
+/* Scrollbar más delgada en móvil */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+}
+
+/* Touch action manipulation global */
+body { touch-action: manipulation; }

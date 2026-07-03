@@ -25,10 +25,11 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-
-  // Seed demo data only in development — never in production
-  if (process.env.NODE_ENV !== "production") {
-    autoSeedIfEmpty().catch((e) => logger.error({ e }, "autoSeed failed"));
+  // Start background workers (non-blocking)
+  startReportWorker();
+  startEmailWorker();
+});
+=> logger.error({ e }, "autoSeed failed"));
   } else {
     logger.info("Production mode — auto-seed skipped. Use POST /api/seed with x-seed-key to seed manually.");
   }

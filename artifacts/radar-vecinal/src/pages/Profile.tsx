@@ -48,7 +48,7 @@ const MENU_ITEMS = [
     href: "/admin",
     icon: Settings,
     label: "Panel de Control",
-    sub: "Administración (demo)",
+    sub: "Administración del distrito",
     accent: "text-accent",
     accentBg: "bg-accent/12",
   },
@@ -59,23 +59,35 @@ const cardVariants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07 } }),
 };
 
-// Placeholder user for unauthenticated view
-const DEMO_USER = {
-  name: "Vecino de San Ramón",
-  email: "",
-  role: "user",
-  sector: "San Ramón Centro",
-  district: "San Ramón",
-  reportsCount: 0,
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  id: "",
-};
-
 export default function Profile() {
   const { user: authUser, logout } = useAuth();
   const { toast } = useToast();
-  const user = authUser ?? DEMO_USER;
+
+  // Si no hay usuario autenticado, mostrar pantalla de inicio de sesión
+  if (!authUser) {
+    return (
+      <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-5">
+        <h2 className="text-2xl font-bold text-white">Tu Perfil</h2>
+        <div className="p-6 rounded-2xl bg-primary/8 border border-primary/20 flex flex-col items-center gap-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center">
+            <LogIn className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-white">Inicia sesión para ver tu perfil</p>
+            <p className="text-sm text-muted-foreground mt-1">Reporta incidentes, recibe alertas y conecta con tu comunidad.</p>
+          </div>
+          <a href="/home?auth=login">
+            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all">
+              <LogIn className="w-4 h-4" />
+              Iniciar sesión o registrarse
+            </button>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const user = authUser;
 
   // B-22: Profile edit form
   const [editProfile, setEditProfile] = useState(false);

@@ -37,7 +37,6 @@ router.use(civicEducationRouter);
 router.use(embedRouter);
 router.use(reportsPdfRouter);
 router.use(messagesRouter);
-router.use(clearDemoRouter);
 router.use(licensesRouter);
 router.use(adminRouter);
 

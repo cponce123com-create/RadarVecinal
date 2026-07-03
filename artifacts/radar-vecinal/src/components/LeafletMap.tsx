@@ -377,7 +377,7 @@ function UserMarker({ position, simulated }: { position: { lat: number; lng: num
     }).addTo(map);
     const dot = L.circleMarker([position.lat, position.lng], {
       radius: 7, fillColor: color, fillOpacity: 1, color: "#fff", weight: 2,
-    }).addTo(map).bindTooltip(simulated ? "📍 Demo: San Ramón" : "📍 Tu ubicación", { direction: "top" });
+    }).addTo(map).bindTooltip(simulated ? "📍 San Ramón (ubicación aproximada)" : "📍 Tu ubicación", { direction: "top" });
     dotRef.current  = dot;
     ringRef.current = ring;
     return () => { dot.remove(); ring.remove(); };

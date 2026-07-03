@@ -2,10 +2,20 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Megaphone, Plus, LinkIcon, ToggleLeft, ToggleRight, Edit3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { type AdSlot, DEMO_AD_SLOTS } from "./constants";
+
+interface AdSlot {
+  id: string;
+  label: string;
+  position: string;
+  client: string;
+  url: string;
+  active: boolean;
+  impressions: number;
+  clicks: number;
+}
 
 export default function AdSlotsTab() {
-  const [adSlots, setAdSlots] = useState<AdSlot[]>(DEMO_AD_SLOTS);
+  const [adSlots, setAdSlots] = useState<AdSlot[]>([]);
   const [editingAd, setEditingAd] = useState<AdSlot | null>(null);
   const { toast } = useToast();
 
@@ -187,6 +197,14 @@ export default function AdSlotsTab() {
                   Guardar cambios
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+        </div>
             </motion.div>
           </motion.div>
         )}

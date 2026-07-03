@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown } from "lucide-react";
+import { Shield, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown } from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { type Tab, seedDemoData } from "./constants";
+import { type Tab } from "./constants";
 import KpiCards from "./KpiCards";
 import ReportsTab from "./ReportsTab";
 import UsersTab from "./UsersTab";
@@ -12,29 +12,15 @@ import AdSlotsTab from "./AdSlotsTab";
 import DistrictSwitcher from "./DistrictSwitcher";
 import AnalyticsTab from "./AnalyticsTab";
 import SuperAdminTab from "./SuperAdminTab";
-
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>("reports");
   const [search, setSearch] = useState("");
-  const [seeding, setSeeding] = useState(false);
 
   const { currentDistrictId } = useDistrict();
   const { user, isSuperAdmin } = useAuth();
   const { data: reportsData, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const { data: usersData } = useGetUsers();
   const { data: stats } = useGetStats();
-
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      const res = await seedDemoData();
-      refetch();
-    } catch {
-      // toast handled by seedDemoData
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const tabs = [
     { id: "reports" as Tab, label: "Reportes",   icon: FileText },
@@ -72,16 +58,6 @@ export default function AdminPanel() {
           </a>
         )}
 
-        <button
-          onClick={handleSeed}
-          disabled={seeding}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/20 transition-all disabled:opacity-50"
-        >
-          {seeding
-            ? <><div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" /> Cargando...</>
-            : <><Database className="w-4 h-4" /> Cargar datos demo</>
-          }
-        </button>
       </div>
 
       {/* KPI Cards */}
@@ -126,6 +102,22 @@ export default function AdminPanel() {
       {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
       {tab === "ads" && <AdSlotsTab />}
       {tab === "superadmin" && <SuperAdminTab />}
+    </div>
+  );
+}
+uperAdminTab />}
+    </div>
+  );
+}
+fetch={refetch} />}
+      {tab === "analytics" && <AnalyticsTab />}
+      {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
+      {tab === "ads" && <AdSlotsTab />}
+      {tab === "superadmin" && <SuperAdminTab />}
+    </div>
+  );
+}
+uperAdminTab />}
     </div>
   );
 }

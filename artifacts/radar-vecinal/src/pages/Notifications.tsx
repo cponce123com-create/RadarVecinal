@@ -27,105 +27,6 @@ interface Notification {
   reportTitle?: string;
 }
 
-const DEMO_NOTIFS: Notification[] = [
-  {
-    id: "n1",
-    type: "panic",
-    title: "Alerta de Pánico Activa",
-    body: "Se activó una alerta de asalto en Jr. Tarma, San Ramón Centro. Radio: 800m de tu ubicación.",
-    time: new Date(Date.now() - 5 * 60000),
-    read: false,
-    critical: true,
-    actionLabel: "Ver alerta",
-    actionHref: "/alertas",
-  },
-  {
-    id: "n2",
-    type: "confirmation",
-    title: "5 vecinos confirmaron tu reporte",
-    body: 'Tu reporte "Actitud sospechosa en Plaza de Armas" fue validado por 5 vecinos del distrito.',
-    time: new Date(Date.now() - 22 * 60000),
-    read: false,
-    actionLabel: "Ver reporte",
-    actionHref: "/historial",
-  },
-  {
-    id: "n3",
-    type: "missing",
-    title: "Menor extraviado en tu zona",
-    body: "Sebastián, 9 años. Visto por última vez en Colegio San Miguel. Ayuda a difundir.",
-    time: new Date(Date.now() - 1.2 * 3600000),
-    read: false,
-    critical: true,
-    actionLabel: "Ver búsqueda",
-    actionHref: "/menor-perdido",
-  },
-  {
-    id: "n4",
-    type: "update",
-    title: "Reporte actualizado a Resuelto",
-    body: 'El reporte "Pelea callejera en Jr. Progreso" fue marcado como resuelto por la administración.',
-    time: new Date(Date.now() - 2.5 * 3600000),
-    read: true,
-    actionLabel: "Ver historial",
-    actionHref: "/historial",
-  },
-  {
-    id: "n5",
-    type: "panic",
-    title: "Alerta de Incendio Resuelta",
-    body: "La alerta de incendio en Jr. Huánuco fue atendida y resuelta. Gracias a todos por reportar.",
-    time: new Date(Date.now() - 5 * 3600000),
-    read: true,
-  },
-  {
-    id: "n6",
-    type: "system",
-    title: "Bienvenido a Radar Vecinal",
-    body: "Tu cuenta ha sido activada en San Ramón, Chanchamayo. Activa las alertas sonoras para recibir notificaciones en tiempo real.",
-    time: new Date(Date.now() - 8 * 3600000),
-    read: true,
-    actionLabel: "Configurar",
-    actionHref: "/configuracion",
-  },
-  {
-    id: "n7",
-    type: "confirmation",
-    title: "Tu reporte tiene 10 confirmaciones",
-    body: 'El reporte "Basura acumulada en Av. Circunvalación" alcanzó 10 confirmaciones. Alta confiabilidad.',
-    time: subDays(new Date(), 1),
-    read: true,
-  },
-  {
-    id: "n8",
-    type: "system",
-    title: "Actualización del sistema",
-    body: "Radar Vecinal v2.1 disponible. Nuevo mapa de calor de inseguridad, mejoras de rendimiento y categorías sensibles.",
-    time: subDays(new Date(), 1),
-    read: true,
-  },
-  {
-    id: "n9",
-    type: "update",
-    title: "Nueva zona de riesgo detectada",
-    body: "Se detectó un aumento de incidentes en La Merced. Toma precauciones al circular por esa zona.",
-    time: subDays(new Date(), 2),
-    read: true,
-  },
-  {
-    id: "n10",
-    type: "municipal",
-    title: "📩 Mensaje de la Municipalidad",
-    body: "Estimado vecino, su reporte ha sido recibido y estamos evaluando la situación. Nuestro personal se encuentra en camino para atender la incidencia.",
-    time: new Date(Date.now() - 45 * 60000),
-    read: false,
-    adminName: "Carlos Quispe — Serenazgo",
-    reportTitle: "Asalto a mano armada en Jr. Tarma",
-    actionLabel: "Ver reporte",
-    actionHref: "/historial",
-  },
-];
-
 const TYPE_META: Record<NotifType, { icon: React.ElementType; color: string; bg: string; label: string }> = {
   panic:        { icon: ShieldAlert,   color: "#ef4444", bg: "rgba(239,68,68,0.15)",    label: "Pánico" },
   confirmation: { icon: CheckCircle2,  color: "#22c55e", bg: "rgba(34,197,94,0.15)",    label: "Confirmación" },
@@ -167,7 +68,7 @@ function groupByDate(notifs: Notification[]) {
 
 export default function Notifications() {
   const { toast } = useToast();
-  const [notifs, setNotifs] = useState<Notification[]>(DEMO_NOTIFS);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { data: apiNotifs } = useGetNotifications();
@@ -437,6 +338,72 @@ export default function Notifications() {
                                 {notif.adminName}
                               </span>
                               {notif.reportTitle && (
+                                <>
+                                  <span className="text-[9px] text-violet-500/30">·</span>
+                                  <span className="text-[10px] text-violet-400/40">
+                                    {notif.reportTitle}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-[10px] text-muted-foreground/50">
+                              {formatDistanceToNow(notif.time, { locale: es, addSuffix: true })}
+                            </span>
+                            <span
+                              className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: meta.bg, color: meta.color }}
+                            >
+                              {meta.label}
+                            </span>
+                            {notif.actionLabel && notif.actionHref && (
+                              <a
+                                href={notif.actionHref}
+                                onClick={() => markRead(notif.id)}
+                                className={`text-[10px] font-medium flex items-center gap-0.5 transition-colors ml-auto ${
+                                  isMunicipal
+                                    ? "text-violet-400 hover:text-violet-300"
+                                    : "text-primary hover:text-blue-300"
+                                }`}
+                              >
+                                {notif.actionLabel}
+                                <ChevronRight className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Mark read button */}
+                        {!notif.read && !isMunicipal && (
+                          <button
+                            onClick={() => markRead(notif.id)}
+                            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-green-400 hover:bg-green-500/10 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
+                            title="Marcar como leída"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tip */}
+      <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-white/2 border border-white/5 text-xs text-muted-foreground/50">
+        <Zap className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-yellow-500/40" />
+        Los mensajes enviados por funcionarios municipales aparecen con un distintivo violeta. Las alertas de pánico y búsqueda de personas extraviadas siempre aparecerán aunque no tengas alertas sonoras activadas.
+      </div>
+    </div>
+  );
+}
+(
                                 <>
                                   <span className="text-[9px] text-violet-500/30">·</span>
                                   <span className="text-[10px] text-violet-400/40">

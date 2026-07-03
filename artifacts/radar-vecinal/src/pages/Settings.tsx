@@ -421,7 +421,7 @@ export default function Settings() {
               label="Eliminar mi cuenta"
               sub="Esta acción es irreversible. Se eliminarán todos tus datos del sistema."
               danger
-              onClick={() => toast({ title: "Acción no disponible en demo", description: "Contacta a soporte para eliminar tu cuenta.", variant: "destructive" })}
+              onClick={() => toast({ title: "Contacta al administrador", description: "Para eliminar tu cuenta, escribe a soporte@radarvecinal.app.", variant: "destructive" })}
             >
               <div className="flex items-center gap-1.5 text-red-400/50">
                 <Trash2 className="w-4 h-4" />

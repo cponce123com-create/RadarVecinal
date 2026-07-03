@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* ══════════════════════════════════════════════════════════════
+   RADAR VECINAL · Sistema de diseño refinado
+   Reemplaza tu src/index.css por este archivo.
+   ══════════════════════════════════════════════════════════════ */
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -34,6 +38,7 @@
   --color-success-foreground: hsl(var(--success-foreground));
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-cyan: hsl(var(--cyan));
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
@@ -44,15 +49,13 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-primary: hsl(var(--sidebar-primary));
   --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-primary-border: var(--sidebar-primary-border);
   --color-sidebar-accent: hsl(var(--sidebar-accent));
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-accent-border: var(--sidebar-accent-border);
   --color-sidebar-ring: hsl(var(--sidebar-ring));
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
-  --font-display: var(--app-font-sans);
+  --font-display: var(--app-font-display);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -62,66 +65,70 @@
 :root {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .06);
-  --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* === RADAR VECINAL DARK THEME === */
-  --background: 224 15% 6%;          /* #0c0e14 deep carbon */
-  --foreground: 210 20% 92%;          /* near-white */
-  --border: 220 12% 14%;             /* subtle dividers */
-  --card: 222 18% 9%;                /* #0f1219 card surface */
-  --card-foreground: 210 20% 90%;
-  --card-border: 220 14% 16%;
+  /* === Superficies por capas — carbón profundo azulado === */
+  --background: 224 33% 4%;          /* #07090f */
+  --foreground: 220 25% 92%;         /* #e8ebf2 */
+  --border: 222 18% 13%;
+  --card: 226 30% 10%;               /* #111420 */
+  --card-foreground: 220 22% 90%;
+  --card-border: 222 16% 16%;
 
-  --sidebar: 222 20% 7%;
-  --sidebar-foreground: 210 18% 88%;
-  --sidebar-border: 220 14% 13%;
-  --sidebar-primary: 217 100% 55%;
+  --sidebar: 226 32% 6%;             /* #0d1019 */
+  --sidebar-foreground: 220 16% 86%;
+  --sidebar-border: 222 16% 12%;
+  --sidebar-primary: 221 100% 59%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 15% 14%;
-  --sidebar-accent-foreground: 210 20% 88%;
-  --sidebar-ring: 217 100% 55%;
+  --sidebar-accent: 222 16% 14%;
+  --sidebar-accent-foreground: 220 20% 88%;
+  --sidebar-ring: 221 100% 59%;
 
-  --popover: 222 20% 9%;
-  --popover-foreground: 210 18% 90%;
-  --popover-border: 220 14% 18%;
+  --popover: 226 30% 9%;
+  --popover-foreground: 220 20% 90%;
+  --popover-border: 222 16% 18%;
 
-  /* Electric blue primary */
-  --primary: 217 100% 55%;           /* #1a6fff electric blue */
+  /* Azul eléctrico primario — #2f6bff */
+  --primary: 221 100% 59%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 220 14% 16%;
-  --secondary-foreground: 210 18% 82%;
+  --secondary: 222 16% 15%;
+  --secondary-foreground: 220 18% 82%;
 
-  --muted: 220 14% 12%;
-  --muted-foreground: 215 14% 48%;
+  --muted: 222 16% 12%;
+  --muted-foreground: 220 12% 55%;   /* #8a92a6 */
 
-  --accent: 255 90% 65%;             /* violet accent */
-  --accent-foreground: 0 0% 100%;
+  /* Cian radar como acento firma — #22d3ee */
+  --accent: 187 84% 53%;
+  --accent-foreground: 0 0% 0%;
 
-  --destructive: 0 90% 55%;          /* intense red */
+  --cyan: 187 84% 53%;
+
+  --destructive: 0 84% 60%;          /* #ef4444 */
   --destructive-foreground: 0 0% 100%;
 
-  --success: 145 70% 42%;
-  --success-foreground: 0 0% 100%;
+  --success: 142 71% 55%;            /* #4ade80 */
+  --success-foreground: 0 0% 0%;
 
-  --warning: 38 92% 50%;
+  --warning: 38 92% 55%;             /* #fbbf24 */
   --warning-foreground: 0 0% 0%;
 
-  --input: 220 14% 18%;
-  --ring: 217 100% 55%;
+  --input: 222 16% 18%;
+  --ring: 221 100% 59%;
 
-  --chart-1: 217 100% 55%;
-  --chart-2: 0 90% 55%;
-  --chart-3: 145 70% 42%;
-  --chart-4: 38 92% 50%;
-  --chart-5: 255 90% 65%;
+  --chart-1: 221 100% 59%;
+  --chart-2: 0 84% 60%;
+  --chart-3: 142 71% 55%;
+  --chart-4: 38 92% 55%;
+  --chart-5: 258 90% 66%;
 
+  /* Tipografía: Space Grotesk (display) · Inter (texto) · JetBrains Mono (etiquetas) */
   --app-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --app-font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', Menlo, monospace;
-  --radius: .75rem;
+  --radius: .85rem;
   --spacing: 0.25rem;
 
   --shadow-2xs: 0 1px 2px rgba(0,0,0,0.4);
@@ -133,152 +140,116 @@
   --shadow-xl: 0 24px 64px rgba(0,0,0,0.7);
   --shadow-2xl: 0 40px 80px rgba(0,0,0,0.8);
 
-  --primary-border: hsl(217 100% 48%);
-  --secondary-border: hsl(220 14% 20%);
-  --muted-border: hsl(220 14% 16%);
-  --accent-border: hsl(255 90% 58%);
-  --destructive-border: hsl(0 90% 48%);
-  --sidebar-primary-border: hsl(217 100% 48%);
-  --sidebar-accent-border: hsl(220 15% 18%);
+  --primary-border: hsl(221 100% 52%);
+  --secondary-border: hsl(222 16% 20%);
+  --muted-border: hsl(222 16% 16%);
+  --accent-border: hsl(187 84% 46%);
+  --destructive-border: hsl(0 84% 52%);
+  --sidebar-primary-border: hsl(221 100% 52%);
+  --sidebar-accent-border: hsl(222 16% 18%);
 
-  --tracking-normal: -0.01em;
+  --tracking-normal: -0.011em;
 }
 
-.dark {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .06);
-  --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
-}
+.dark { color-scheme: dark; }
 
 @layer base {
   * { @apply border-border; box-sizing: border-box; }
-  body { @apply font-sans antialiased bg-background text-foreground; letter-spacing: var(--tracking-normal); }
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+    /* Halos de profundidad + textura de grid sutil */
+    background-image:
+      radial-gradient(1200px 600px at 78% -10%, hsl(221 100% 59% / 0.10), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, hsl(187 84% 53% / 0.06), transparent 55%);
+    background-attachment: fixed;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
 }
 
 @layer utilities {
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .hide-scrollbar::-webkit-scrollbar { display: none; }
 
-  /* Map radar sweep animation — circular radar style */
-  @keyframes radar-sweep {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
+  /* Textura de grid — úsala como capa de fondo decorativa */
+  .rv-grid {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(circle at 50% 30%, black, transparent 85%);
+    mask-image: radial-gradient(circle at 50% 30%, black, transparent 85%);
   }
 
+  /* ── Radar ── */
+  @keyframes radar-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .radar-sweep {
     background: conic-gradient(
       from 270deg at center,
-      transparent 0deg,
-      transparent 270deg,
-      hsl(217 100% 55% / 0.02) 290deg,
-      hsl(217 100% 55% / 0.08) 310deg,
-      hsl(190 100% 60% / 0.20) 338deg,
-      hsl(140 80%  55% / 0.45) 354deg,
-      hsl(140 80%  55% / 0.10) 359deg,
+      transparent 0deg 300deg,
+      hsl(187 84% 53% / 0.03) 320deg,
+      hsl(187 84% 53% / 0.18) 348deg,
+      hsl(142 71% 55% / 0.32) 358deg,
       transparent 360deg
     );
-    animation: radar-sweep 5s linear infinite;
+    animation: radar-sweep 4.5s linear infinite;
     transform-origin: center;
   }
 
-  /* Marker pulse */
-  @keyframes marker-ring {
-    0% { transform: scale(1); opacity: 0.8; }
-    100% { transform: scale(2.5); opacity: 0; }
-  }
-
+  @keyframes marker-ring { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(3.2); opacity: 0; } }
   .marker-pulse::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: currentColor;
-    animation: marker-ring 2s ease-out infinite;
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: currentColor; animation: marker-ring 2.4s ease-out infinite;
   }
 
-  /* Panic button pulse */
   @keyframes panic-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 hsl(0 90% 55% / 0.7), 0 0 30px hsl(0 90% 55% / 0.4); }
-    50% { box-shadow: 0 0 0 16px hsl(0 90% 55% / 0), 0 0 50px hsl(0 90% 55% / 0.6); }
+    0%,100% { box-shadow: 0 0 0 0 hsl(0 84% 60% / 0.55), 0 10px 40px hsl(0 84% 60% / 0.4); }
+    50% { box-shadow: 0 0 0 18px hsl(0 84% 60% / 0), 0 10px 50px hsl(0 84% 60% / 0.6); }
   }
+  .panic-glow { animation: panic-pulse 2s ease-in-out infinite; }
 
-  .panic-glow {
-    animation: panic-pulse 2s ease-in-out infinite;
-  }
+  @keyframes status-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .status-blink { animation: status-blink 1.5s ease-in-out infinite; }
 
-  /* Neon text glow */
+  @keyframes rv-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .rv-in { animation: rv-in .4s ease both; }
+
   .text-glow { text-shadow: 0 0 20px hsl(var(--primary) / 0.5); }
   .text-glow-red { text-shadow: 0 0 20px hsl(var(--destructive) / 0.7); }
 
-  /* Status dot blink */
-  @keyframes status-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+  /* Etiqueta técnica mono en mayúsculas */
+  .label-mono {
+    font-family: var(--app-font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
-  .status-blink { animation: status-blink 1.5s ease-in-out infinite; }
 }
 
-/* ── Leaflet dark-theme overrides ── */
-.leaflet-container {
-  background: #0d1117 !important;
-  font-family: inherit;
-}
-
-/* Zoom controls */
+/* ── Leaflet · tema oscuro ── */
+.leaflet-container { background: #0b1420 !important; font-family: inherit; }
 .leaflet-control-zoom {
   border: 1px solid rgba(255,255,255,0.10) !important;
-  border-radius: 12px !important;
-  overflow: hidden !important;
+  border-radius: 12px !important; overflow: hidden !important;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
 }
 .leaflet-control-zoom a {
-  background: #0f1219 !important;
-  color: #9ca3af !important;
+  background: #0f1219 !important; color: #9ca3af !important;
   border-bottom: 1px solid rgba(255,255,255,0.08) !important;
-  width: 36px !important;
-  height: 36px !important;
-  line-height: 36px !important;
-  font-size: 18px !important;
-  transition: all 0.15s;
+  width: 38px !important; height: 38px !important; line-height: 38px !important;
+  font-size: 18px !important; transition: all 0.15s;
 }
-.leaflet-control-zoom a:hover {
-  background: rgba(255,255,255,0.08) !important;
-  color: #fff !important;
+.leaflet-control-zoom a:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: transparent !important; box-shadow: none !important; border: none !important; padding: 0 !important;
 }
-
-/* Popup overrides */
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-  padding: 0 !important;
-}
-.leaflet-popup-content-wrapper {
-  border-radius: 0 !important;
-}
-.leaflet-popup-content {
-  margin: 0 !important;
-}
-
-/* Attribution */
+.leaflet-popup-content-wrapper { border-radius: 0 !important; }
+.leaflet-popup-content { margin: 0 !important; }
 .leaflet-control-attribution {
-  background: rgba(6,9,18,0.75) !important;
-  color: rgba(107,114,128,0.5) !important;
-  font-size: 9px !important;
-  border-radius: 6px 0 0 0 !important;
-  backdrop-filter: blur(4px);
+  background: rgba(7,9,15,0.75) !important; color: rgba(107,114,128,0.5) !important;
+  font-size: 9px !important; border-radius: 6px 0 0 0 !important; backdrop-filter: blur(4px);
 }
-.leaflet-control-attribution a { color: rgba(59,130,246,0.5) !important; }
-
-/* Night-mode filter — applied ONLY to the tile pane, markers are unaffected */
-.leaflet-tile-pane {
-  filter: invert(100%) hue-rotate(200deg) brightness(87%) contrast(82%) sepia(25%);
-}
-
+.leaflet-control-attribution a { color: rgba(91,141,255,0.6) !important; }
+.leaflet-tile-pane { filter: invert(100%) hue-rotate(200deg) brightness(85%) contrast(84%) sepia(22%); }

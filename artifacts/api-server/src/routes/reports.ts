@@ -517,22 +517,7 @@ router.post("/seed", seedLimiter, async (req, res) => {
       return res.status(400).json({ error: `Distrito "${districtSlug}" no encontrado.` });
     }
 
-    // Verificar si ya hay datos
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
-      .from(reportsTable)
-      .where(eq(reportsTable.districtId, district.id));
-
-    if (Number(count) >= 5) {
-      return res.json({ success: true, message: `El distrito "${district.name}" ya tiene datos.`, seeded: false });
-    }
-
-    const LAT = district.centerLat ?? -11.1272;
-    const LNG = district.centerLng ?? -75.3548;
-    const j = (v: number, r = 0.0025) => parseFloat((v + (Math.random() * 2 - 1) * r).toFixed(6));
-    const ts = (daysAgo: number, hrsAgo = 0) =>
-      new Date(Date.now() - daysAgo * 86400000 - hrsAgo * 3600000);
-
-    // ── 2 Usuarios demo para pruebas ─────────────────────────────────────
+    // ── Siempre crear/asegurar los 2 usuarios demo ─────────────────────
     await db.insert(usersTable).values([
       {
         name: `Admin ${district.name}`,
@@ -553,6 +538,25 @@ router.post("/seed", seedLimiter, async (req, res) => {
         district: district.name,
       },
     ]).onConflictDoNothing();
+
+    // Verificar si ya hay reportes
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(reportsTable)
+      .where(eq(reportsTable.districtId, district.id));
+
+    if (Number(count) >= 5) {
+      return res.json({
+        success: true,
+        message: `Usuarios listos. El distrito "${district.name}" ya tenía reportes.`,
+        seeded: { users: 2, reports: 0 },
+      });
+    }
+
+    const LAT = district.centerLat ?? -11.1272;
+    const LNG = district.centerLng ?? -75.3548;
+    const j = (v: number, r = 0.0025) => parseFloat((v + (Math.random() * 2 - 1) * r).toFixed(6));
+    const ts = (daysAgo: number, hrsAgo = 0) =>
+      new Date(Date.now() - daysAgo * 86400000 - hrsAgo * 3600000);
 
     // Reports for this district
     const reports = Array.from({ length: 20 }, (_, i) => ({

@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable, reportsTable, auditLogTable } from "@workspace/db/schema";
+import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable, reportsTable, auditLogTable, licensesTable } from "@workspace/db/schema";
 import { desc, eq, and, sql, count } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "./auth";
+import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -404,6 +404,182 @@ router.patch("/ad-slots/:id", requireAuth, requireAdmin, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update ad slot");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// VIEWERS — Gestión de usuarios visores (solo municipal)
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── POST /users/viewers — Crear viewer (municipal, máx 10) ────────────────
+const createViewerSchema = z.object({
+  name: z.string().min(2, "Nombre muy corto").max(100),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(8, "Mínimo 8 caracteres"),
+  displayName: z.string().min(1, "Nombre para mostrar requerido (ej: Claudia Meza)").max(200),
+  sector: z.string().min(1, "Sector requerido").max(100).default("General"),
+});
+
+router.post("/users/viewers", requireAuth, requireMunicipal, async (req, res) => {
+  const parsed = createViewerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+  }
+
+  const authUser = (req as any).jwtUser;
+  const { name, email, password, displayName, sector } = parsed.data;
+
+  try {
+    // 1. Verificar que el municipal tenga licencia activa
+    const [license] = await db.select()
+      .from(licensesTable)
+      .where(and(
+        eq(licensesTable.municipalUserId, Number(authUser.sub)),
+        eq(licensesTable.isActive, true),
+      ))
+      .limit(1);
+
+    if (!license) {
+      return res.status(403).json({ error: "No tienes una licencia activa. Actívala en /licenses/activate." });
+    }
+
+    // 2. Contar viewers actuales del municipal
+    const [{ count: currentViewers }] = await db.select({ count: sql<number>`count(*)` })
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.role, "viewer"),
+        eq(usersTable.districtId, Number(authUser.districtId)),
+      ));
+
+    if (Number(currentViewers) >= license.maxViewers) {
+      return res.status(409).json({
+        error: `Has alcanzado el límite de ${license.maxViewers} visores. Contacta al superadmin para aumentarlo.`,
+      });
+    }
+
+    // 3. Verificar email único
+    const existing = await db.select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email.toLowerCase().trim()))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: "Ya existe un usuario con ese correo." });
+    }
+
+    // 4. Crear viewer
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [viewer] = await db.insert(usersTable).values({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      role: "viewer" as any,
+      sector: sector.trim(),
+      districtId: Number(authUser.districtId),
+      district: authUser.district ?? "San Ramón",
+      province: authUser.province ?? "Chanchamayo",
+      department: authUser.department ?? "Junín",
+      displayName: displayName.trim(),
+      isActive: true,
+      reportsCount: 0,
+    }).returning();
+
+    return res.status(201).json({
+      success: true,
+      message: `Visor ${email} creado. DisplayName: ${displayName}`,
+      user: {
+        id: String(viewer.id),
+        name: viewer.name,
+        email: viewer.email,
+        role: viewer.role,
+        displayName: viewer.displayName,
+        sector: viewer.sector,
+      },
+      viewersUsed: Number(currentViewers) + 1,
+      viewersLimit: license.maxViewers,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create viewer");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /users/viewers — Listar viewers del municipal ──────────────────────
+router.get("/users/viewers", requireAuth, requireMunicipal, async (req, res) => {
+  const authUser = (req as any).jwtUser;
+
+  try {
+    const viewers = await db.select()
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.role, "viewer"),
+        eq(usersTable.districtId, Number(authUser.districtId)),
+      ))
+      .orderBy(desc(usersTable.createdAt));
+
+    // Obtener info de la licencia
+    const [license] = await db.select()
+      .from(licensesTable)
+      .where(eq(licensesTable.municipalUserId, Number(authUser.sub)))
+      .limit(1);
+
+    return res.json({
+      viewers: viewers.map(v => ({
+        id: String(v.id),
+        name: v.name,
+        email: v.email,
+        displayName: v.displayName,
+        isActive: v.isActive,
+        createdAt: v.createdAt.toISOString(),
+      })),
+      viewersUsed: viewers.length,
+      viewersLimit: license?.maxViewers ?? 10,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list viewers");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── PATCH /users/viewers/:id — Desactivar/activar viewer ──────────────────
+router.patch("/users/viewers/:id", requireAuth, requireMunicipal, async (req, res) => {
+  const schema = z.object({ isActive: z.boolean() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" });
+  }
+
+  const authUser = (req as any).jwtUser;
+  const targetId = parseInt(req.params.id as string);
+
+  try {
+    const [target] = await db.select()
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.id, targetId),
+        eq(usersTable.role, "viewer"),
+        eq(usersTable.districtId, Number(authUser.districtId)),
+      ))
+      .limit(1);
+
+    if (!target) {
+      return res.status(404).json({ error: "Visor no encontrado o no pertenece a tu distrito." });
+    }
+
+    const [updated] = await db.update(usersTable)
+      .set({ isActive: parsed.data.isActive })
+      .where(eq(usersTable.id, targetId))
+      .returning();
+
+    return res.json({
+      id: String(updated.id),
+      name: updated.name,
+      email: updated.email,
+      displayName: updated.displayName,
+      isActive: updated.isActive,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update viewer status");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

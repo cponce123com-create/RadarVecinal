@@ -425,6 +425,35 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
+// ── Middleware: require backoffice role (admin/moderator/super_admin/municipal/viewer) ─
+// Para endpoints que cualquier usuario del backoffice puede usar (ver reportes, mensajear)
+export function requireBackoffice(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).jwtUser;
+  if (!user || !["admin", "moderator", "super_admin", "municipal", "viewer"].includes(user.role)) {
+    return res.status(403).json({ error: "Acceso denegado. Se requiere rol municipal." });
+  }
+  return next();
+}
+
+// ── Middleware: require municipal or super_admin (crear viewers, gestionar licencias) ─
+export function requireMunicipal(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).jwtUser;
+  if (!user || !["municipal", "super_admin"].includes(user.role)) {
+    return res.status(403).json({ error: "Acceso denegado. Solo usuarios municipales." });
+  }
+  return next();
+}
+
+// ── Middleware: require viewer role or above (resolve reports, send messages) ─
+// Los viewers pueden resolver reportes y enviar mensajes, pero NO crear usuarios
+export function requireViewerOrAbove(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).jwtUser;
+  if (!user || !["viewer", "municipal", "admin", "moderator", "super_admin"].includes(user.role)) {
+    return res.status(403).json({ error: "Acceso denegado." });
+  }
+  return next();
+}
+
 // ── M-04: Middleware: require same district (tenant isolation) ───────────────
 // NOTA: Estos middlewares están disponibles para usarse como middleware de ruta,
 // pero actualmente el proyecto implementa el aislamiento via helpers inline

@@ -23,7 +23,7 @@ export const urgencyEnum = pgEnum("urgency_level", ["low", "medium", "high", "cr
 
 export const reportStatusEnum = pgEnum("report_status", ["active", "reviewing", "resolved", "archived"]);
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "moderator", "user", "super_admin"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "moderator", "user", "super_admin", "municipal", "viewer"]);
 
 export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
   "robbery",
@@ -74,6 +74,10 @@ export const usersTable = pgTable("users", {
   department: text("department").notNull().default("Junín"),
   isActive: boolean("is_active").notNull().default(true),
   reportsCount: integer("reports_count").notNull().default(0),
+  // VecinoId: identificador publico de 6 digitos para anonimizar vecinos
+  vecinoId: integer("vecino_id").unique(),
+  // displayName: nombre real que se muestra en respuestas a reportes (visores/municipales)
+  displayName: text("display_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -193,6 +197,24 @@ export const reportMessagesTable = pgTable("report_messages", {
   contactEmail: text("contact_email"),
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Licencias para municipalidades (solo super_admin crea) ───────────────────
+export const licensesTable = pgTable("licenses", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  siglas: text("siglas").notNull(),
+  districtName: text("district_name").notNull(),
+  province: text("province").notNull(),
+  department: text("department").notNull(),
+  districtId: integer("district_id").references(() => districtsTable.id),
+  municipalUserId: integer("municipal_user_id").references(() => usersTable.id),
+  createdBy: integer("created_by").references(() => usersTable.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  activatedAt: timestamp("activated_at"),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(false),
+  maxViewers: integer("max_viewers").notNull().default(10),
 });
 
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true, updatedAt: true });

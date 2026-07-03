@@ -16,6 +16,8 @@ import reportsPdfRouter from "./reportsPdf";
 import messagesRouter from "./messages";
 import reniecRouter from "./reniec";
 import clearDemoRouter from "./clearDemo";
+import licensesRouter from "./licenses";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -36,5 +38,7 @@ router.use(embedRouter);
 router.use(reportsPdfRouter);
 router.use(messagesRouter);
 router.use(clearDemoRouter);
+router.use(licensesRouter);
+router.use(adminRouter);
 
 export default router;

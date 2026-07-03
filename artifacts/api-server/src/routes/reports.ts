@@ -80,17 +80,23 @@ router.get("/reports", optionalAuth, async (req, res) => {
       .where(and(...conditions))
       .orderBy(desc(reportsTable.createdAt))
       .limit(limitNum)
-      .offset(offsetNum);
+      const user = (req as any).jwtUser;
+      const userId = user?.sub ? parseInt(user.sub) : null;
 
-    return res.json({
-      reports: reports.map(r => ({
-        ...r,
-        id: String(r.id),
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-      })),
-      total: Number(count),
-    });
+      return res.json({
+        reports: reports.map(r => {
+          // Anonimizar: solo el autor del reporte ve su nombre real
+          const isOwner = userId && r.authorUserId === userId;
+          return {
+            ...r,
+            id: String(r.id),
+            authorName: isOwner ? r.authorName : r.authorName, // ya es Vecino XXXXXX
+            createdAt: r.createdAt.toISOString(),
+            updatedAt: r.updatedAt.toISOString(),
+          };
+        }),
+        total: Number(count),
+      });
   } catch (err) {
     req.log.error({ err }, "Failed to get reports");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -122,6 +128,32 @@ router.post("/reports", optionalAuth, async (req, res) => {
   const isAnonymous = SENSITIVE.includes(data.category) ? true : data.isAnonymous;
 
   try {
+    // Obtener/crear vecinoId para el usuario
+    let vecinoId: number | null = null;
+    let authorName = "Anónimo";
+    if (user && user.sub) {
+      // Usuario autenticado: obtener su vecinoId o crear uno
+      const [dbUser] = await db.select({ vecinoId: usersTable.vecinoId, id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.id, parseInt(user.sub)))
+        .limit(1);
+      if (dbUser) {
+        vecinoId = dbUser.vecinoId;
+        if (!vecinoId) {
+          // Generar vecinoId determinista de 6 dígitos
+          vecinoId = ((dbUser.id * 982451653 + 1610612741) % 1000000);
+          // Asegurar 6 dígitos (entre 100000 y 999999)
+          vecinoId = vecinoId < 100000 ? vecinoId + 100000 : vecinoId;
+          await db.update(usersTable).set({ vecinoId }).where(eq(usersTable.id, dbUser.id));
+        }
+      }
+      if (!isAnonymous) {
+        authorName = `Vecino ${String(vecinoId).padStart(6, "0")}`;
+      }
+    } else if (!isAnonymous) {
+      // Usuario no autenticado, usar nombre proporcionado
+      authorName = data.authorName ?? "Vecino";
+    }
     const [report] = await db.insert(reportsTable).values({
       title: data.title,
       description: data.description,
@@ -134,7 +166,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
       sector: data.sector,
       districtId,
       district: data.district ?? "San Ramón",
-      authorName: isAnonymous ? "Anónimo" : (data.authorName ?? "Anónimo"),
+      authorName: isAnonymous ? "Anónimo" : authorName,
       contactPhone: isAnonymous ? null : (data.contactPhone ?? null),
       imageUrl: data.imageUrl ?? null,
     }).returning();

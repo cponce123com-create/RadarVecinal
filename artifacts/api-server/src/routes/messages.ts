@@ -10,7 +10,7 @@ import {
   subscriptionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "./auth";
+import { requireAuth, requireViewerOrAbove } from "./auth";
 import { checkTenant } from "./tenant";
 import { sendCustomMessageEmail } from "../lib/email";
 import { sendMunicipalPushToUser } from "../lib/fcm";
@@ -25,7 +25,7 @@ const createMessageSchema = z.object({
 });
 
 // ── POST /reports/:id/messages — Crear mensaje del admin al vecino ───────────
-router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res) => {
+router.post("/reports/:id/messages", requireAuth, requireViewerOrAbove, async (req, res) => {
   const parsed = createMessageSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -60,7 +60,6 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
       });
     }
 
-    // Bugfix 1: Usar contactEmail real, no heuristicas
     const hasPhone = !!report.contactPhone;
     const hasEmail = !!report.contactEmail;
 
@@ -71,13 +70,21 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
       return res.status(400).json({ error: "Este reporte no tiene correo electrónico registrado." });
     }
 
+    // Obtener displayName del usuario que responde
+    const [responder] = await db.select({ displayName: usersTable.displayName, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, parseInt(user.sub)))
+      .limit(1);
+
+    const responderName = responder?.displayName || responder?.name || user?.name || "Administración Municipal";
+
     // Guardar mensaje en la base de datos
     const [message] = await db.insert(reportMessagesTable).values({
       reportId: report.id,
       sender: "admin",
       channel,
       content: content.trim(),
-      adminName: user?.name ?? "Administrador Municipal",
+      adminName: responderName,
       contactPhone: channel === "whatsapp" ? report.contactPhone : null,
       contactEmail: channel === "email" ? report.contactEmail : null,
     }).returning();
@@ -92,7 +99,7 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
           reportTitle: report.title,
           reportId: report.id,
           message: content.trim(),
-          adminName: user?.name ?? "Administración Municipal",
+          adminName: responderName,
           districtName: report.district,
         }).catch((err) => {
           logger.error({ err, reportId: report.id }, "[Messages] Error al enviar email");
@@ -100,7 +107,7 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
       );
     }
 
-    // Bugfix 4: Usar authorUserId real para vincular notificación
+    // Canal app: notificación + push dirigido al vecino
     if (channel === "app") {
       const authorUserId = report.authorUserId;
 
@@ -108,29 +115,26 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
         districtId: report.districtId,
         userId: authorUserId,
         type: "report_update",
-        title: "📩 Mensaje de la Municipalidad",
-        body: `${user?.name ?? "Administración"}: ${content.trim()}`,
+        title: `📩 Respuesta de ${responderName}`,
+        body: `${responderName}: ${content.trim()}`,
         referenceId: String(report.id),
         referenceType: "report_message",
       }).catch((err) => {
         logger.error({ err, reportId: report.id }, "[Messages] Error al crear notificación app");
       });
 
-      // Bugfix 3: Push dirigido solo al vecino, no a todo el distrito
       if (authorUserId) {
         deliverPromises.push(
           sendMunicipalPushToUser({
             userId: authorUserId,
             districtId: report.districtId,
-            title: "📩 Mensaje de la Municipalidad",
-            body: `${user?.name ?? "Administración"}: ${content.trim()}`,
+            title: `📩 ${responderName} te respondió`,
+            body: content.trim(),
             reportId: report.id,
           }).catch((err) => {
             logger.error({ err, reportId: report.id }, "[Messages] Error al enviar push al vecino");
           }),
         );
-      } else {
-        logger.warn({ reportId: report.id }, "[Messages] Sin authorUserId — push no enviado. Solo notificación in-app.");
       }
     }
 
@@ -160,9 +164,8 @@ router.post("/reports/:id/messages", requireAuth, requireAdmin, async (req, res)
   }
 });
 
-// ── GET /reports/:id/messages — Obtener historial de mensajes (solo admin) ───
-// Bugfix 2: requireAuth + requireAdmin — nunca acceso público
-router.get("/reports/:id/messages", requireAuth, requireAdmin, async (req, res) => {
+// ── GET /reports/:id/messages — Obtener historial de mensajes (solo backoffice) ───
+router.get("/reports/:id/messages", requireAuth, requireViewerOrAbove, async (req, res) => {
   try {
     const [report] = await db.select({ id: reportsTable.id, districtId: reportsTable.districtId })
       .from(reportsTable)

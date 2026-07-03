@@ -5,6 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DistrictProvider } from "@/contexts/DistrictContext";
 import { usePanicAlertStream } from "@/lib/usePanicAlertStream";
+import { initApiBaseUrl } from "@/lib/apiConfig";
+
+// Inicializar URL base de la API (detecta Capacitor vs web automáticamente)
+initApiBaseUrl();
 
 import { Layout } from "@/components/Layout";
 import BrandingWrapper from "@/components/BrandingWrapper";

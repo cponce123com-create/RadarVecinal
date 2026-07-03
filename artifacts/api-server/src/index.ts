@@ -1,6 +1,5 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { autoSeedIfEmpty } from "./lib/autoSeed";
 import { startReportWorker } from "./workers/reportWorker";
 import { startEmailWorker } from "./workers/emailWorker";
 
@@ -25,14 +24,6 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
-  // Start background workers (non-blocking)
-  startReportWorker();
-  startEmailWorker();
-});
-=> logger.error({ e }, "autoSeed failed"));
-  } else {
-    logger.info("Production mode — auto-seed skipped. Use POST /api/seed with x-seed-key to seed manually.");
-  }
 
   // Start background workers (non-blocking)
   startReportWorker();

@@ -3,15 +3,8 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-// Known mock DNI records
-const KNOWN_DNIS: Record<string, { firstName: string; lastName: string; address?: string }> = {
-  "12345678": { firstName: "Juan", lastName: "Pérez García", address: "Jr. Las Flores 123" },
-  "87654321": { firstName: "María", lastName: "López Huamán", address: "Av. Principal 456" },
-  "11111111": { firstName: "Carlos", lastName: "Quispe Túpac", address: "Calle Los Olivos 789" },
-  "22222222": { firstName: "Ana", lastName: "Condori Mamani", address: "Pasaje El Sol 321" },
-  "33333333": { firstName: "Pedro", lastName: "Huamán Rojas", address: "Av. Central 654" },
-  "44444444": { firstName: "Lucía", lastName: "Gutiérrez Vargas", address: "Jr. Los Pinos 987" },
-};
+const RENIEC_API_URL = process.env.RENIEC_API_URL || "https://api.decolecta.com/v1/reniec/dni";
+const RENIEC_API_TOKEN = process.env.RENIEC_API_TOKEN;
 
 // GET /reniec/lookup/:dni - Buscar datos de un DNI
 router.get("/reniec/lookup/:dni", async (req, res) => {
@@ -26,32 +19,45 @@ router.get("/reniec/lookup/:dni", async (req, res) => {
 
   const { dni } = parsed.data;
 
-  // Simular latencia de red (300-800ms)
-  await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+  if (!RENIEC_API_TOKEN) {
+    return res.status(500).json({ error: "RENIEC_API_TOKEN no configurado. Contacta al administrador." });
+  }
 
-  const found = KNOWN_DNIS[dni];
+  try {
+    const response = await fetch(`${RENIEC_API_URL}?numero=${dni}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RENIEC_API_TOKEN}`,
+      },
+    });
 
-  if (!found) {
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: data.error || "Error al consultar RENIEC",
+      });
+    }
+
     return res.json({
       success: true,
       data: {
-        dni,
-        firstName: `Nombre${dni.slice(0, 4)}`,
-        lastName: `Apellido${dni.slice(4)}`,
-        address: "Dirección de referencia",
+        dni: data.document_number,
+        firstName: data.first_name,
+        lastName: `${data.first_last_name} ${data.second_last_name}`,
+        fullName: data.full_name,
       },
-      source: "mock",
+      source: "reniec",
+    });
+  } catch (err) {
+    req.log.error({ err }, "RENIEC lookup failed");
+    return res.status(502).json({
+      success: false,
+      error: "Error de conexión con el servicio RENIEC. Intenta de nuevo.",
     });
   }
-
-  return res.json({
-    success: true,
-    data: {
-      dni,
-      ...found,
-    },
-    source: "reniec",
-  });
 });
 
 export default router;

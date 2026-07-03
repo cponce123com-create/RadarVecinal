@@ -32,6 +32,8 @@ services:
         value: ""
       - key: PUBLIC_OBJECT_SEARCH_PATHS
         value: ""
+      - key: RENIEC_API_TOKEN
+        value: ""
 
 databases:
   - name: radarvecinal-db

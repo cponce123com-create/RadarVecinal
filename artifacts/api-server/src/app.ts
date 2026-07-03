@@ -6,8 +6,6 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { optionalAuth } from "./routes/auth";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
 
 const app: Express = express();
 
@@ -27,34 +25,29 @@ app.use(helmet({
 // Disable ETag so API responses are never cached as stale empty data
 app.set("etag", false);
 
-// RLS: setear variables de sesión PostgreSQL para Row Level Security (migración 0007)
-// Inspirado en FixNet (Supabase RLS). Cada request setea app.district_id y app.role.
-// app.role se setea SIEMPRE (incluso sin auth) para que las políticas RLS puedan
-// diferenciar entre super_admin (bypass) y usuarios normales (filtrados por distrito).
-// Las políticas en DB usan current_setting(name, true) para no fallar si no está seteado.
-app.use("/api", (req, _res, next) => {
-  const user = (req as any).jwtUser;
-  const role = user?.role ?? "anonymous";
-  db.execute(sql`SELECT set_config('app.role', ${role}, true)`).catch(() => {});
-  if (user?.districtId) {
-    db.execute(sql`SELECT set_config('app.district_id', ${String(user.districtId)}, true)`).catch(() => {});
-  } else {
-    db.execute(sql`SELECT set_config('app.district_id', '0', true)`).catch(() => {});
-  }
-  next();
-});
+// BUG-1: JWT debe decodificarse ANTES del CORS y limiters que usan jwtUser
+app.use("/api", optionalAuth);
 
-// CORS: solo orígenes explícitos. En producción el frontend se sirve
-// desde express.static (mismo origen), así que no necesita CORS.
-// Para desarrollo local (Vite en :5173) o entornos con frontend separado,
-// configurar CORS_ORIGIN como lista separada por comas.
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
-  : ["http://localhost:5173", "http://localhost:3000"];
+// CORS: incluir orígenes fijos de Capacitor (BUG-3) + los que vengan de env var.
+// En producción el frontend se sirve desde express.static (mismo origen),
+// así que no necesita CORS, pero Capacitor (APK) usa https://localhost.
+const CAPACITOR_ORIGINS = ["https://localhost", "capacitor://localhost", "http://localhost"];
+const allowedOrigins = [
+  ...CAPACITOR_ORIGINS,
+  ...(process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+    : ["http://localhost:5173", "http://localhost:3000"]),
+];
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
 }));
+
+// BUG-2: RLS por variables de sesión abandonado — ver replit.md para rationale.
+// La defensa multi-tenant está en la capa de aplicación (tenant.ts checkTenant),
+// que filtra explícitamente por districtId en cada query. Las políticas RLS
+// en DB (migración 0007) se mantienen solo como defensa estática en profundidad
+// (ej: denegar DELETE directo). No dependemos de set_config con pool.
 
 app.use(
   pinoHttp({
@@ -77,9 +70,6 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Attach JWT user info for auth-aware rate limiting (applied before limiters)
-app.use("/api", optionalAuth);
 
 // Force fresh responses — prevent stale cached empty data in browsers
 app.use("/api", (_req, res, next) => {

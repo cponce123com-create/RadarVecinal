@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import crypto from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, districtsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { usersTable, districtsTable, refreshTokensTable } from "@workspace/db/schema";
+import { eq, and, sql, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -11,7 +12,9 @@ const router: IRouter = Router();
 
 const JWT_SECRET: string = process.env.JWT_SECRET!;
 if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
-const JWT_EXPIRES = "30d";
+// BUG-4: Access token corto (15 min), refresh token largo (30 días)
+const JWT_EXPIRES = "15m";
+const JWT_REFRESH_EXPIRES_DAYS = 30;
 
 // ── Zod schemas ─────────────────────────────────────────────────────────────
 const registerSchema = z.object({
@@ -26,6 +29,10 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email:    z.string().email("Email inválido"),
   password: z.string().min(1, "Contraseña requerida"),
+});
+
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1, "Refresh token requerido"),
 });
 
 // ── Helper: busca o falla al distrito por nombre ────────────────────────────
@@ -51,6 +58,45 @@ function signToken(user: { id: number; email: string; role: string; district: st
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES }
   );
+}
+
+async function signRefreshToken(userId: number): Promise<string> {
+  // Generar token criptográficamente aleatorio
+  const raw = crypto.randomBytes(48).toString("hex");
+  const hash = crypto.createHash("sha256").update(raw).digest("hex");
+
+  const expiresAt = new Date(Date.now() + JWT_REFRESH_EXPIRES_DAYS * 86400000);
+
+  await db.insert(refreshTokensTable).values({
+    userId,
+    tokenHash: hash,
+    expiresAt,
+  }).catch(() => {}); // best-effort
+
+  return raw; // devolvemos el token raw, el hash se guarda en DB
+}
+
+async function revokeRefreshToken(rawToken: string): Promise<void> {
+  const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  await db.update(refreshTokensTable)
+    .set({ revoked: true })
+    .where(eq(refreshTokensTable.tokenHash, hash))
+    .catch(() => {});
+}
+
+async function validateRefreshToken(rawToken: string): Promise<number | null> {
+  const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const [stored] = await db.select()
+    .from(refreshTokensTable)
+    .where(and(
+      eq(refreshTokensTable.tokenHash, hash),
+      eq(refreshTokensTable.revoked, false),
+      sql`${refreshTokensTable.expiresAt} > NOW()`,
+    ))
+    .limit(1);
+
+  if (!stored) return null;
+  return stored.userId;
 }
 
 function formatUser(u: typeof usersTable.$inferSelect) {
@@ -220,6 +266,63 @@ router.post("/auth/google", async (req: Request, res: Response) => {
   } catch (err) {
     req.log.error({ err }, "Google auth failed");
     return res.status(401).json({ error: "Autenticación con Google fallida." });
+  }
+});
+
+// ── POST /auth/refresh — Renovar access token con refresh token ─────────────
+router.post("/auth/refresh", async (req: Request, res: Response) => {
+  const parsed = refreshSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Refresh token inválido" });
+  }
+
+  const { refreshToken } = parsed.data;
+
+  try {
+    const userId = await validateRefreshToken(refreshToken);
+    if (!userId) {
+      return res.status(401).json({ error: "Refresh token inválido o expirado. Inicia sesión de nuevo." });
+    }
+
+    // Revocar el refresh token usado (rotación)
+    await revokeRefreshToken(refreshToken);
+
+    const [user] = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({ error: "Cuenta desactivada. Contacta al administrador." });
+    }
+
+    const token = signToken(user);
+    const newRefreshToken = await signRefreshToken(user.id);
+
+    return res.json({
+      token,
+      refreshToken: newRefreshToken,
+      user: formatUser(user),
+    });
+  } catch (err) {
+    req.log.error({ err }, "refresh failed");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /auth/logout — Revocar refresh token ───────────────────────────────
+router.post("/auth/logout", async (req: Request, res: Response) => {
+  const parsed = refreshSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Refresh token inválido" });
+  }
+
+  try {
+    await revokeRefreshToken(parsed.data.refreshToken);
+    return res.json({ success: true, message: "Sesión cerrada correctamente." });
+  } catch (err) {
+    req.log.error({ err }, "logout failed");
+    return res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 

@@ -310,3 +310,13 @@ export const userEducationProgressTable = pgTable("user_education_progress", {
 });
 
 export const insertCivicTopicSchema = createInsertSchema(civicEducationTopicsTable).omit({ id: true, createdAt: true });
+
+// ── Refresh tokens para renovación de sesión (BUG-4) ─────────────────────────
+export const refreshTokensTable = pgTable("refresh_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  revoked: boolean("revoked").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

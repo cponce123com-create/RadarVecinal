@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -469,6 +469,8 @@ interface LeafletMapProps {
   className?: string;
   isAdmin?: boolean;
   onContextMenu?: (report: Report, pos: { x: number; y: number }) => void;
+  /** Capas extra renderizadas dentro del MapContainer (ej: PanicAlertsLayer) */
+  children?: ReactNode;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -479,6 +481,7 @@ export function LeafletMap({
   className = "",
   isAdmin = false,
   onContextMenu,
+  children,
 }: LeafletMapProps) {
   const geo = useGeolocation();
   const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(null);
@@ -575,6 +578,9 @@ export function LeafletMap({
 
         {/* ── HEAT mode: robbery/fight smoke heatmap ── */}
         {mode === "heat" && <SmokeHeatCanvas reports={heatData} />}
+
+        {/* ── Capas extra (ej: alertas de pánico en tiempo real) ── */}
+        {children}
       </MapContainer>
 
       {/* GPS status badge */}

@@ -187,6 +187,7 @@ export default function ReportForm() {
         address: formData.address,
         sector: formData.sector,
         contactPhone: formData.contactPhone || null,
+        contactEmail: formData.contactEmail || null,
         authorName: formData.isAnonymous ? "Anónimo" : (!!user && user?.name ? user.name : (formData.authorName.trim() || "Vecino de San Ramón")),
         district: currentDistrict,
         imageUrl: imageUrl ?? null,

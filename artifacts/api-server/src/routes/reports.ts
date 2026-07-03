@@ -331,10 +331,10 @@ router.patch("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
         changedById: user ? Number(user.sub) : undefined,
       }).catch(() => {}); // non-critical
 
-      // Email notification al autor si tiene contacto
-      if (updated.contactPhone?.includes("@")) {
+      // Email notification al autor si tiene email de contacto
+      if (updated.contactEmail) {
         sendStatusChangeEmail({
-          to: updated.contactPhone,
+          to: updated.contactEmail,
           reportTitle: updated.title,
           reportId: updated.id,
           newStatus: parsed.data.status,

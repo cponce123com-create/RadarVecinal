@@ -131,11 +131,11 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
 
   // Detectar disponibilidad de canales
   const hasPhone = !!report?.contactPhone;
-  const isEmail = report?.contactPhone?.includes("@") ?? false;
+  const hasEmail = !!report?.contactEmail;
 
   const isWhatsappAvailable = hasPhone;
   const isAppAvailable = !report?.isAnonymous;
-  const isEmailAvailable = isEmail;
+  const isEmailAvailable = hasEmail;
 
   const channels = [
     { id: "whatsapp" as const, available: isWhatsappAvailable, reason: "El vecino no registró número telefónico" },

@@ -200,11 +200,16 @@ function RadarOverlay({ reports }: { reports: Report[] }) {
         } catch { /* off-map */ }
       });
 
-      // Label
+      // Label con coordenadas reales
+      let labelText = "RADAR_SYS · MODO MAPA";
+      try {
+        const center = map.getCenter();
+        labelText = `RADAR_SYS · ${center.lat.toFixed(4)}°S, ${Math.abs(center.lng).toFixed(4)}°O`;
+      } catch {}
       ctx.fillStyle = "rgba(0,200,80,0.2)";
       ctx.font = "8px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("RADAR_SYS · SAN RAMÓN · CHANCHAMAYO", cx, height - 12);
+      ctx.fillText(labelText, cx, height - 12);
       ctx.textAlign = "left";
 
       sweepRef.current = (sweep + 0.024) % (Math.PI * 2);

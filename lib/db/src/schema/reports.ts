@@ -167,6 +167,23 @@ export const notificationsTable = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Report Messages (hilo de comunicación vecino ↔ admin) ────────────────────
+export const messageSenderEnum = pgEnum("message_sender", ["admin", "vecino"]);
+export const messageChannelEnum = pgEnum("message_channel", ["whatsapp", "app", "email"]);
+
+export const reportMessagesTable = pgTable("report_messages", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  sender: messageSenderEnum("sender").notNull(),
+  channel: messageChannelEnum("channel").notNull(),
+  content: text("content").notNull(),
+  adminName: text("admin_name"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPanicAlertSchema = createInsertSchema(panicAlertsTable).omit({ id: true, createdAt: true });
 export const insertMissingPersonSchema = createInsertSchema(missingPersonsTable).omit({ id: true, createdAt: true });

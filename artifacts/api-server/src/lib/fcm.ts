@@ -103,3 +103,44 @@ export async function sendPanicAlertPush(alert: {
     logger.error({ err, alertId: alert.id }, "[FCM] Error al enviar push (best-effort, ignorado)");
   }
 }
+
+/**
+ * Envía una notificación push cuando el admin municipal envía un mensaje
+ * al vecino. Best-effort: no lanza errores.
+ */
+export async function sendMunicipalPushAlert(data: {
+  districtId: number;
+  title: string;
+  body: string;
+  reportId: number;
+}): Promise<void> {
+  try {
+    if (!initFcm()) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const admin = require("firebase-admin");
+
+    await admin.messaging().send({
+      notification: { title: data.title, body: data.body },
+      topic: `district-${data.districtId}`,
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "municipal-messages",
+          priority: "high",
+          visibility: "public",
+          tag: `msg-${data.reportId}`,
+        },
+      },
+      data: {
+        type: "municipal_message",
+        reportId: String(data.reportId),
+        districtId: String(data.districtId),
+      },
+    });
+
+    logger.info({ reportId: data.reportId, districtId: data.districtId }, "[FCM] Push municipal enviado");
+  } catch (err) {
+    logger.error({ err, reportId: data.reportId }, "[FCM] Error al enviar push municipal (best-effort)");
+  }
+}

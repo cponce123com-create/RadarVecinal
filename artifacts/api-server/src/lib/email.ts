@@ -89,3 +89,64 @@ export async function sendStatusChangeEmail(data: StatusChangeEmail): Promise<vo
     logger.error({ err, reportId: data.reportId }, "[Email] Error al enviar (best-effort)");
   }
 }
+
+// ── Interfaz para mensaje personalizado del admin ────────────────────────────
+interface CustomMessageEmail {
+  to: string;
+  reportTitle: string;
+  reportId: number;
+  message: string;
+  adminName: string;
+  districtName: string;
+}
+
+/**
+ * Envía un email con un mensaje personalizado redactado por el admin municipal.
+ * Best-effort: no lanza errores.
+ */
+export async function sendCustomMessageEmail(data: CustomMessageEmail): Promise<void> {
+  try {
+    const t = getTransporter();
+    if (!t) return;
+
+    await t.sendMail({
+      from: process.env.SMTP_FROM || "noreply@radarvecinal.pe",
+      to: data.to,
+      subject: `📩 Municipalidad de ${data.districtName} se comunicó contigo`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0f1219;color:#e2e8f0;padding:24px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:20px">
+            <span style="font-size:32px">🏛️</span>
+          </div>
+          <h2 style="color:#fff;margin-top:0;text-align:center">Municipalidad de ${data.districtName}</h2>
+          <p style="color:#94a3b8;text-align:center;font-size:13px">
+            Mensaje enviado por <strong style="color:#fff">${data.adminName}</strong>
+          </p>
+          <div style="border-top:1px solid #1e293b;margin:16px 0" />
+
+          <div style="background:#1e293b;border-radius:8px;padding:16px;margin:16px 0">
+            <p style="margin:0;font-size:13px;color:#94a3b8;margin-bottom:8px">
+              Reporte: <strong style="color:#fff">"${data.reportTitle}"</strong>
+            </p>
+            <div style="border-top:1px solid #2d3748;margin:12px 0" />
+            <p style="margin:0;color:#e2e8f0;font-size:14px;line-height:1.6;white-space:pre-wrap">
+              ${data.message}
+            </p>
+          </div>
+
+          <p style="color:#64748b;font-size:12px;text-align:center">
+            Este es un mensaje oficial de la Municipalidad de ${data.districtName}.
+            No respondas a este correo. Para cualquier consulta, acércate a la oficina de atención al vecino.
+          </p>
+          <p style="color:#64748b;font-size:12px;text-align:center">
+            — Radar Vecinal · ${data.districtName}
+          </p>
+        </div>
+      `,
+    });
+
+    logger.info({ reportId: data.reportId }, "[Email] Mensaje personalizado enviado");
+  } catch (err) {
+    logger.error({ err, reportId: data.reportId }, "[Email] Error al enviar mensaje personalizado (best-effort)");
+  }
+}

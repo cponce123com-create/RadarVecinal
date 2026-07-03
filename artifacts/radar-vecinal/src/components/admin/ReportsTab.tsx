@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Phone, CheckCircle, Eye, Clock, FileText } from "lucide-react";
+import { Trash2, Phone, CheckCircle, Eye, Clock, FileText, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUpdateReport, useDeleteReport, ReportStatus } from "@workspace/api-client-react";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { STATUS_META } from "./constants";
 import DeleteConfirmModal from "./DeleteConfirmModal";
+import ContactNeighborModal from "./ContactNeighborModal";
 
 interface Report {
   id: string;
@@ -18,6 +19,8 @@ interface Report {
   sector: string;
   createdAt: string;
   contactPhone?: string | null;
+  authorName?: string;
+  isAnonymous?: boolean;
 }
 
 interface Props {
@@ -28,6 +31,7 @@ interface Props {
 
 export default function ReportsTab({ reports, search, onRefetch }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [contactReport, setContactReport] = useState<Report | null>(null);
   const updateReport = useUpdateReport();
   const deleteReport = useDeleteReport();
   const { toast } = useToast();
@@ -55,6 +59,17 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
       onError: () => toast({ title: "Error al eliminar", variant: "destructive" }),
     });
   };
+
+  const getContactInfo = (r: Report) => ({
+    id: r.id,
+    title: r.title,
+    category: r.category,
+    sector: r.sector,
+    authorName: r.authorName ?? "",
+    contactPhone: r.contactPhone ?? null,
+    isAnonymous: r.isAnonymous ?? false,
+    status: r.status,
+  });
 
   return (
     <>
@@ -111,6 +126,13 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setContactReport(r)}
+                          title="Contactar vecino"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-400 hover:bg-blue-500/15 transition-colors"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
                         {r.contactPhone && (
                           <a href={`tel:${r.contactPhone}`} title={`Llamar: ${r.contactPhone}`}
                             className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/15 transition-colors">
@@ -178,6 +200,12 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 border-t border-white/5 pt-2.5">
+                <button
+                  onClick={() => setContactReport(r)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                >
+                  <MessageSquare className="w-3 h-3" /> Contactar
+                </button>
                 {r.contactPhone && (
                   <a href={`tel:${r.contactPhone}`}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors">
@@ -211,6 +239,13 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
         isPending={deleteReport.isPending}
+      />
+
+      <ContactNeighborModal
+        report={contactReport ? getContactInfo(contactReport) : null}
+        open={!!contactReport}
+        onClose={() => setContactReport(null)}
+        onSent={() => { setContactReport(null); onRefetch(); }}
       />
     </>
   );

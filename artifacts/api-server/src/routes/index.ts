@@ -13,6 +13,7 @@ import featuresRouter from "./features";
 import civicEducationRouter from "./civicEducation";
 import embedRouter from "./embed";
 import reportsPdfRouter from "./reportsPdf";
+import messagesRouter from "./messages";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(featuresRouter);
 router.use(civicEducationRouter);
 router.use(embedRouter);
 router.use(reportsPdfRouter);
+router.use(messagesRouter);
 
 export default router;

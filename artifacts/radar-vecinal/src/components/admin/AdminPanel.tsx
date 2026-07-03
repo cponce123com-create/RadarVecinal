@@ -105,19 +105,3 @@ export default function AdminPanel() {
     </div>
   );
 }
-uperAdminTab />}
-    </div>
-  );
-}
-fetch={refetch} />}
-      {tab === "analytics" && <AnalyticsTab />}
-      {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
-      {tab === "ads" && <AdSlotsTab />}
-      {tab === "superadmin" && <SuperAdminTab />}
-    </div>
-  );
-}
-uperAdminTab />}
-    </div>
-  );
-}

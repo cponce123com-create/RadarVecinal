@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGetPanicAlerts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useDistrict } from "@/contexts/DistrictContext";
 
 const PANIC_META: Record<string, { icon: any; label: string; color: string }> = {
   robbery:        { icon: AlertTriangle, label: "Asalto en Progreso",       color: "#ef4444" },
@@ -21,16 +22,31 @@ const cardVariants = {
 };
 
 export default function Alerts() {
-  const { data, isLoading, refetch } = useGetPanicAlerts();
+  const { currentDistrictId } = useDistrict();
+
+  // FIX: antes se llamaba useGetPanicAlerts() sin districtId — para usuarios
+  // anónimos el backend no podía determinar el distrito y devolvía lista
+  // vacía SIEMPRE. Ahora se pasa el distrito y la query espera a tenerlo.
+  const { data, isLoading, refetch } = useGetPanicAlerts(
+    currentDistrictId ? { districtId: currentDistrictId } : undefined,
+    { query: { enabled: !!currentDistrictId } },
+  );
   const queryClient = useQueryClient();
   const alerts = data?.alerts ?? [];
   const [sseConnected, setSseConnected] = useState(false);
   const [newAlertFlash, setNewAlertFlash] = useState(false);
   const esRef = useRef<EventSource | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // FIX: antes se conectaba a /api/panic-alerts/stream SIN districtId.
+    // El backend responde 400 sin ese parámetro, así que la conexión SSE
+    // fallaba, reintentaba cada 5s en bucle infinito (agotando el rate
+    // limit) y el indicador quedaba en "Conectando..." para siempre.
+    if (!currentDistrictId) return;
+
     const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-    const url = `${BASE}/api/panic-alerts/stream`;
+    const url = `${BASE}/api/panic-alerts/stream?districtId=${currentDistrictId}`;
 
     function connect() {
       const es = new EventSource(url);
@@ -39,8 +55,13 @@ export default function Alerts() {
       es.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === "new_alert") {
+          // FIX: antes se comparaba msg.type === "new_alert", pero el backend
+          // envía `type` con el TIPO DE EMERGENCIA (robbery, fire...). La
+          // condición nunca era verdadera y la lista jamás se refrescaba.
+          // Ahora el backend marca las alertas nuevas con `event: "new_alert"`.
+          if (msg.event === "new_alert") {
             queryClient.invalidateQueries({ queryKey: ["panic-alerts"] });
+            refetch();
             setNewAlertFlash(true);
             setTimeout(() => setNewAlertFlash(false), 3000);
           }
@@ -49,12 +70,15 @@ export default function Alerts() {
       es.onerror = () => {
         setSseConnected(false);
         es.close();
-        setTimeout(connect, 5000);
+        reconnectRef.current = setTimeout(connect, 5000);
       };
     }
     connect();
-    return () => { esRef.current?.close(); };
-  }, [queryClient]);
+    return () => {
+      esRef.current?.close();
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    };
+  }, [queryClient, currentDistrictId, refetch]);
 
   return (
     <div className="max-w-3xl mx-auto pb-8 flex flex-col gap-5 rv-in">

@@ -49,11 +49,19 @@ interface SseClient {
 let sseClients: SseClient[] = [];
 
 // ── M-02: Broadcast de alerta solo a clientes del mismo distrito ────────────
+// FIX: se añade `event: "new_alert"` para que los clientes puedan distinguir
+// alertas nuevas de heartbeats/handshakes sin ambigüedad. El campo `type`
+// se mantiene con el tipo de emergencia (robbery, fire, etc.) porque el hook
+// global usePanicAlertStream lo usa para el título del toast.
 export function broadcastPanicAlert(alert: any) {
   const alertDistrictId = Number(alert.districtId);
-  const body = `data: ${JSON.stringify({ ...alert, id: String(alert.id), createdAt: alert.createdAt?.toISO?.() ?? alert.createdAt })}
-
-`;
+  const payload = {
+    event: "new_alert",
+    ...alert,
+    id: String(alert.id),
+    createdAt: alert.createdAt?.toISOString?.() ?? alert.createdAt,
+  };
+  const body = `data: ${JSON.stringify(payload)}\n\n`;
   sseClients.forEach(client => {
     if (client.districtId === alertDistrictId) {
       client.res.write(body);
@@ -76,7 +84,7 @@ router.get("/panic-alerts/stream", (req, res) => {
     "X-Accel-Buffering": "no",
   });
 
-  res.write("data: " + JSON.stringify({ connected: true }) + "\n\n");
+  res.write("data: " + JSON.stringify({ event: "connected" }) + "\n\n");
 
   const client: SseClient = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -85,7 +93,18 @@ router.get("/panic-alerts/stream", (req, res) => {
   };
   sseClients.push(client);
 
+  // FIX: heartbeat cada 25s — los proxies (Render/Cloudflare) cierran
+  // conexiones inactivas y el cliente quedaba "Conectando..." para siempre.
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(":hb\n\n");
+    } catch {
+      /* la conexión se cerró; el evento close hará la limpieza */
+    }
+  }, 25000);
+
   req.on("close", () => {
+    clearInterval(heartbeat);
     sseClients = sseClients.filter(c => c.id !== client.id);
   });
 });
@@ -96,7 +115,10 @@ router.get("/panic-alerts", optionalAuth, async (req, res) => {
     const { active } = req.query;
     const districtId = getDistrictId(req);
     if (!districtId) {
-      return res.json({ panicAlerts: [] });
+      // FIX: antes devolvía { panicAlerts: [] } — clave inconsistente con el
+      // contrato OpenAPI (getPanicAlerts200 usa `alerts`). El frontend leía
+      // data.alerts y aquí recibía otra forma.
+      return res.json({ alerts: [] });
     }
 
     const conditions = [eq(panicAlertsTable.districtId, districtId)];
@@ -176,7 +198,7 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
     const { active } = req.query;
     const districtId = getDistrictId(req);
     if (!districtId) {
-      return res.json({ missingPersons: [] });
+      return res.json({ alerts: [] });
     }
 
     const conditions = [eq(missingPersonsTable.districtId, districtId)];

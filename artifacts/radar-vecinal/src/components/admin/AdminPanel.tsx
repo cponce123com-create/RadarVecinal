@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown } from "lucide-react";
+import { Shield, Database, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown } from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,7 @@ import UsersTab from "./UsersTab";
 import AdSlotsTab from "./AdSlotsTab";
 import DistrictSwitcher from "./DistrictSwitcher";
 import AnalyticsTab from "./AnalyticsTab";
+import SuperAdminTab from "./SuperAdminTab";
 
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>("reports");
@@ -41,6 +42,11 @@ export default function AdminPanel() {
     { id: "users" as Tab,   label: "Usuarios",   icon: UsersIcon },
     { id: "ads" as Tab,     label: "Publicidad", icon: Megaphone },
   ];
+
+  // Super admin tab solo visible para super_admin
+  if (isSuperAdmin) {
+    tabs.push({ id: "superadmin" as Tab, label: "Super Admin", icon: Crown });
+  }
 
   return (
     <div className="flex flex-col gap-5 max-w-6xl mx-auto pb-8">
@@ -119,6 +125,7 @@ export default function AdminPanel() {
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
       {tab === "ads" && <AdSlotsTab />}
+      {tab === "superadmin" && <SuperAdminTab />}
     </div>
   );
 }

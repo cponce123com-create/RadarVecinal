@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ReportCategory, ReportUrgency, useCreateReport } from "@workspace/api-client-react";
-import { CATEGORY_CONFIG, SECTORS, SENSITIVE_CATEGORIES, DISTRICT } from "@/lib/constants";
+import { CATEGORY_CONFIG, SENSITIVE_CATEGORIES, DISTRICT } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
@@ -92,12 +92,70 @@ export default function ReportForm() {
     description: "",
     category: "" as ReportCategory | "",
     urgency: ReportUrgency.medium as ReportUrgency,
-    sector: SECTORS[0],
+    sector: "",
     address: "",
     contactPhone: "",
     latitude: fromMap?.lat ?? DISTRICT.center.lat,
     longitude: fromMap?.lng ?? DISTRICT.center.lng,
   });
+
+  // ── GPS + Reverse Geocode: detectar ubicación real del vecino ───────────
+  const [detectingLocation, setDetectingLocation] = useState(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.zone) {
+        setFormData(prev => ({ ...prev, sector: data.zone }));
+      }
+      if (data.displayName && !formData.address) {
+        // Tomar la calle + zona como dirección base si no hay una
+        const roadZone = [data.road, data.zone].filter(Boolean).join(", ");
+        if (roadZone) {
+          setFormData(prev => ({ ...prev, address: roadZone }));
+        }
+      }
+    } catch {
+      // silencio - el usuario puede escribir manualmente
+    }
+  }, []);
+
+  useEffect(() => {
+    if (fromMap) {
+      // Ya tiene coordenadas desde la URL, hace reverse geocode directo
+      setDetectingLocation(false);
+      reverseGeocode(fromMap.lat, fromMap.lng);
+      return;
+    }
+
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setDetectingLocation(false);
+      setLocationError("GPS no disponible. Usa el mapa o la búsqueda.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+        setDetectingLocation(false);
+        reverseGeocode(lat, lng);
+      },
+      (err) => {
+        setDetectingLocation(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationError("Permiso de ubicación denegado. Puedes buscar tu dirección en el mapa.");
+        } else {
+          setLocationError("No se pudo obtener tu ubicación. Usa el mapa o la búsqueda.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 },
+    );
+  }, [fromMap, reverseGeocode]);
 
   // Image upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -313,13 +371,28 @@ export default function ReportForm() {
                   </p>
                 </div>
 
-                {/* Sector */}
+                {/* Zona / Barrio (auto-detectado por GPS, editable) */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Sector</label>
-                  <select name="sector" value={formData.sector} onChange={handleChange}
-                    className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-colors">
-                    {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <label className="block text-sm font-semibold text-white mb-2">Zona / Barrio</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground" />
+                    <input type="text" name="sector" value={formData.sector} onChange={handleChange}
+                      placeholder={detectingLocation ? "Detectando zona..." : "Ej: Pampa del Carmen, San Ramón Centro..."}
+                      className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                    />
+                    {detectingLocation && (
+                      <Loader2 className="absolute right-3.5 top-3.5 w-4 h-4 text-primary animate-spin" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    {detectingLocation
+                      ? "Obteniendo tu ubicación por GPS..."
+                      : locationError
+                        ? locationError
+                        : formData.sector
+                          ? "Detectado automáticamente por tu GPS. Puedes editarlo."
+                          : "Escribe el barrio, zona o código postal donde ocurrió."}
+                  </p>
                 </div>
 
                 {/* Address */}

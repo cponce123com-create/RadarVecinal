@@ -67,6 +67,14 @@ function DraggableMarker({ position, onDrag }: {
     return () => { marker.remove(); };
   }, [map]);
 
+  // Mover el marcador cuando cambie la posición (GPS o búsqueda)
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (marker) {
+      marker.setLatLng([position.lat, position.lng]);
+    }
+  }, [position.lat, position.lng]);
+
   return null;
 }
 

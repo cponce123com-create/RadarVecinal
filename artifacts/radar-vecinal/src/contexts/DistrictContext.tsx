@@ -110,7 +110,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
           .catch(() => { if (!cancelled) setDetectingLocation(false); });
       },
       () => { if (!cancelled) setDetectingLocation(false); },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
     return () => { cancelled = true; };
   }, [loaded]);

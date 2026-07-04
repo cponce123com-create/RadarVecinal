@@ -48,7 +48,7 @@ router.get("/districts/nearby", async (req, res) => {
         const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return { ...d, distance: Math.round(dist) };
       })
-      .filter(d => d.distance < 50000) // Solo dentro de 50 km
+      .filter(d => d.distance < 3000) // Solo dentro de 3 km — evita distritos vecinos lejanos
       .sort((a, b) => a.distance - b.distance)
       .slice(0, parsed.data.limit);
 

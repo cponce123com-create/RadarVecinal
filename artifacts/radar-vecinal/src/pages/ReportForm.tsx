@@ -70,6 +70,15 @@ function DraggableMarker({ position, onDrag }: {
   return null;
 }
 
+// ── MapCenterUpdater — fuerza al mapa a moverse cuando cambian las coordenadas ─
+function MapCenterUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center[0], center[1], map]);
+  return null;
+}
+
 export default function ReportForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -360,6 +369,7 @@ export default function ReportForm() {
                       style={{ width: "100%", height: "100%" }}
                     >
                       <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="" maxZoom={19} />
+                      <MapCenterUpdater center={[formData.latitude, formData.longitude]} />
                       <DraggableMarker
                         position={{ lat: formData.latitude, lng: formData.longitude }}
                         onDrag={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}

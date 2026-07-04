@@ -89,24 +89,54 @@ export default function Profile() {
 
   const user = authUser;
 
-  // B-22: Profile edit form
+  // B-22: Profile edit form (incluye nombre en clave editable)
   const [editProfile, setEditProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: user.name, sector: user.sector });
+  const [profileForm, setProfileForm] = useState({
+    name: user.name,
+    sector: user.sector,
+    alias: user.alias ?? "",
+  });
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Nombre en clave actual: alias personalizado o código autogenerado
+  const codeName = profileForm.alias.trim()
+    || (user.vecinoId ? `Vecino ${String(user.vecinoId).padStart(6, "0")}` : "Se asignará con tu primer reporte");
 
   const handleProfileSave = async () => {
     if (!profileForm.name.trim()) {
       toast({ title: "El nombre no puede estar vacío.", variant: "destructive" }); return;
     }
+    const aliasTrimmed = profileForm.alias.trim();
+    if (aliasTrimmed && aliasTrimmed.length < 3) {
+      toast({ title: "El nombre en clave debe tener al menos 3 caracteres.", variant: "destructive" }); return;
+    }
+    if (aliasTrimmed.length > 30) {
+      toast({ title: "El nombre en clave no puede superar 30 caracteres.", variant: "destructive" }); return;
+    }
     setSavingProfile(true);
     try {
       if (authUser && user.id) {
-        const token = localStorage.getItem("radar_token");
-        await fetch(`/api/users/${user.id}`, {
+        const token = localStorage.getItem("radarvecinal_token");
+        const res = await fetch(`/api/users/${user.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ name: profileForm.name, sector: profileForm.sector }),
+          body: JSON.stringify({
+            name: profileForm.name,
+            sector: profileForm.sector,
+            // alias vacío = volver al código autogenerado "Vecino XXXXXX"
+            alias: aliasTrimmed || null,
+          }),
         });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          toast({
+            title: res.status === 409 ? "Nombre en clave en uso" : "No se pudo guardar",
+            description: body.error ?? "Intenta con otro nombre.",
+            variant: "destructive",
+          });
+          setSavingProfile(false);
+          return;
+        }
       }
       toast({ title: "Perfil actualizado", description: "Tus datos han sido guardados." });
       setEditProfile(false);
@@ -162,7 +192,12 @@ export default function Profile() {
                 </button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mb-4">{profileForm.sector || user.sector} · Desde {joinDate}</p>
+            <p className="text-sm text-muted-foreground mb-1">{profileForm.sector || user.sector} · Desde {joinDate}</p>
+            <p className="text-xs mb-4">
+              <span className="text-muted-foreground">Nombre en clave: </span>
+              <span className="text-primary font-semibold">{codeName}</span>
+              <span className="text-muted-foreground/60"> · así te ven los vecinos en tus reportes</span>
+            </p>
 
             {/* Stats row */}
             <div className="flex justify-center sm:justify-start gap-2 sm:gap-3 flex-wrap">
@@ -262,6 +297,21 @@ export default function Profile() {
                     placeholder="Tu nombre"
                     className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/8 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/70 mb-1.5">Nombre en clave</label>
+                  <input
+                    type="text"
+                    value={profileForm.alias}
+                    onChange={e => setProfileForm(p => ({ ...p, alias: e.target.value }))}
+                    placeholder={user.vecinoId ? `Vecino ${String(user.vecinoId).padStart(6, "0")}` : "Ej: HalcónDelKimiri"}
+                    maxLength={30}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/8 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+                    Es el nombre con el que aparecen tus reportes ante los demás vecinos.
+                    Déjalo vacío para usar tu código autogenerado. 3–30 caracteres.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-white/70 mb-1.5">Sector</label>

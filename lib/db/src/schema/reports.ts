@@ -78,6 +78,8 @@ export const usersTable = pgTable("users", {
   vecinoId: integer("vecino_id").unique(),
   // displayName: nombre real que se muestra en respuestas a reportes (visores/municipales)
   displayName: text("display_name"),
+  // alias: nombre en clave editable por el vecino (reemplaza a "Vecino XXXXXX")
+  alias: text("alias"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -106,6 +108,9 @@ export const reportsTable = pgTable("reports", {
   // Bugfix 4: Referencia directa al usuario autor
   authorUserId: integer("author_user_id").references(() => usersTable.id),
   confirmedCount: integer("confirmed_count").notNull().default(0),
+  // Verificación comunitaria: vecinos que confirman que la solución es real.
+  // Al llegar a 10 el reporte pasa a "archived" y desaparece del mapa/radar.
+  resolutionConfirmedCount: integer("resolution_confirmed_count").notNull().default(0),
   assignedTo: integer("assigned_to").references(() => departmentsTable.id),
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
@@ -310,6 +315,21 @@ export const districtResourcesTable = pgTable("district_resources", {
 
 export const insertVoteSchema = createInsertSchema(votesTable).omit({ id: true, createdAt: true });
 export const insertDistrictResourceSchema = createInsertSchema(districtResourcesTable).omit({ id: true, createdAt: true });
+
+// ── Confirmaciones de solución (verificación comunitaria) ────────────────────
+// Cuando la municipalidad marca un reporte como "resolved", los vecinos pueden
+// confirmar que la solución es real. Al llegar a 10 confirmaciones, el reporte
+// pasa a "archived" y desaparece del mapa y del radar.
+export const resolutionConfirmationsTable = pgTable("resolution_confirmations", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  userId: integer("user_id").references(() => usersTable.id),
+  userIp: text("user_ip"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertResolutionConfirmationSchema = createInsertSchema(resolutionConfirmationsTable).omit({ id: true, createdAt: true });
+export type ResolutionConfirmation = typeof resolutionConfirmationsTable.$inferSelect;
 
 // ── Civic Education (quizzes, lecciones gamificadas) ────────────────────────
 export const civicEducationTopicsTable = pgTable("civic_education_topics", {

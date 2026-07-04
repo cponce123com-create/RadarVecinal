@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Thermometer, Radar, RotateCcw, Map as MapIcon, ShieldAlert } from "lucide-react";
+import { Thermometer, Radar, RotateCcw, Map as MapIcon, ShieldAlert, MapPinned } from "lucide-react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
 import { LeafletMap, MapMode } from "@/components/LeafletMap";
 import PanicAlertsLayer from "@/components/PanicAlertsLayer";
 import ReportContextMenu from "@/components/ReportContextMenu";
-import { useGetReports, useGetPanicAlerts, ReportCategory } from "@workspace/api-client-react";
-import { CAT_HEX, CATEGORY_CONFIG } from "@/lib/constants";
+import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
+import { CAT_HEX, CATEGORY_CONFIG, DISTRICT } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { subDays, subMonths, isAfter } from "date-fns";
 
 const ALL_CATEGORY_FILTERS: { id: string; label: string }[] = [
@@ -39,17 +43,105 @@ const cardVariants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, duration: 0.3 } }),
 };
 
+// ── Marcadores simples (puntos de color) para el mapa estático ───────────────
+function StaticDots({ reports }: { reports: Report[] }) {
+  const map = useMap();
+  const layersRef = useRef<L.CircleMarker[]>([]);
+
+  useEffect(() => {
+    layersRef.current.forEach(m => m.remove());
+    layersRef.current = [];
+    reports.forEach(r => {
+      const color = CAT_HEX[r.category] ?? "#6b7280";
+      const dot = L.circleMarker([r.latitude, r.longitude], {
+        radius: 5, fillColor: color, fillOpacity: 0.9, color: "#0d1117", weight: 1.5,
+        interactive: false,
+      }).addTo(map);
+      layersRef.current.push(dot);
+    });
+    return () => { layersRef.current.forEach(m => m.remove()); layersRef.current = []; };
+  }, [map, reports]);
+
+  return null;
+}
+
+// ── Mapa estático según ubicación (debajo del radar) ─────────────────────────
+// Vista fija, sin arrastre ni zoom, centrada en la ubicación real del vecino
+// (o en el centro del distrito si el GPS no está disponible).
+function StaticMiniMap({ reports }: { reports: Report[] }) {
+  const [center, setCenter] = useState<{ lat: number; lng: number }>(DISTRICT.center);
+  const [located, setLocated] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => { setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocated(true); },
+      () => { /* sin GPS: se mantiene el centro del distrito */ },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
+    );
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex-shrink-0 relative rounded-2xl overflow-hidden border border-white/6 shadow-xl"
+      style={{ height: 150 }}
+    >
+      <MapContainer
+        key={`${center.lat.toFixed(4)},${center.lng.toFixed(4)}`}
+        center={[center.lat, center.lng]}
+        zoom={15}
+        zoomControl={false}
+        dragging={false}
+        scrollWheelZoom={false}
+        doubleClickZoom={false}
+        touchZoom={false}
+        boxZoom={false}
+        keyboard={false}
+        attributionControl={false}
+        style={{ width: "100%", height: "100%", background: "#0d1117", pointerEvents: "none" }}
+      >
+        <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        <StaticDots reports={reports} />
+      </MapContainer>
+
+      {/* Punto del usuario en el centro */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[500]">
+        <span className="relative flex w-3.5 h-3.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60" />
+          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-500 border-2 border-white" />
+        </span>
+      </div>
+
+      <div className="absolute top-2 left-2 z-[500] flex items-center gap-1.5 px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/10"
+        style={{ background: "rgba(7,9,15,0.85)" }}>
+        <MapPinned className="w-3 h-3 text-primary" />
+        <span className="label-mono text-[9px] font-semibold text-white/80">
+          {located ? "TU ZONA · VISTA ESTÁTICA" : "CENTRO DEL DISTRITO · VISTA ESTÁTICA"}
+        </span>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function MapPage() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("all");
   const [viewMode, setViewMode] = useState<MapMode>("map");
   const [contextReport, setContextReport] = useState<{ id: string; title: string; status: string } | null>(null);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const { currentDistrictId, currentDistrict } = useDistrict();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const isAdmin = !!user && (user.role === "admin" || user.role === "moderator" || user.role === "super_admin");
   const { data, isLoading, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
-  const allReports = data?.reports ?? [];
+
+  // Los reportes archivados (verificados como solucionados por 10 vecinos)
+  // desaparecen del mapa, del radar y del mapa de calor.
+  const allReports = (data?.reports ?? []).filter(r => r.status !== "archived");
 
   // Alertas de pánico activas — comparte caché con PanicAlertsLayer (misma
   // query key), así que NO genera una segunda petición al servidor.
@@ -61,7 +153,9 @@ export default function MapPage() {
   const activePanicCount = (panicData?.alerts ?? []).filter(a => a.isActive).length;
 
   const cutoff15d = subDays(new Date(), 15);
-  const last15d = allReports.filter(r => isAfter(new Date(r.createdAt), cutoff15d));
+  // Modo mapa: últimos 15 días + reportes resueltos pendientes de verificación
+  // comunitaria (siguen visibles hasta que 10 vecinos confirmen la solución).
+  const last15d = allReports.filter(r => isAfter(new Date(r.createdAt), cutoff15d) || r.status === "resolved");
   const cutoff6m = subMonths(new Date(), 6);
   const last6m = allReports.filter(r => isAfter(new Date(r.createdAt), cutoff6m));
   const radarReports = allReports.filter(r => r.status === "active");
@@ -74,6 +168,44 @@ export default function MapPage() {
   );
   const heatReports = applyFilter(last6m);
   const currentMode = VIEW_MODES.find(v => v.id === viewMode)!;
+
+  // ── Reportar directamente desde el mapa ──
+  const handleSelectPoint = (lat: number, lng: number) => {
+    setLocation(`/reportar?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`);
+  };
+
+  // ── Verificación comunitaria: "sí, ya se solucionó" ──
+  const handleConfirmResolution = async (reportId: string) => {
+    if (confirming) return;
+    setConfirming(true);
+    try {
+      const res = await fetch(`/api/reports/${reportId}/confirm-resolution`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast({
+          title: body.archived ? "✓ Solución verificada" : "✓ Confirmación registrada",
+          description: body.message ?? "Gracias por confirmar.",
+        });
+        refetch();
+      } else {
+        toast({
+          title: res.status === 409 ? "Ya confirmaste este reporte" : "No se pudo confirmar",
+          description: body.error ?? "Intenta de nuevo.",
+          variant: res.status === 409 ? undefined : "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Error de conexión", description: "Intenta de nuevo.", variant: "destructive" });
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 h-[calc(100dvh-5rem)] md:h-[calc(100dvh-3rem)] pb-1 rv-in">
@@ -174,6 +306,8 @@ export default function MapPage() {
               setContextReport({ id: report.id, title: report.title, status: report.status });
               setContextPos(pos);
             }}
+            onSelectPoint={handleSelectPoint}
+            onConfirmResolution={handleConfirmResolution}
           >
             {/* Alertas de pánico activas — visibles en los 3 modos del mapa */}
             <PanicAlertsLayer />
@@ -199,6 +333,15 @@ export default function MapPage() {
           </span>
           <span className="text-[10px] text-muted-foreground">· {displayReports.length}</span>
         </div>
+
+        {/* Hint: reportar tocando el mapa */}
+        {viewMode === "map" && !isLoading && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[500] px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg pointer-events-none"
+            style={{ background: "rgba(7,9,15,0.85)" }}>
+            <span className="text-[10px] text-white/70 font-medium whitespace-nowrap">👆 Toca cualquier punto del mapa para reportar ahí</span>
+          </motion.div>
+        )}
 
         {viewMode === "heat" && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
@@ -243,6 +386,9 @@ export default function MapPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Mapa estático según ubicación — solo debajo del radar */}
+      {viewMode === "radar" && !isLoading && <StaticMiniMap reports={displayReports} />}
     </div>
   );
 }

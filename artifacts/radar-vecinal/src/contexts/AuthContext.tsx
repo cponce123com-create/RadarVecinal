@@ -11,6 +11,10 @@ export interface AuthUser {
   districtId:   number;
   isActive:     boolean;
   reportsCount: number;
+  /** Nombre en clave editable; si es null se usa "Vecino {vecinoId}" */
+  alias?:       string | null;
+  /** Código público autogenerado de 6 dígitos */
+  vecinoId?:    number | null;
   createdAt:    string;
 }
 

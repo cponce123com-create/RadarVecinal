@@ -291,10 +291,11 @@ function SmokeHeatCanvas({ reports }: { reports: Report[] }) {
 }
 
 // ── Category marker layer ─────────────────────────────────────────────────────
-function CategoryMarkers({ reports, isAdmin, onContextMenu }: {
+function CategoryMarkers({ reports, isAdmin, onContextMenu, onConfirmResolution }: {
   reports: Report[];
   isAdmin?: boolean;
   onContextMenu?: (report: Report, pos: { x: number; y: number }) => void;
+  onConfirmResolution?: (reportId: string) => void;
 }) {
   const map = useMap();
   const markersRef = useRef<L.Marker[]>([]);
@@ -324,6 +325,9 @@ function CategoryMarkers({ reports, isAdmin, onContextMenu }: {
         });
       }
 
+      const resolutionCount = (r as any).resolutionConfirmedCount ?? 0;
+      const isResolved = r.status === "resolved";
+
       const popupHtml = `
         <div style="
           background:#0f1219;border:1px solid ${color}44;
@@ -348,16 +352,85 @@ function CategoryMarkers({ reports, isAdmin, onContextMenu }: {
               </span>
             </div>
             ${r.confirmedCount > 0 ? `<span style="font-size:10px;color:#6b7280;margin-top:2px;">✓ ${r.confirmedCount} confirmaciones</span>` : ""}
+            ${isResolved ? `
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(34,197,94,0.2);">
+                <p style="font-size:10px;color:#4ade80;margin:0 0 5px;">
+                  🏛️ La municipalidad marcó esto como resuelto.<br/>
+                  <b>${resolutionCount}/10</b> vecinos confirmaron la solución.
+                </p>
+                <button data-confirm-resolution="${r.id}" style="
+                  width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(34,197,94,0.5);
+                  background:rgba(34,197,94,0.15);color:#4ade80;font-size:11px;font-weight:700;
+                  cursor:pointer;font-family:system-ui,sans-serif;
+                ">✓ Sí, ya se solucionó</button>
+              </div>` : ""}
           </div>
         </div>
       `;
 
-      marker.bindPopup(popupHtml, { closeButton: false, className: "radar-popup", maxWidth: 250 });
+      // Los popups de reportes resueltos usan un nodo DOM real para poder
+      // enlazar el botón "confirmar solución" con un listener de click.
+      if (isResolved && onConfirmResolution) {
+        const container = document.createElement("div");
+        container.innerHTML = popupHtml;
+        const btn = container.querySelector<HTMLButtonElement>("[data-confirm-resolution]");
+        btn?.addEventListener("click", () => {
+          map.closePopup();
+          onConfirmResolution(String(r.id));
+        });
+        marker.bindPopup(container, { closeButton: false, className: "radar-popup", maxWidth: 250 });
+      } else {
+        marker.bindPopup(popupHtml, { closeButton: false, className: "radar-popup", maxWidth: 250 });
+      }
       markersRef.current.push(marker);
     });
 
     return () => { markersRef.current.forEach(m => m.remove()); markersRef.current = []; };
-  }, [map, reports, isAdmin, onContextMenu]);
+  }, [map, reports, isAdmin, onContextMenu, onConfirmResolution]);
+
+  return null;
+}
+
+// ── Reportar directamente desde el mapa ──────────────────────────────────────
+// Al tocar cualquier punto del mapa aparece un popup con la opción de crear
+// un reporte en esa ubicación exacta.
+function ClickToReport({ onSelectPoint }: { onSelectPoint: (lat: number, lng: number) => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const handler = (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      const container = document.createElement("div");
+      container.innerHTML = `
+        <div style="
+          background:#0f1219;border:1px solid rgba(59,130,246,0.45);
+          border-radius:10px;padding:10px 12px;min-width:180px;
+          font-family:system-ui,sans-serif;
+        ">
+          <p style="font-size:12px;font-weight:700;color:#fff;margin:0 0 2px;">📍 Punto seleccionado</p>
+          <p style="font-size:10px;color:#9ca3af;margin:0 0 8px;font-family:monospace;">${lat.toFixed(5)}, ${lng.toFixed(5)}</p>
+          <button data-report-here style="
+            width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(59,130,246,0.55);
+            background:rgba(59,130,246,0.18);color:#93c5fd;font-size:12px;font-weight:700;
+            cursor:pointer;font-family:system-ui,sans-serif;
+          ">🚨 Reportar aquí</button>
+        </div>
+      `;
+      const btn = container.querySelector<HTMLButtonElement>("[data-report-here]");
+      btn?.addEventListener("click", () => {
+        map.closePopup();
+        onSelectPoint(lat, lng);
+      });
+
+      L.popup({ closeButton: true, className: "radar-popup", maxWidth: 220 })
+        .setLatLng(e.latlng)
+        .setContent(container)
+        .openOn(map);
+    };
+
+    map.on("click", handler);
+    return () => { map.off("click", handler); };
+  }, [map, onSelectPoint]);
 
   return null;
 }
@@ -469,6 +542,10 @@ interface LeafletMapProps {
   className?: string;
   isAdmin?: boolean;
   onContextMenu?: (report: Report, pos: { x: number; y: number }) => void;
+  /** Al tocar un punto vacío del mapa: permite crear un reporte en esa ubicación */
+  onSelectPoint?: (lat: number, lng: number) => void;
+  /** Vecino confirma que un reporte resuelto realmente se solucionó */
+  onConfirmResolution?: (reportId: string) => void;
   /** Capas extra renderizadas dentro del MapContainer (ej: PanicAlertsLayer) */
   children?: ReactNode;
 }
@@ -481,6 +558,8 @@ export function LeafletMap({
   className = "",
   isAdmin = false,
   onContextMenu,
+  onSelectPoint,
+  onConfirmResolution,
   children,
 }: LeafletMapProps) {
   const geo = useGeolocation();
@@ -571,7 +650,10 @@ export function LeafletMap({
         <UserMarker position={displayPos} simulated={simulated} />
 
         {/* ── MAP mode: category-icon markers ── */}
-        {mode === "map" && <CategoryMarkers reports={reports} />}
+        {mode === "map" && <CategoryMarkers reports={reports} isAdmin={isAdmin} onContextMenu={onContextMenu} onConfirmResolution={onConfirmResolution} />}
+
+        {/* ── Reportar directamente tocando el mapa (solo en modo mapa) ── */}
+        {mode === "map" && onSelectPoint && <ClickToReport onSelectPoint={onSelectPoint} />}
 
         {/* ── RADAR mode: animated overlay ── */}
         {mode === "radar" && <RadarOverlay reports={reports} />}

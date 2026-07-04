@@ -19,6 +19,33 @@ export interface ReportTemplate {
 
 export const REPORT_TEMPLATES: ReportTemplate[] = [
   {
+    id: "bar_clandestino",
+    emoji: "🍺",
+    label: "Bar clandestino",
+    category: ReportCategory.bar_trouble,
+    urgency: ReportUrgency.high,
+    title: "Bar clandestino operando sin licencia",
+    description: "Funciona un bar clandestino en [dirección/referencia]. Opera principalmente en el horario de [horario] y los días [días]. Genera ruido, desorden y consumo de alcohol en la vía pública. Se solicita fiscalización municipal.",
+  },
+  {
+    id: "prostibulo",
+    emoji: "🏠",
+    label: "Prostíbulo",
+    category: ReportCategory.prostitution,
+    urgency: ReportUrgency.high,
+    title: "Prostíbulo clandestino en la zona",
+    description: "Se ha identificado un local que funcionaría como prostíbulo clandestino en [dirección/referencia]. Hay movimiento constante de personas en el horario de [horario]. Los vecinos solicitan intervención de fiscalización y serenazgo.",
+  },
+  {
+    id: "venta_drogas",
+    emoji: "💊",
+    label: "Venta de drogas",
+    category: ReportCategory.drug_point,
+    urgency: ReportUrgency.critical,
+    title: "Punto de venta de drogas",
+    description: "Se observa venta de drogas en [calle/referencia], principalmente en el horario de [horario]. Se ve a personas merodeando y realizando intercambios rápidos. Los vecinos solicitan intervención policial y patrullaje constante.",
+  },
+  {
     id: "corte_agua",
     emoji: "💧",
     label: "Corte de agua",

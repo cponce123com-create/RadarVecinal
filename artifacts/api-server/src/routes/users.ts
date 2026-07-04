@@ -212,6 +212,15 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
     sector: z.string().optional(),
     district: z.string().optional(),
     dni: z.string().nullable().optional(),
+    // Nombre en clave editable: reemplaza al "Vecino XXXXXX" autogenerado.
+    // Se permite vaciar (null) para volver al código autogenerado.
+    alias: z.string()
+      .trim()
+      .min(3, "El nombre en clave debe tener al menos 3 caracteres")
+      .max(30, "El nombre en clave no puede superar 30 caracteres")
+      .regex(/^[\p{L}\p{N} _.\-]+$/u, "Solo letras, números, espacios, guiones, puntos y guion bajo")
+      .nullable()
+      .optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -241,8 +250,30 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "No puedes editar usuarios de otro distrito." });
     }
 
+    // El alias solo lo puede cambiar el propio usuario (o un admin del distrito)
+    const updateData: Record<string, unknown> = { ...parsed.data };
+    if ("alias" in updateData) {
+      if (!isSelf && !isAdmin) {
+        delete updateData.alias;
+      } else if (typeof updateData.alias === "string") {
+        // Evitar alias que suplanten identidades del sistema
+        const lowered = (updateData.alias as string).toLowerCase();
+        if (lowered.includes("admin") || lowered.includes("municipal") || lowered.includes("serenazgo") || lowered === "anónimo" || lowered === "anonimo") {
+          return res.status(400).json({ error: "Ese nombre en clave no está permitido. Elige otro." });
+        }
+        // Verificar que otro vecino no use ya ese alias
+        const [taken] = await db.select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.alias, updateData.alias as string))
+          .limit(1);
+        if (taken && taken.id !== targetId) {
+          return res.status(409).json({ error: "Ese nombre en clave ya está en uso. Elige otro." });
+        }
+      }
+    }
+
     const [updated] = await db.update(usersTable)
-      .set(parsed.data)
+      .set(updateData)
       .where(eq(usersTable.id, targetId))
       .returning();
 
@@ -256,6 +287,8 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
       districtId: updated.districtId,
       isActive: updated.isActive,
       reportsCount: updated.reportsCount,
+      alias: updated.alias ?? null,
+      vecinoId: updated.vecinoId ?? null,
       createdAt: updated.createdAt.toISOString(),
     });
   } catch (err) {

@@ -117,6 +117,8 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     districtId:   u.districtId,
     isActive:     u.isActive,
     reportsCount: u.reportsCount,
+    alias:        u.alias ?? null,
+    vecinoId:     u.vecinoId ?? null,
     createdAt:    u.createdAt.toISOString(),
   };
 }

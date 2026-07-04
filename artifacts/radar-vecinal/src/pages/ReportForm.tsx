@@ -78,19 +78,25 @@ export default function ReportForm() {
   const createReport = useCreateReport();
 
   const [step, setStep] = useState(1);
+
+  // Coordenadas pre-seleccionadas desde el mapa (/reportar?lat=..&lng=..)
+  const [fromMap] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get("lat") ?? "");
+    const lng = parseFloat(params.get("lng") ?? "");
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  });
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     category: "" as ReportCategory | "",
     urgency: ReportUrgency.medium as ReportUrgency,
-    isAnonymous: false,
     sector: SECTORS[0],
     address: "",
     contactPhone: "",
-    contactEmail: "",
-    authorName: "",
-    latitude: DISTRICT.center.lat,
-    longitude: DISTRICT.center.lng,
+    latitude: fromMap?.lat ?? DISTRICT.center.lat,
+    longitude: fromMap?.lng ?? DISTRICT.center.lng,
   });
 
   // Image upload
@@ -137,29 +143,24 @@ export default function ReportForm() {
 
   const isSensitive = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
 
+  // Nombre en clave con el que se publicará el reporte
+  const codeName = user
+    ? (user.alias?.trim() || (user.vecinoId ? `Vecino ${String(user.vecinoId).padStart(6, "0")}` : "Vecino (código autogenerado)"))
+    : "Vecino";
+  const publishAs = isSensitive ? "Anónimo" : codeName;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => {
-      const updated = {
-        ...prev,
-        [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
-      };
-      if (name === "category" && SENSITIVE_CATEGORIES.has(value as ReportCategory)) {
-        updated.isAnonymous = true;
-      }
-      return updated;
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleCategorySelect = (key: ReportCategory) => {
-    const sens = SENSITIVE_CATEGORIES.has(key);
-    setFormData(prev => ({ ...prev, category: key, isAnonymous: sens ? true : prev.isAnonymous }));
+    setFormData(prev => ({ ...prev, category: key }));
   };
 
   // ── Plantillas de problemas frecuentes del distrito ──
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const applyTemplate = (tpl: ReportTemplate) => {
-    const sens = SENSITIVE_CATEGORIES.has(tpl.category);
     setActiveTemplate(tpl.id);
     setFormData(prev => ({
       ...prev,
@@ -167,7 +168,6 @@ export default function ReportForm() {
       title: tpl.title,
       description: tpl.description,
       urgency: tpl.urgency,
-      isAnonymous: sens ? true : prev.isAnonymous,
     }));
   };
 
@@ -197,14 +197,15 @@ export default function ReportForm() {
         description: formData.description,
         category: formData.category as ReportCategory,
         urgency: formData.urgency,
-        isAnonymous: formData.isAnonymous,
+        // El anonimato ya no es una opción manual: las categorías sensibles se
+        // fuerzan a anónimo en el servidor; el resto se publica con el nombre
+        // en clave del vecino (alias o "Vecino XXXXXX").
+        isAnonymous: false,
         latitude: formData.latitude,
         longitude: formData.longitude,
         address: formData.address,
         sector: formData.sector,
         contactPhone: formData.contactPhone || null,
-        contactEmail: formData.contactEmail || null,
-        authorName: formData.isAnonymous ? "Anónimo" : (!!user && user?.name ? user.name : (formData.authorName.trim() || `Vecino de ${currentDistrict || "la zona"}`)),
         district: currentDistrict,
         // FIX: sin districtId el backend rechaza reportes de usuarios anónimos (400)
         districtId: currentDistrictId ?? undefined,
@@ -263,6 +264,16 @@ export default function ReportForm() {
             {/* ── STEP 1: UBICACIÓN (FixMyStreet: mapa primero) ── */}
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="p-5 md:p-6 space-y-4">
+
+                {/* Aviso: punto seleccionado desde el mapa */}
+                {fromMap && (
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/8 border border-primary/25">
+                    <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+                    <p className="text-xs text-primary/90 font-medium">
+                      Ubicación seleccionada desde el mapa. Puedes ajustarla arrastrando el marcador.
+                    </p>
+                  </div>
+                )}
 
                 {/* Geocoder — buscar dirección */}
                 <div>
@@ -431,20 +442,21 @@ export default function ReportForm() {
                   {showErrors && descErr && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {descErr}</p>}
                 </div>
 
-                {/* Nombre */}
-
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
-                    Tu nombre {!!user && <span className="text-xs text-primary font-normal ml-1">· Sesión iniciada</span>}
-                  </label>
-                  <input type="text" value={!!user && user?.name ? user.name : formData.authorName ?? ""}
-                    onChange={e => !user && setFormData(prev => ({ ...prev, authorName: e.target.value }))}
-                    readOnly={!!user}
-                    placeholder="Tu nombre o alias (opcional)"
-                    className={`w-full bg-background border rounded-xl px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none transition-colors ${
-                      !!user ? "border-white/5 text-muted-foreground cursor-not-allowed opacity-70" : "border-white/10 text-white focus:border-primary"
-                    }`}
-                  />
+                {/* Identidad: nombre en clave */}
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/8">
+                  <ShieldOff className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-white">
+                      Se publicará como: <span className="text-primary">{publishAs}</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {isSensitive
+                        ? "Categoría delicada: tu identidad queda protegida automáticamente."
+                        : user
+                          ? "Puedes cambiar tu nombre en clave desde tu Perfil."
+                          : "Inicia sesión para tener tu propio nombre en clave."}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Contacto */}
@@ -521,7 +533,7 @@ export default function ReportForm() {
                   </div>
                 )}
 
-                {/* Anonymous notice / toggle */}
+                {/* Identidad de publicación (sin opción manual de anonimato) */}
                 {isSensitive ? (
                   <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/8 border border-purple-500/30">
                     <ShieldOff className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
@@ -531,15 +543,17 @@ export default function ReportForm() {
                     </div>
                   </div>
                 ) : (
-                  <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
-                    formData.isAnonymous ? "bg-blue-500/8 border-blue-500/30" : "bg-white/3 border-white/8 hover:border-white/15"
-                  }`}>
-                    <input type="checkbox" name="isAnonymous" checked={formData.isAnonymous} onChange={handleChange} className="mt-0.5 accent-primary" />
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-white/3 border border-white/8">
+                    <ShieldOff className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-semibold text-white">Enviar anónimamente</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Tu nombre no será visible para otros vecinos.</p>
+                      <p className="text-sm font-semibold text-white">
+                        Se publicará como: <span className="text-primary">{publishAs}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Los vecinos solo verán tu nombre en clave, nunca tus datos reales.
+                      </p>
                     </div>
-                  </label>
+                  </div>
                 )}
 
                 <div className="flex items-center gap-2.5 p-3 rounded-xl bg-green-500/6 border border-green-500/20">

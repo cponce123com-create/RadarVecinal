@@ -11,6 +11,7 @@ import {
   districtsTable,
   auditLogTable,
   staticPointsTable,
+  resolutionConfirmationsTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, sql, isNull, gte, lte } from "drizzle-orm";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
@@ -133,13 +134,15 @@ router.post("/reports", optionalAuth, async (req, res) => {
     // Obtener/crear vecinoId para el usuario
     let vecinoId: number | null = null;
     let authorName = "Anónimo";
+    let authorUserId: number | null = null;
     if (user && user.sub) {
-      // Usuario autenticado: obtener su vecinoId o crear uno
-      const [dbUser] = await db.select({ vecinoId: usersTable.vecinoId, id: usersTable.id })
+      // Usuario autenticado: obtener su vecinoId/alias o crear vecinoId
+      const [dbUser] = await db.select({ vecinoId: usersTable.vecinoId, id: usersTable.id, alias: usersTable.alias })
         .from(usersTable)
         .where(eq(usersTable.id, parseInt(user.sub)))
         .limit(1);
       if (dbUser) {
+        authorUserId = dbUser.id;
         vecinoId = dbUser.vecinoId;
         if (!vecinoId) {
           // Generar vecinoId determinista de 6 dígitos
@@ -148,13 +151,17 @@ router.post("/reports", optionalAuth, async (req, res) => {
           vecinoId = vecinoId < 100000 ? vecinoId + 100000 : vecinoId;
           await db.update(usersTable).set({ vecinoId }).where(eq(usersTable.id, dbUser.id));
         }
-      }
-      if (!isAnonymous) {
-        authorName = `Vecino ${String(vecinoId).padStart(6, "0")}`;
+        if (!isAnonymous) {
+          // El alias personalizado del vecino tiene prioridad sobre el código autogenerado
+          const customAlias = dbUser.alias?.trim();
+          authorName = customAlias && customAlias.length > 0
+            ? customAlias
+            : `Vecino ${String(vecinoId).padStart(6, "0")}`;
+        }
       }
     } else if (!isAnonymous) {
-      // Usuario no autenticado, usar nombre proporcionado
-      authorName = data.authorName ?? "Vecino";
+      // Usuario no autenticado: se publica con identidad genérica
+      authorName = data.authorName?.trim() || "Vecino";
     }
     const [report] = await db.insert(reportsTable).values({
       title: data.title,
@@ -169,6 +176,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
       districtId,
       district: data.district ?? "San Ramón",
       authorName: isAnonymous ? "Anónimo" : authorName,
+      authorUserId: authorUserId ?? undefined,
       contactPhone: isAnonymous ? null : (data.contactPhone ?? null),
       imageUrl: data.imageUrl ?? null,
     }).returning();
@@ -458,6 +466,126 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to confirm report");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /reports/:id/confirm-resolution — Verificación comunitaria ──────────
+// Cuando la municipalidad marca un reporte como "resolved", los vecinos pueden
+// confirmar que la solución es real. Al llegar a RESOLUTION_THRESHOLD (10)
+// confirmaciones, el reporte pasa a "archived" y desaparece del mapa y radar.
+const RESOLUTION_THRESHOLD = 10;
+
+router.post("/reports/:id/confirm-resolution", optionalAuth, async (req, res) => {
+  try {
+    const reportId = parseInt(req.params.id as string);
+    if (!Number.isFinite(reportId)) {
+      return res.status(400).json({ error: "ID de reporte inválido." });
+    }
+
+    const [report] = await db.select()
+      .from(reportsTable)
+      .where(eq(reportsTable.id, reportId))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    if (report.status !== "resolved") {
+      return res.status(400).json({
+        error: "Solo puedes confirmar la solución de reportes que la municipalidad ya marcó como resueltos.",
+      });
+    }
+
+    const user = (req as any).jwtUser;
+    if (user && !checkTenant(req, report.districtId)) {
+      return res.status(403).json({ error: "No puedes confirmar reportes de otro distrito." });
+    }
+
+    const userId = user?.sub ? parseInt(user.sub) : null;
+    const userIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+      || req.socket?.remoteAddress
+      || null;
+
+    // Verificar si ya confirmó (por usuario autenticado o por IP anónima)
+    const dupConditions = userId
+      ? and(eq(resolutionConfirmationsTable.reportId, reportId), eq(resolutionConfirmationsTable.userId, userId))
+      : and(
+          eq(resolutionConfirmationsTable.reportId, reportId),
+          isNull(resolutionConfirmationsTable.userId),
+          eq(resolutionConfirmationsTable.userIp, userIp ?? ""),
+        );
+
+    const [existing] = await db.select({ id: resolutionConfirmationsTable.id })
+      .from(resolutionConfirmationsTable)
+      .where(dupConditions)
+      .limit(1);
+
+    if (existing) {
+      return res.status(409).json({
+        error: "Ya confirmaste la solución de este reporte. ¡Gracias!",
+        resolutionConfirmedCount: report.resolutionConfirmedCount,
+        status: report.status,
+      });
+    }
+
+    // Registrar la confirmación (los índices únicos de BD protegen contra carreras)
+    try {
+      await db.insert(resolutionConfirmationsTable).values({
+        reportId,
+        userId: userId ?? null,
+        userIp,
+      });
+    } catch (insertErr: any) {
+      // Violación de índice único = confirmación duplicada concurrente
+      return res.status(409).json({
+        error: "Ya confirmaste la solución de este reporte. ¡Gracias!",
+        resolutionConfirmedCount: report.resolutionConfirmedCount,
+        status: report.status,
+      });
+    }
+
+    // Recontar desde la tabla (fuente de verdad) para evitar desincronización
+    const [{ count: confCount }] = await db.select({ count: sql<number>`count(*)` })
+      .from(resolutionConfirmationsTable)
+      .where(eq(resolutionConfirmationsTable.reportId, reportId));
+
+    const total = Number(confCount);
+    const reachedThreshold = total >= RESOLUTION_THRESHOLD;
+
+    const [updated] = await db.update(reportsTable)
+      .set({
+        resolutionConfirmedCount: total,
+        ...(reachedThreshold ? { status: "archived" as const } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(reportsTable.id, reportId))
+      .returning();
+
+    if (reachedThreshold) {
+      await db.insert(auditLogTable).values({
+        districtId: updated.districtId,
+        entityType: "report",
+        entityId: updated.id,
+        action: "archived_by_community",
+        previousValue: "resolved",
+        newValue: "archived",
+        changedBy: user?.email ?? `ip:${userIp ?? "unknown"}`,
+        changedById: userId ?? undefined,
+      }).catch(() => {});
+    }
+
+    return res.json({
+      id: String(updated.id),
+      status: updated.status,
+      resolutionConfirmedCount: updated.resolutionConfirmedCount,
+      threshold: RESOLUTION_THRESHOLD,
+      archived: reachedThreshold,
+      message: reachedThreshold
+        ? "¡Gracias! Con tu confirmación el reporte se verificó como solucionado y ya no aparecerá en el mapa."
+        : `Confirmación registrada (${total}/${RESOLUTION_THRESHOLD}). El reporte desaparecerá del mapa cuando ${RESOLUTION_THRESHOLD} vecinos confirmen la solución.`,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to confirm resolution");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

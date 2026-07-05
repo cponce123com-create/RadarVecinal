@@ -1,26 +1,39 @@
 -- Migration 0021: Performance indexes (FASE 6 — Optimización)
--- Índices compuestos para las consultas más frecuentes
+-- Cada CREATE INDEX se envuelve en un bloque DO para evitar errores
+-- si la tabla o columna no existe aún en ciertos entornos.
 
--- Reports: filtro por distrito + estado + orden por fecha (usado en Home.tsx, MapPage, API)
-CREATE INDEX IF NOT EXISTS idx_reports_district_status_created
-  ON reports(district_id, status, created_at DESC);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_reports_district_status_created
+    ON reports(district_id, status, created_at DESC);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- Reports: filtro por categoría (usado en estadísticas y filtros del mapa)
-CREATE INDEX IF NOT EXISTS idx_reports_category
-  ON reports(category);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_reports_category
+    ON reports(category);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- Panic alerts: filtro por distrito + activas (usado en alertas y Home)
-CREATE INDEX IF NOT EXISTS idx_panic_alerts_district_active
-  ON panic_alerts(district_id, is_active);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_panic_alerts_district_active
+    ON panic_alerts(district_id, is_active);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- Missing persons: filtro por activas
-CREATE INDEX IF NOT EXISTS idx_missing_persons_active
-  ON missing_persons(is_active);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_missing_persons_active
+    ON missing_persons(is_active);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- Community flags: buscar flags por reporte
-CREATE INDEX IF NOT EXISTS idx_community_flags_report_id
-  ON community_flags(report_id);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_community_flags_report_id
+    ON community_flags(report_id);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
--- User strikes: buscar strikes activos por usuario
-CREATE INDEX IF NOT EXISTS idx_user_strikes_user_active
-  ON user_strikes(user_id, activo);
+DO $$ BEGIN
+  CREATE INDEX IF NOT EXISTS idx_user_strikes_user_active
+    ON user_strikes(user_id, activo);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;

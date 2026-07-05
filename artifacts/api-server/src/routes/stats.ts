@@ -95,7 +95,7 @@ router.get("/stats", optionalAuth, async (req, res) => {
     const topCat = reportsByCategory[0];
     const criticalZone = topCat ? `${topCat.category} (${topCat.count})` : "Ninguna";
 
-    return res.json({
+    const result = {
       totalReports: Number(totalReports),
       activeAlerts: Number(activeAlerts),
       todayIncidents: Number(todayIncidents),

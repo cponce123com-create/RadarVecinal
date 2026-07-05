@@ -12,6 +12,8 @@ import {
   auditLogTable,
   staticPointsTable,
   resolutionConfirmationsTable,
+  userStrikesTable,
+  communityFlagsTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, sql, isNull, gte, lte } from "drizzle-orm";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
@@ -29,6 +31,7 @@ const createReportSchema = z.object({
     "robbery", "fight", "suspicious", "water_cut", "garbage",
     "informal_commerce", "noise", "missing_person", "fire",
     "medical_emergency", "prostitution", "drug_point", "bar_trouble", "other",
+    "lost_pet", "power_outage", "street_damage", "stray_dogs", "flooding",
   ]),
   urgency: z.enum(["low", "medium", "high", "critical"]),
   isAnonymous: z.boolean(),
@@ -76,7 +79,27 @@ router.get("/reports", optionalAuth, async (req, res) => {
       .from(reportsTable)
       .where(and(...conditions));
 
-    const reports = await db.select()
+    const reports = await db.select({
+      id: reportsTable.id,
+      title: reportsTable.title,
+      description: reportsTable.description,
+      category: reportsTable.category,
+      urgency: reportsTable.urgency,
+      status: reportsTable.status,
+      isAnonymous: reportsTable.isAnonymous,
+      latitude: reportsTable.latitude,
+      longitude: reportsTable.longitude,
+      address: reportsTable.address,
+      sector: reportsTable.sector,
+      district: reportsTable.district,
+      districtId: reportsTable.districtId,
+      imageUrl: reportsTable.imageUrl,
+      authorName: reportsTable.authorName,
+      authorUserId: reportsTable.authorUserId,
+      confirmedCount: reportsTable.confirmedCount,
+      createdAt: reportsTable.createdAt,
+      updatedAt: reportsTable.updatedAt,
+    })
       .from(reportsTable)
       .where(and(...conditions))
       .orderBy(desc(reportsTable.createdAt))
@@ -93,9 +116,11 @@ router.get("/reports", optionalAuth, async (req, res) => {
         return {
           ...r,
           id: String(r.id),
-          authorName: isOwner ? r.authorName : r.authorName,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
+          contactPhone: isOwner ? (r as any).contactPhone : undefined,
+          contactEmail: isOwner ? (r as any).contactEmail : undefined,
+          authorName: r.authorName,
+          createdAt: typeof r.createdAt === 'object' && 'toISOString' in (r.createdAt as any) ? (r.createdAt as Date).toISOString() : String(r.createdAt),
+          updatedAt: typeof r.updatedAt === 'object' && 'toISOString' in (r.updatedAt as any) ? (r.updatedAt as Date).toISOString() : String(r.updatedAt),
         };
       }),
       total: Number(count),
@@ -196,6 +221,11 @@ router.post("/reports", optionalAuth, async (req, res) => {
       drug_point: "serenazgo",
       bar_trouble: "serenazgo",
       missing_person: "serenazgo",
+      lost_pet: "serenazgo",
+      power_outage: "servicios-publicos",
+      street_damage: "servicios-publicos",
+      stray_dogs: "serenazgo",
+      flooding: "servicios-publicos",
     };
     const deptSlug = CATEGORY_TO_DEPT[data.category];
     if (deptSlug) {
@@ -308,9 +338,34 @@ router.get("/reports/nearby", optionalAuth, async (req, res) => {
 });
 
 // ── GET /reports/:id — M-04: con auth opcional + tenant filter ────────────
+// Item 3: Explicit column projection — contactPhone/contactEmail only for author
 router.get("/reports/:id", optionalAuth, async (req, res) => {
   try {
-    const [report] = await db.select()
+    const [report] = await db.select({
+      id: reportsTable.id,
+      title: reportsTable.title,
+      description: reportsTable.description,
+      category: reportsTable.category,
+      urgency: reportsTable.urgency,
+      status: reportsTable.status,
+      isAnonymous: reportsTable.isAnonymous,
+      latitude: reportsTable.latitude,
+      longitude: reportsTable.longitude,
+      address: reportsTable.address,
+      sector: reportsTable.sector,
+      district: reportsTable.district,
+      districtId: reportsTable.districtId,
+      imageUrl: reportsTable.imageUrl,
+      authorName: reportsTable.authorName,
+      authorUserId: reportsTable.authorUserId,
+      contactPhone: reportsTable.contactPhone,
+      contactEmail: reportsTable.contactEmail,
+      confirmedCount: reportsTable.confirmedCount,
+      resolutionConfirmedCount: reportsTable.resolutionConfirmedCount,
+      assignedTo: reportsTable.assignedTo,
+      createdAt: reportsTable.createdAt,
+      updatedAt: reportsTable.updatedAt,
+    })
       .from(reportsTable)
       .where(eq(reportsTable.id, parseInt(req.params.id as string)))
       .limit(1);
@@ -323,8 +378,13 @@ router.get("/reports/:id", optionalAuth, async (req, res) => {
       return res.status(403).json({ error: "No puedes ver reportes de otro distrito." });
     }
 
+    const userId = user?.sub ? parseInt(user.sub) : null;
+    const isOwner = userId && report.authorUserId === userId;
+
     return res.json({
       ...report,
+      contactPhone: isOwner ? report.contactPhone : undefined,
+      contactEmail: isOwner ? report.contactEmail : undefined,
       id: String(report.id),
       createdAt: report.createdAt.toISOString(),
       updatedAt: report.updatedAt.toISOString(),
@@ -439,9 +499,19 @@ router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ── POST /reports/:id/confirm — M-04: con auth opcional + tenant filter ──
+// Item 3: Explicit column projection
+// FASE 5: También incrementa trustScore del autor en +1
 router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
   try {
-    const [report] = await db.select()
+    const [report] = await db.select({
+      id: reportsTable.id,
+      districtId: reportsTable.districtId,
+      authorUserId: reportsTable.authorUserId,
+      confirmedCount: reportsTable.confirmedCount,
+      status: reportsTable.status,
+      createdAt: reportsTable.createdAt,
+      updatedAt: reportsTable.updatedAt,
+    })
       .from(reportsTable)
       .where(eq(reportsTable.id, parseInt(req.params.id as string)))
       .limit(1);
@@ -457,6 +527,13 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
       .set({ confirmedCount: report.confirmedCount + 1, updatedAt: new Date() })
       .where(eq(reportsTable.id, parseInt(req.params.id as string)))
       .returning();
+
+    // FASE 5: Aumentar trustScore del autor en +1
+    if (report.authorUserId) {
+      await db.update(usersTable)
+        .set({ trustScore: sql`GREATEST(0, LEAST(100, ${usersTable.trustScore} + 1))` })
+        .where(eq(usersTable.id, report.authorUserId));
+    }
 
     return res.json({
       ...updated,
@@ -652,6 +729,81 @@ router.post("/reports/:id/resolve", requireAuth, requireAdmin, async (req, res) 
   }
 });
 
+// ── Item 1: POST /reports/:id/mark-found — Vecino marca mascota como encontrada ─
+// Solo para categoría lost_pet. Solo el autor puede marcarla como encontrada.
+router.post("/reports/:id/mark-found", requireAuth, async (req, res) => {
+  try {
+    const reportId = parseInt(req.params.id as string);
+    const user = (req as any).jwtUser;
+    const userId = parseInt(user.sub);
+
+    const [report] = await db.select({
+      id: reportsTable.id,
+      authorUserId: reportsTable.authorUserId,
+      category: reportsTable.category,
+      status: reportsTable.status,
+      description: reportsTable.description,
+      districtId: reportsTable.districtId,
+      createdAt: reportsTable.createdAt,
+      updatedAt: reportsTable.updatedAt,
+    })
+      .from(reportsTable)
+      .where(eq(reportsTable.id, reportId))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    if (report.category !== "lost_pet") {
+      return res.status(400).json({ error: "Solo puedes marcar como encontrado un reporte de mascota perdida." });
+    }
+
+    if (report.authorUserId !== userId) {
+      return res.status(403).json({ error: "Solo el autor del reporte puede marcarlo como encontrado." });
+    }
+
+    if (report.status === "resolved" || report.status === "archived") {
+      return res.status(400).json({ error: "Este reporte ya fue marcado como encontrado o archivado." });
+    }
+
+    const foundNote = `\n\n---\n✅ ENCONTRADO — El autor ha marcado esta mascota como encontrada.`;
+    const updatedDescription = report.description
+      ? `${report.description}${foundNote}`
+      : foundNote.trim();
+
+    const [updated] = await db.update(reportsTable)
+      .set({
+        status: "resolved" as const,
+        description: updatedDescription,
+        updatedAt: new Date(),
+      })
+      .where(eq(reportsTable.id, reportId))
+      .returning();
+
+    // Audit log
+    await db.insert(auditLogTable).values({
+      districtId: report.districtId,
+      entityType: "report",
+      entityId: report.id,
+      action: "pet_marked_found",
+      previousValue: report.status,
+      newValue: "resolved",
+      changedBy: user?.email ?? "unknown",
+      changedById: userId,
+    }).catch(() => {});
+
+    return res.json({
+      ...updated,
+      id: String(updated.id),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+      message: "¡Mascota marcada como encontrada!",
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to mark pet as found");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── POST /seed — M-12: parametrizado por districtSlug ────────────────────────
 // Rate limiter estricto: máximo 5 intentos por hora por IP
 const seedLimiter = rateLimit({
@@ -760,7 +912,16 @@ router.post("/seed", seedLimiter, async (req, res) => {
   }
 });
 
-// ── POST /reports/:id/flag-fake — Admin marca reporte falso y banea usuario ──
+// ═════════════════════════════════════════════════════════════════════════════
+// FASE 5: Strike system and community flagging
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── POST /reports/:id/flag-fake — Admin marca reporte falso (strike system) ──
+// FASE 5: Ya NO banea inmediatamente. Crea un strike progresivo:
+//   Strike 1 → solo advertencia
+//   Strike 2 → suspensión 7 días
+//   Strike 3+ → ban permanente (isActive = false)
+//   Siempre: baja trustScore en 20
 router.post("/reports/:id/flag-fake", requireAuth, requireAdmin, async (req, res) => {
   const flagFakeSchema = z.object({
     reason: z.string().min(1, "Motivo requerido").max(500),
@@ -783,25 +944,72 @@ router.post("/reports/:id/flag-fake", requireAuth, requireAdmin, async (req, res
     }
 
     const adminUser = (req as any).jwtUser;
+    const adminId = adminUser ? Number(adminUser.sub) : 0;
 
-    // Si el reporte tiene autorUserId, bannear al usuario autor
-    let bannedUserId: number | null = null;
-    if (report.authorUserId) {
-      await db.update(usersTable)
-        .set({
-          bannedAt: sql`NOW()`,
-          banReason: parsed.data.reason,
-          banReportedById: adminUser ? Number(adminUser.sub) : null,
-          isActive: false,
-        })
-        .where(eq(usersTable.id, report.authorUserId));
-      bannedUserId = report.authorUserId;
-    }
-
-    // Marcar reporte como archivado
+    // Archivar el reporte
     await db.update(reportsTable)
       .set({ status: "archived" as const, updatedAt: new Date() })
       .where(eq(reportsTable.id, report.id));
+
+    let actionTaken = "strike_added";
+    let message = "Reporte marcado como falso.";
+
+    if (report.authorUserId) {
+      const authorId = report.authorUserId;
+
+      // 1. Crear el strike
+      const ninetyDaysFromNow = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+      await db.insert(userStrikesTable).values({
+        userId: authorId,
+        reportId: report.id,
+        motivo: parsed.data.reason,
+        adminId,
+        expiresAt: ninetyDaysFromNow,
+      });
+
+      // 2. Contar strikes activos del usuario
+      const [{ count: strikeCount }] = await db.select({ count: sql<number>`count(*)` })
+        .from(userStrikesTable)
+        .where(and(eq(userStrikesTable.userId, authorId), eq(userStrikesTable.activo, true)));
+
+      const totalStrikes = Number(strikeCount);
+
+      // 3. Aplicar acción según cantidad de strikes
+      if (totalStrikes >= 3) {
+        // Ban permanente
+        await db.update(usersTable)
+          .set({
+            bannedAt: sql`NOW()`,
+            banReason: parsed.data.reason,
+            banReportedById: adminId,
+            isActive: false,
+            trustScore: sql`GREATEST(0, ${usersTable.trustScore} - 20)`,
+          })
+          .where(eq(usersTable.id, authorId));
+        actionTaken = "banned";
+        message = `Reporte falso (strike #${totalStrikes}). Usuario baneado permanentemente.`;
+      } else if (totalStrikes === 2) {
+        // Suspensión 7 días
+        const sevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await db.update(usersTable)
+          .set({
+            suspendedUntil: sevenDays,
+            trustScore: sql`GREATEST(0, ${usersTable.trustScore} - 20)`,
+          })
+          .where(eq(usersTable.id, authorId));
+        actionTaken = "suspended";
+        message = `Reporte falso (strike #2). Usuario suspendido por 7 días.`;
+      } else {
+        // Strike 1: solo advertencia, baja trustScore
+        await db.update(usersTable)
+          .set({
+            trustScore: sql`GREATEST(0, ${usersTable.trustScore} - 20)`,
+          })
+          .where(eq(usersTable.id, authorId));
+        actionTaken = "warning";
+        message = `Reporte falso (strike #1). Advertencia registrada. TrustScore: -20.`;
+      }
+    }
 
     // Audit log
     await db.insert(auditLogTable).values({
@@ -817,13 +1025,353 @@ router.post("/reports/:id/flag-fake", requireAuth, requireAdmin, async (req, res
 
     return res.json({
       success: true,
-      message: "Reporte marcado como falso y usuario baneado.",
-      bannedUserId,
-      banReason: parsed.data.reason,
+      message,
+      actionTaken,
       reportId: String(report.id),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to flag report as fake");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /reports/:id/flag-community — Vecino reporta reporte como falso ─────
+// Community flagging: N (3) flags de distintos usuarios → status = "reviewing"
+const COMMUNITY_FLAG_THRESHOLD = 3;
+
+router.post("/reports/:id/flag-community", requireAuth, async (req, res) => {
+  try {
+    const reportId = parseInt(req.params.id as string);
+    const user = (req as any).jwtUser;
+    const userId = parseInt(user.sub);
+
+    const [report] = await db.select()
+      .from(reportsTable)
+      .where(eq(reportsTable.id, reportId))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    // No permitir que el autor se auto-flagge
+    if (report.authorUserId === userId) {
+      return res.status(403).json({ error: "No puedes reportar tu propio reporte." });
+    }
+
+    // Verificar que el usuario pertenece al mismo distrito
+    if (!checkTenant(req, report.districtId)) {
+      return res.status(403).json({ error: "No puedes reportar reportes de otro distrito." });
+    }
+
+    // Verificar si ya flaggeó este reporte
+    const [existing] = await db.select({ id: communityFlagsTable.id })
+      .from(communityFlagsTable)
+      .where(and(
+        eq(communityFlagsTable.reportId, reportId),
+        eq(communityFlagsTable.userId, userId),
+      ))
+      .limit(1);
+
+    if (existing) {
+      return res.status(409).json({ error: "Ya reportaste este reporte como falso." });
+    }
+
+    // Insertar flag
+    await db.insert(communityFlagsTable).values({
+      reportId,
+      userId,
+    });
+
+    // Contar flags totales para este reporte
+    const [{ count: flagCount }] = await db.select({ count: sql<number>`count(*)` })
+      .from(communityFlagsTable)
+      .where(eq(communityFlagsTable.reportId, reportId));
+
+    const totalFlags = Number(flagCount);
+    let thresholdReached = false;
+
+    // Si alcanzó el umbral, marcar como "reviewing"
+    if (totalFlags >= COMMUNITY_FLAG_THRESHOLD && report.status === "active") {
+      await db.update(reportsTable)
+        .set({ status: "reviewing" as const, updatedAt: new Date() })
+        .where(eq(reportsTable.id, reportId));
+      thresholdReached = true;
+
+      await db.insert(auditLogTable).values({
+        districtId: report.districtId,
+        entityType: "report",
+        entityId: report.id,
+        action: "community_flagged",
+        previousValue: report.status,
+        newValue: "reviewing",
+        changedBy: `community (${totalFlags} flags)`,
+      }).catch(() => {});
+    }
+
+    return res.json({
+      success: true,
+      message: thresholdReached
+        ? "Reporte enviado a revisión por la comunidad."
+        : `Reporte marcado (${totalFlags}/${COMMUNITY_FLAG_THRESHOLD}). Se necesita ${COMMUNITY_FLAG_THRESHOLD} reportes para revisión.`,
+      flagsCount: totalFlags,
+      threshold: COMMUNITY_FLAG_THRESHOLD,
+      underReview: thresholdReached,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to community flag report");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /reports/strikes/:id/revoke — Admin revoca un strike ────────────────
+router.post("/reports/strikes/:id/revoke", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const strikeId = parseInt(req.params.id as string);
+    const adminUser = (req as any).jwtUser;
+
+    const [strike] = await db.select()
+      .from(userStrikesTable)
+      .where(eq(userStrikesTable.id, strikeId))
+      .limit(1);
+
+    if (!strike) return res.status(404).json({ error: "Strike no encontrado." });
+
+    if (!strike.activo) {
+      return res.status(400).json({ error: "Este strike ya fue revocado." });
+    }
+
+    // Revocar strike
+    await db.update(userStrikesTable)
+      .set({ activo: false })
+      .where(eq(userStrikesTable.id, strikeId));
+
+    // Restaurar trustScore en +20 (sin exceder 100)
+    await db.update(usersTable)
+      .set({ trustScore: sql`LEAST(100, ${usersTable.trustScore} + 20)` })
+      .where(eq(usersTable.id, strike.userId));
+
+    // Si el usuario estaba suspendido y ahora tiene < 2 strikes activos, levantar suspensión
+    const [{ count: activeStrikes }] = await db.select({ count: sql<number>`count(*)` })
+      .from(userStrikesTable)
+      .where(and(
+        eq(userStrikesTable.userId, strike.userId),
+        eq(userStrikesTable.activo, true),
+      ));
+
+    if (Number(activeStrikes) < 2) {
+      await db.update(usersTable)
+        .set({ suspendedUntil: null })
+        .where(eq(usersTable.id, strike.userId));
+    }
+
+    // Audit log
+    const [strikeReport] = await db.select({ districtId: reportsTable.districtId })
+      .from(reportsTable)
+      .where(eq(reportsTable.id, strike.reportId))
+      .limit(1);
+
+    await db.insert(auditLogTable).values({
+      districtId: strikeReport?.districtId ?? 0,
+      entityType: "strike",
+      entityId: strikeId,
+      action: "strike_revoked",
+      previousValue: "activo",
+      newValue: "revocado",
+      changedBy: adminUser?.email ?? "unknown",
+      changedById: adminUser ? Number(adminUser.sub) : undefined,
+    }).catch(() => {});
+
+    return res.json({
+      success: true,
+      message: "Strike revocado. TrustScore restaurado en +20.",
+      strikeId: String(strikeId),
+      userId: String(strike.userId),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to revoke strike");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── Item 7: POST /reports/strikes/:id/appeal — Vecino apela un strike ──────
+// Crea un report_message sobre este strike para que el admin lo revise.
+router.post("/reports/strikes/:id/appeal", requireAuth, async (req, res) => {
+  const appealSchema = z.object({
+    reason: z.string().min(10, "Explica tu apelación (mín. 10 caracteres)").max(1000),
+  });
+  const parsed = appealSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Motivo inválido" });
+  }
+
+  try {
+    const strikeId = parseInt(req.params.id as string);
+    const user = (req as any).jwtUser;
+    const userId = parseInt(user.sub);
+
+    const [strike] = await db.select()
+      .from(userStrikesTable)
+      .where(eq(userStrikesTable.id, strikeId))
+      .limit(1);
+
+    if (!strike) return res.status(404).json({ error: "Strike no encontrado." });
+
+    if (strike.userId !== userId) {
+      return res.status(403).json({ error: "Solo puedes apelar tus propios strikes." });
+    }
+
+    if (!strike.activo) {
+      return res.status(400).json({ error: "Este strike ya fue resuelto o revocado." });
+    }
+
+    // Crear un mensaje en el hilo del reporte asociado al strike
+    const [message] = await db.insert(reportMessagesTable).values({
+      reportId: strike.reportId,
+      sender: "vecino",
+      channel: "app",
+      content: `⚠️ APELACIÓN DE STRIKE #${strike.id}:\n\n${parsed.data.reason}`,
+    }).returning();
+
+    return res.status(201).json({
+      success: true,
+      message: "Apelación enviada. Un administrador revisará tu caso.",
+      strikeId: String(strikeId),
+      messageId: String(message.id),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to appeal strike");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /reports/reviewing — Moderación: reportes en revisión ────────────────
+router.get("/reports/reviewing", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const districtId = getDistrictId(req);
+    if (!districtId) {
+      return res.json({ reports: [] });
+    }
+
+    const conditions = [
+      eq(reportsTable.status, "reviewing"),
+      eq(reportsTable.districtId, districtId),
+      isNull(reportsTable.deletedAt),
+    ];
+
+    const reports = await db.select()
+      .from(reportsTable)
+      .where(and(...conditions))
+      .orderBy(desc(reportsTable.updatedAt))
+      .limit(50);
+
+    // Enriquecer con datos de strikes y trustScore del autor
+    const enriched = await Promise.all(reports.map(async (r) => {
+      let strikeCount = 0;
+      let trustScore = 50;
+      let authorName = r.authorName;
+      if (r.authorUserId) {
+        const [author] = await db.select({
+          trustScore: usersTable.trustScore,
+          name: usersTable.name,
+        })
+          .from(usersTable)
+          .where(eq(usersTable.id, r.authorUserId))
+          .limit(1);
+        if (author) {
+          trustScore = author.trustScore ?? 50;
+          authorName = author.name;
+
+          const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+            .from(userStrikesTable)
+            .where(and(eq(userStrikesTable.userId, r.authorUserId), eq(userStrikesTable.activo, true)));
+          strikeCount = Number(count);
+        }
+      }
+      // Contar community flags
+      const [{ count: flagCount }] = await db.select({ count: sql<number>`count(*)` })
+        .from(communityFlagsTable)
+        .where(eq(communityFlagsTable.reportId, r.id));
+
+      return {
+        id: String(r.id),
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        urgency: r.urgency,
+        status: r.status,
+        sector: r.sector,
+        district: r.district,
+        districtId: r.districtId,
+        authorName,
+        authorUserId: r.authorUserId ? String(r.authorUserId) : null,
+        strikeCount,
+        trustScore,
+        communityFlagCount: Number(flagCount),
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      };
+    }));
+
+    return res.json({ reports: enriched });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get reviewing reports");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /reports/:id/approve — Admin aprueba reporte en revisión ────────────
+router.post("/reports/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [report] = await db.select()
+      .from(reportsTable)
+      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+      .limit(1);
+
+    if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
+
+    if (report.status !== "reviewing") {
+      return res.status(400).json({ error: "Solo se pueden aprobar reportes en revisión." });
+    }
+
+    if (!checkTenant(req, report.districtId)) {
+      return res.status(403).json({ error: "No puedes aprobar reportes de otro distrito." });
+    }
+
+    const adminUser = (req as any).jwtUser;
+
+    // Volver a activo
+    const [updated] = await db.update(reportsTable)
+      .set({ status: "active" as const, updatedAt: new Date() })
+      .where(eq(reportsTable.id, report.id))
+      .returning();
+
+    // Aumentar trustScore del autor en +5
+    if (report.authorUserId) {
+      await db.update(usersTable)
+        .set({ trustScore: sql`LEAST(100, ${usersTable.trustScore} + 5)` })
+        .where(eq(usersTable.id, report.authorUserId));
+    }
+
+    // Audit log
+    await db.insert(auditLogTable).values({
+      districtId: report.districtId,
+      entityType: "report",
+      entityId: report.id,
+      action: "approved_after_review",
+      previousValue: "reviewing",
+      newValue: "active",
+      changedBy: adminUser?.email ?? "unknown",
+      changedById: adminUser ? Number(adminUser.sub) : undefined,
+    }).catch(() => {});
+
+    return res.json({
+      ...updated,
+      id: String(updated.id),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+      message: "Reporte aprobado y reactivado. TrustScore del autor +5.",
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to approve report");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

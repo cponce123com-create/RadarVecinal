@@ -119,6 +119,8 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     reportsCount: u.reportsCount,
     alias:        u.alias ?? null,
     vecinoId:     u.vecinoId ?? null,
+    // Item 7: Include suspension status for appeal UI
+    suspendedUntil: u.suspendedUntil?.toISOString() ?? null,
     createdAt:    u.createdAt.toISOString(),
   };
 }
@@ -134,12 +136,19 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   const { name, email, password, sector, district, dni } = parsed.data;
 
   try {
-    const existing = await db.select({ id: usersTable.id })
+    const existing = await db.select({ id: usersTable.id, lockedUntil: usersTable.lockedUntil })
       .from(usersTable)
       .where(eq(usersTable.email, email.toLowerCase().trim()))
       .limit(1);
 
     if (existing.length > 0) {
+      const userRecord = existing[0];
+      // Item 4: Si el usuario existe y está bloqueado, no permitir re-registro
+      if (userRecord.lockedUntil && new Date(userRecord.lockedUntil) > new Date()) {
+        return res.status(429).json({
+          error: "Cuenta bloqueada temporalmente por muchos intentos fallidos. Intenta más tarde.",
+        });
+      }
       return res.status(409).json({ error: "Ya existe una cuenta con ese correo." });
     }
 
@@ -175,6 +184,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
 });
 
 // ── POST /auth/login ─────────────────────────────────────────────────────────
+// Item 4: Progressive login blocking — 5 failed attempts = 15 min lockout
 router.post("/auth/login", async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -182,15 +192,24 @@ router.post("/auth/login", async (req: Request, res: Response) => {
   }
 
   const { email, password } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
 
   try {
     const [user] = await db.select()
       .from(usersTable)
-      .where(eq(usersTable.email, email.toLowerCase().trim()))
+      .where(eq(usersTable.email, normalizedEmail))
       .limit(1);
 
     if (!user) {
       return res.status(401).json({ error: "Correo o contraseña incorrectos." });
+    }
+
+    // Item 4: Check if account is locked
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const remainingMin = Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000);
+      return res.status(429).json({
+        error: `Cuenta bloqueada por muchos intentos fallidos. Intenta de nuevo en ${remainingMin} minuto(s).`,
+      });
     }
 
     if (!user.passwordHash) {
@@ -199,8 +218,27 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      // Item 4: Increment failed attempts
+      const newAttempts = (user.loginAttempts ?? 0) + 1;
+      if (newAttempts >= 5) {
+        const lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        await db.update(usersTable)
+          .set({ loginAttempts: newAttempts, lockedUntil })
+          .where(eq(usersTable.id, user.id));
+        return res.status(429).json({
+          error: "Demasiados intentos fallidos. Cuenta bloqueada por 15 minutos.",
+        });
+      }
+      await db.update(usersTable)
+        .set({ loginAttempts: newAttempts })
+        .where(eq(usersTable.id, user.id));
       return res.status(401).json({ error: "Correo o contraseña incorrectos." });
     }
+
+    // Item 4: Successful login — reset attempts
+    await db.update(usersTable)
+      .set({ loginAttempts: 0, lockedUntil: null })
+      .where(eq(usersTable.id, user.id));
 
     if (!user.isActive) {
       return res.status(403).json({ error: "Cuenta desactivada. Contacta al administrador." });

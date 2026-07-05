@@ -15,6 +15,7 @@ import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { useGeofenceWatcher } from "@/lib/useGeofenceWatcher";
 import { useDistrict } from "@/contexts/DistrictContext";
 import ProximityBanner from "@/components/ProximityBanner";
+import RadarHero from "@/components/RadarHero";
 
 const PANIC_TYPE_ICONS: Record<string, any> = {
   robbery: ShieldAlert, medical: HeartPulse, fight: Users,
@@ -25,68 +26,15 @@ const PANIC_TYPE_ES: Record<string, string> = {
   fire: "Incendio", missing_person: "Persona Extraviada", other: "Otra Emergencia",
 };
 
-// Posiciones deterministas de los blips dentro del radar
-const BLIP_POS = [
-  { left: "42%", top: "30%" }, { left: "62%", top: "44%" }, { left: "50%", top: "58%" },
-  { left: "35%", top: "52%" }, { left: "70%", top: "62%" }, { left: "30%", top: "68%" },
-];
-
 const cardVariants = {
   hidden: { opacity: 0, y: 14 },
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.35 } }),
 };
 
-function RadarHero({ reports }: { reports: any[] }) {
-  const { currentDistrict, province, districtInfo } = useDistrict();
-  const lat = districtInfo?.centerLat ?? -11.1231;
-  const lng = districtInfo?.centerLng ?? -75.3565;
-  const districtName = currentDistrict || "San Ramón";
-  const blips = reports.slice(0, 6).map((r, i) => ({
-    ...BLIP_POS[i],
-    color: CAT_HEX[r.category] ?? "#6b7280",
-  }));
-  return (
-    <div className="relative rounded-[20px] overflow-hidden border border-white/7 bg-[radial-gradient(circle_at_50%_50%,#0b1420,#070a11)] shadow-[0_24px_60px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.04)] min-h-[400px]">
-      <div className="absolute top-4 left-[18px] z-[5]">
-        <div className="label-mono text-[10px] text-[#3d7fff] tracking-[0.14em]">RADAR_SYS · {districtName.toUpperCase()}</div>
-        <div className="label-mono text-[9px] text-[#4a5568] tracking-[0.1em] mt-0.5">LAT {lat.toFixed(4)} · LON {lng.toFixed(4)}</div>
-      </div>
-      <div className="absolute top-4 right-4 z-[5] flex items-center gap-1.5 px-2.5 py-[5px] rounded-full bg-primary/12 border border-primary/28">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#3d7fff] status-blink" />
-        <span className="label-mono text-[10px] text-[#5b8dff] tracking-normal">{reports.length} BLIPS</span>
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-[340px] h-[340px]">
-          {[0, 56, 112, 150].map((inset, i) => (
-            <div key={i} className="absolute rounded-full" style={{ inset, border: "1px solid rgba(59,130,246,0.15)" }} />
-          ))}
-          <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2" style={{ background: "rgba(59,130,246,0.1)" }} />
-          <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2" style={{ background: "rgba(59,130,246,0.1)" }} />
-          <div className="radar-sweep absolute inset-0 rounded-full" />
-          <div className="absolute left-1/2 top-1/2 w-3 h-3 rounded-full bg-[#3d7fff] -translate-x-1/2 -translate-y-1/2 shadow-[0_0_16px_#3d7fff,0_0_4px_#fff]" />
-          {blips.map((b, i) => (
-            <span key={i} className="marker-pulse absolute w-[11px] h-[11px] rounded-full -translate-x-1/2 -translate-y-1/2"
-              style={{ left: b.left, top: b.top, background: b.color, color: b.color, boxShadow: `0 0 12px ${b.color}` }} />
-          ))}
-          <span className="label-mono absolute -top-[18px] left-1/2 -translate-x-1/2 text-[10px] text-[#3d7fff]">N</span>
-          <span className="label-mono absolute -bottom-[18px] left-1/2 -translate-x-1/2 text-[10px] text-[#394152]/50">S</span>
-          <span className="label-mono absolute -left-4 top-1/2 -translate-y-1/2 text-[10px] text-[#394152]/50">W</span>
-          <span className="label-mono absolute -right-4 top-1/2 -translate-y-1/2 text-[10px] text-[#3d7fff]">E</span>
-        </div>
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#070a11]/90 to-transparent pointer-events-none" />
-      <Link href="/mapa">
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-[18px] py-[9px] rounded-full bg-white/7 backdrop-blur-md border border-white/14 text-white text-[12.5px] font-medium cursor-pointer z-[5] hover:bg-white/12 transition-colors">
-          <Maximize2 className="w-3.5 h-3.5 text-[#3d7fff]" /> Abrir mapa completo
-        </div>
-      </Link>
-    </div>
-  );
-}
-
 export default function Home() {
-  const { currentDistrict, currentDistrictId, province, districtInfo, setDistrict, districts } = useDistrict();
+  const { currentDistrict, currentDistrictId, province, districtInfo, setDistrict, districts, isLocationApproximate } = useDistrict();
   const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "Selecciona tu distrito";
+  const districtDisplaySuffix = currentDistrict && isLocationApproximate ? " (aprox.)" : "";
   // FIX: antes estas queries iban SIN districtId — para usuarios anónimos el
   // backend devolvía estadísticas GLOBALES (todos los distritos mezclados).
   // Por eso el "Resumen del Distrito" mostraba zonas de otro distrito.
@@ -168,7 +116,7 @@ export default function Home() {
           <h1 className="font-display text-[30px] font-bold text-white tracking-tight m-0">Hola, Vecino</h1>
           <p className="text-[13px] text-muted-foreground mt-1.5 flex items-center gap-2">
             <span className="w-[7px] h-[7px] rounded-full bg-success shadow-[0_0_8px_hsl(142_71%_55%)]" />
-            Conectado — {districtDisplay}
+            Conectado — {districtDisplay}{districtDisplaySuffix}
           </p>
         </div>
         <div className="flex gap-2.5">
@@ -184,7 +132,12 @@ export default function Home() {
 
       {/* Radar + columna derecha */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-[18px]">
-        <RadarHero reports={reports} />
+        <RadarHero
+          reports={reports}
+          userPosition={geofence.currentPosition}
+          districtInfo={districtInfo ? { centerLat: districtInfo.centerLat, centerLng: districtInfo.centerLng, name: districtInfo.name } : null}
+          onViewOnMap={() => {}}
+        />
 
         <div className="flex flex-col gap-3.5">
           <div className="grid grid-cols-2 gap-2.5">

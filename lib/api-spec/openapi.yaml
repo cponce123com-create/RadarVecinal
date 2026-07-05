@@ -930,6 +930,11 @@ components:
             - drug_point
             - bar_trouble
             - other
+            - lost_pet
+            - power_outage
+            - street_damage
+            - stray_dogs
+            - flooding
         urgency:
           type: string
           enum:

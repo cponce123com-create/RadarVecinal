@@ -8,7 +8,7 @@ import { LeafletMap, MapMode } from "@/components/LeafletMap";
 import PanicAlertsLayer from "@/components/PanicAlertsLayer";
 import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
-import { CAT_HEX, CATEGORY_CONFIG, DISTRICT } from "@/lib/constants";
+import { CAT_HEX, CATEGORY_CONFIG, DISTRICT, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -258,35 +258,94 @@ export default function MapPage() {
           )}
         </AnimatePresence>
 
-        {/* Category filter pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
-          {ALL_CATEGORY_FILTERS.map(f => {
-            const active = activeCategory === f.id;
-            const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
-            const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
-            const Icon = catConf?.icon;
-            return (
-              <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                  active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
-                }`}
-                style={active ? {
-                  background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
-                  borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
-                  color: color ?? "hsl(217 100% 75%)",
-                } : {}}>
-                {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
-                {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
-                {f.label}
-              </motion.button>
-            );
-          })}
-          {activeCategory !== "all" && (
-            <button onClick={() => setActiveCategory("all")}
-              className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
+        {/* Category filter pills with grouping */}
+        <div className="flex flex-col gap-1">
+          {/* Items de seguridad */}
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
+            {ALL_CATEGORY_FILTERS.filter(f => f.id === "all" || SAFETY_CATEGORIES.includes(f.id)).map(f => {
+              const active = activeCategory === f.id;
+              const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
+              const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
+              const Icon = catConf?.icon;
+              return (
+                <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                    active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
+                  }`}
+                  style={active ? {
+                    background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
+                    borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
+                    color: color ?? "hsl(217 100% 75%)",
+                  } : {}}>
+                  {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
+                  {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+                  {f.label}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Separator visual entre seguridad y servicios */}
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider px-1">
+            <span>Servicios Públicos</span>
+            <div className="flex-1 h-px bg-white/5" />
+          </div>
+
+          {/* Items de servicios públicos */}
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
+            {ALL_CATEGORY_FILTERS.filter(f => SERVICE_CATEGORIES.includes(f.id)).map(f => {
+              const active = activeCategory === f.id;
+              const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
+              const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
+              const Icon = catConf?.icon;
+              return (
+                <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                    active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
+                  }`}
+                  style={active ? {
+                    background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
+                    borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
+                    color: color ?? "hsl(217 100% 75%)",
+                  } : {}}>
+                  {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
+                  {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+                  {f.label}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Otras categorías */}
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
+            {ALL_CATEGORY_FILTERS.filter(f => f.id !== "all" && !SAFETY_CATEGORIES.includes(f.id) && !SERVICE_CATEGORIES.includes(f.id)).map(f => {
+              const active = activeCategory === f.id;
+              const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
+              const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
+              const Icon = catConf?.icon;
+              return (
+                <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
+                    active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
+                  }`}
+                  style={active ? {
+                    background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
+                    borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
+                    color: color ?? "hsl(217 100% 75%)",
+                  } : {}}>
+                  {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
+                  {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+                  {f.label}
+                </motion.button>
+              );
+            })}
+            {activeCategory !== "all" && (
+              <button onClick={() => setActiveCategory("all")}
+                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

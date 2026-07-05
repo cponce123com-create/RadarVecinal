@@ -31,6 +31,11 @@ const CATEGORY_EMOJI: Record<string, string> = {
   drug_point:        "💊",
   bar_trouble:       "🍺",
   other:             "⚠️",
+  lost_pet:          "🐱",
+  power_outage:      "⚡",
+  street_damage:     "🕳️",
+  stray_dogs:        "🐕",
+  flooding:          "🌊",
 };
 
 function makeCategoryIcon(category: string, urgency: string): L.DivIcon {

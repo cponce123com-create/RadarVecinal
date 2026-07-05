@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Clock, CheckSquare, ThumbsUp } from "lucide-react";
+import { MapPin, Clock, CheckSquare, ThumbsUp, Flag, Loader2 } from "lucide-react";
 import { Report } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 
@@ -15,6 +15,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   water_cut: "#3b82f6", garbage: "#6b7280", informal_commerce: "#a855f7",
   noise: "#f59e0b", missing_person: "#f59e0b", fire: "#ef4444",
   medical_emergency: "#ef4444", other: "#6b7280",
+  lost_pet: "#ec4899", power_outage: "#f59e0b", street_damage: "#92400e",
+  stray_dogs: "#d97706", flooding: "#2563eb",
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -37,6 +39,8 @@ export function ReportCard({ report, compact = false }: ReportCardProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [confirmCount, setConfirmCount] = useState(report.confirmedCount ?? 0);
   const [confirming, setConfirming] = useState(false);
+  const [flagged, setFlagged] = useState(false);
+  const [flagging, setFlagging] = useState(false);
 
   const handleConfirm = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -53,6 +57,34 @@ export function ReportCard({ report, compact = false }: ReportCardProps) {
       setConfirming(false);
     }
   };
+
+  // FASE 5: Community flagging
+  const handleFlagCommunity = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (flagged || flagging) return;
+    setFlagging(true);
+    try {
+      const token = localStorage.getItem("radarvecinal_token");
+      const res = await fetch(`/api/reports/${report.id}/flag-community`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        setFlagged(true);
+      } else {
+        const data = await res.json();
+        if (res.status === 409) {
+          setFlagged(true); // Already flagged
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setFlagging(false);
+    }
+  };
+
+  const isAuthenticated = !!localStorage.getItem("radarvecinal_token");
   const status = STATUS_META[report.status] ?? STATUS_META.active;
   const urgency = URGENCY_META[report.urgency] ?? URGENCY_META.medium;
   const Icon = config.icon;
@@ -150,6 +182,22 @@ export function ReportCard({ report, compact = false }: ReportCardProps) {
             {confirmCount > 0 ? confirmCount : ""}
             <span className="hidden sm:inline">{confirmed ? "Lo vi" : "Yo lo vi"}</span>
           </button>
+          {/* Item 6: Community flagging button */}
+          {isAuthenticated && (
+            <button
+              onClick={handleFlagCommunity}
+              disabled={flagged || flagging}
+              title="Reportar como falso"
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
+                flagged
+                  ? "bg-destructive/15 text-destructive border border-destructive/30"
+                  : "bg-white/5 text-muted-foreground border border-white/8 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/25"
+              } ${flagging ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+            >
+              <Flag className={`w-3 h-3 ${flagged ? "fill-destructive" : ""}`} />
+              <span className="hidden sm:inline">{flagged ? "Reportado" : "Reportar"}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

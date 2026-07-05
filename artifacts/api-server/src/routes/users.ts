@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable, reportsTable, auditLogTable, licensesTable } from "@workspace/db/schema";
+import { usersTable, adSlotsTable, notificationsTable, panicAlertsTable, reportsTable, auditLogTable, licensesTable, userStrikesTable } from "@workspace/db/schema";
 import { desc, eq, and, sql, count } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
 import bcrypt from "bcryptjs";
@@ -33,6 +33,8 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
         districtId: u.districtId,
         isActive: u.isActive,
         reportsCount: u.reportsCount,
+        trustScore: u.trustScore ?? 50,
+        suspendedUntil: u.suspendedUntil?.toISOString() ?? null,
         createdAt: u.createdAt.toISOString(),
       })),
     });
@@ -620,6 +622,105 @@ router.patch("/users/viewers/:id", requireAuth, requireMunicipal, async (req, re
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update viewer status");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// FASE 5: Strike system endpoints
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── GET /users/:id/strikes — Historial de strikes de un usuario ──────────────
+router.get("/users/:id/strikes", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const authUser = (req as any).jwtUser;
+    const targetId = parseInt(req.params.id as string);
+
+    const [target] = await db.select({ id: usersTable.id, districtId: usersTable.districtId })
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
+    if (!target) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    if (authUser.role !== "super_admin" && Number(authUser.districtId) !== Number(target.districtId)) {
+      return res.status(403).json({ error: "No puedes ver strikes de usuarios de otro distrito." });
+    }
+
+    const strikes = await db.select()
+      .from(userStrikesTable)
+      .where(eq(userStrikesTable.userId, targetId))
+      .orderBy(desc(userStrikesTable.createdAt))
+      .limit(50);
+
+    // Enriquecer con nombre del admin que aplicó el strike y título del reporte
+    const enriched = await Promise.all(strikes.map(async (s) => {
+      const [admin] = await db.select({ name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.id, s.adminId))
+        .limit(1);
+      const [report] = await db.select({ title: reportsTable.title })
+        .from(reportsTable)
+        .where(eq(reportsTable.id, s.reportId))
+        .limit(1);
+      return {
+        id: String(s.id),
+        userId: String(s.userId),
+        reportId: String(s.reportId),
+        reportTitle: report?.title ?? "Reporte eliminado",
+        motivo: s.motivo,
+        adminName: admin?.name ?? "Desconocido",
+        adminId: String(s.adminId),
+        activo: s.activo,
+        createdAt: s.createdAt.toISOString(),
+        expiresAt: s.expiresAt?.toISOString() ?? null,
+      };
+    }));
+
+    return res.json({ strikes: enriched });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get user strikes");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /users/:id/lift-suspension — Admin levanta suspensión de un usuario ─
+router.post("/users/:id/lift-suspension", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const authUser = (req as any).jwtUser;
+    const targetId = parseInt(req.params.id as string);
+
+    const [target] = await db.select({ id: usersTable.id, districtId: usersTable.districtId })
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
+    if (!target) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    if (authUser.role !== "super_admin" && Number(authUser.districtId) !== Number(target.districtId)) {
+      return res.status(403).json({ error: "No puedes modificar usuarios de otro distrito." });
+    }
+
+    await db.update(usersTable)
+      .set({ suspendedUntil: null })
+      .where(eq(usersTable.id, targetId));
+
+    await db.insert(auditLogTable).values({
+      districtId: target.districtId,
+      entityType: "user",
+      entityId: targetId,
+      action: "suspension_lifted",
+      previousValue: "suspended",
+      newValue: "active",
+      changedBy: authUser?.email ?? "unknown",
+      changedById: authUser ? Number(authUser.sub) : undefined,
+    }).catch(() => {});
+
+    return res.json({
+      success: true,
+      message: "Suspensión levantada correctamente.",
+      userId: String(targetId),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to lift suspension");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

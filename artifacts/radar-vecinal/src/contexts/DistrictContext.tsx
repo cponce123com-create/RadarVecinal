@@ -54,6 +54,8 @@ interface DistrictContextValue {
   isLocked: boolean;
   /** true si no hay ningún distrito determinado y hay que pedir selección */
   needsSelection: boolean;
+  /** FASE-2: true si el distrito detectado por GPS es aproximado (haversine) vs exacto (polígono) */
+  isLocationApproximate: boolean;
 }
 
 const DistrictContext = createContext<DistrictContextValue | null>(null);
@@ -69,6 +71,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
 
   const [locatedDistrict, setLocatedDistrict] = useState<DistrictInfo | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(true);
+  const [isLocationApproximate, setIsLocationApproximate] = useState(false);
   const [manualSlug, setManualSlug] = useState<string | null>(() => {
     // Migración: la clave antigua pasa a ser el distrito manual
     return localStorage.getItem(LS_MANUAL) ?? localStorage.getItem(LS_LEGACY);
@@ -89,7 +92,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  // ── 2. Detectar distrito por ubicación (GPS → /districts/nearby) ────────
+  // ── 2. Detectar distrito por ubicación (GPS → /districts/locate) ────────
   useEffect(() => {
     if (!loaded) return;
     if (!("geolocation" in navigator)) {
@@ -99,12 +102,13 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     navigator.geolocation.getCurrentPosition(
       pos => {
-        fetch(`/api/districts/nearby?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}&limit=1`)
+        fetch(`/api/districts/locate?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`)
           .then(res => res.json())
           .then(data => {
             if (cancelled) return;
-            const nearest: DistrictInfo | undefined = data.districts?.[0];
-            if (nearest) setLocatedDistrict(nearest);
+            const located: DistrictInfo | undefined = data.district;
+            if (located) setLocatedDistrict(located);
+            setIsLocationApproximate(data.method === "approximate");
             setDetectingLocation(false);
           })
           .catch(() => { if (!cancelled) setDetectingLocation(false); });
@@ -196,6 +200,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
         detectingLocation,
         isLocked,
         needsSelection,
+        isLocationApproximate,
       }}
     >
       {children}

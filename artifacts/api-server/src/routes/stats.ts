@@ -4,13 +4,24 @@ import { reportsTable, panicAlertsTable, missingPersonsTable } from "@workspace/
 import { eq, and, gte, sql, desc } from "drizzle-orm";
 import { optionalAuth } from "./auth";
 import { getDistrictId } from "./tenant";
+import { MemoryCache } from "../lib/memoryCache";
 
 const router: IRouter = Router();
+
+// Item 9: In-memory cache for stats (30s TTL)
+const statsCache = new MemoryCache<any>();
 
 // ── M-01/M-10: GET /stats — filtrado por distrito ──────────────────────────
 router.get("/stats", optionalAuth, async (req, res) => {
   try {
     const districtId = getDistrictId(req);
+    const cacheKey = `stats_${districtId ?? "all"}`;
+
+    // Check cache
+    const cached = statsCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
     const baseFilter = districtId
       ? and(eq(reportsTable.districtId, districtId))
       : undefined;
@@ -94,7 +105,12 @@ router.get("/stats", optionalAuth, async (req, res) => {
       reportsByStatus: reportsByStatus.map(r => ({ status: r.status, count: Number(r.count) })),
       weeklyTrend,
       topSectors: topSectors.map(r => ({ sector: r.sector, count: Number(r.count) })),
-    });
+    };
+
+    // Item 9: Cache for 30 seconds
+    statsCache.set(cacheKey, result, 30000);
+
+    return res.json(result);
   } catch (err) {
     req.log.error({ err }, "Failed to get stats");
     return res.status(500).json({ error: "Error interno del servidor." });

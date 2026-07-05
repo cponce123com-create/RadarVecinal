@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ShieldCheck, Eye, EyeOff, UserPlus, X, Loader2, Check, Trash2,
   Users, Calendar, Activity, MessageSquare, CheckCircle, Search, Filter,
+  AlertTriangle, Gavel, Ban,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,8 @@ interface User {
   districtId: number;
   isActive: boolean;
   reportsCount: number;
+  trustScore: number;
+  suspendedUntil: string | null;
   createdAt: string;
 }
 
@@ -28,12 +31,31 @@ interface UserStats {
   messagesSent: number;
 }
 
+interface Strike {
+  id: string;
+  userId: string;
+  reportId: string;
+  reportTitle: string;
+  motivo: string;
+  adminName: string;
+  adminId: string;
+  activo: boolean;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
 const ROLE_META: Record<string, { icon: any; label: string; color: string; bg: string }> = {
   super_admin: { icon: ShieldCheck, label: "Superadmin", color: "#a855f7", bg: "rgba(168,85,247,0.15)" },
   admin:       { icon: Shield,      label: "Admin",      color: "#3b82f6", bg: "rgba(59,130,246,0.15)" },
   moderator:   { icon: Eye,         label: "Moderador",  color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
   user:        { icon: Users,       label: "Vecino",     color: "#6b7280", bg: "rgba(107,114,128,0.15)" },
 };
+
+function getTrustScoreMeta(score: number): { color: string; bg: string; label: string } {
+  if (score < 30) return { color: "#ef4444", bg: "rgba(239,68,68,0.15)", label: "Bajo" };
+  if (score <= 60) return { color: "#f59e0b", bg: "rgba(245,158,11,0.15)", label: "Medio" };
+  return { color: "#22c55e", bg: "rgba(34,197,94,0.15)", label: "Alto" };
+}
 
 const cardVariants = {
   hidden: { opacity: 0, y: 12 },
@@ -44,6 +66,9 @@ export default function UsersTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [strikeModalUser, setStrikeModalUser] = useState<User | null>(null);
+  const [strikes, setStrikes] = useState<Strike[]>([]);
+  const [loadingStrikes, setLoadingStrikes] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -99,6 +124,64 @@ export default function UsersTab() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const liftSuspension = useMutation({
+    mutationFn: async (userId: string) => {
+      const token = localStorage.getItem("radarvecinal_token");
+      const res = await fetch(`/api/users/${userId}/lift-suspension`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Error al levantar suspensión");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast({ title: "✅ Suspensión levantada" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const revokeStrike = useMutation({
+    mutationFn: async (strikeId: string) => {
+      const token = localStorage.getItem("radarvecinal_token");
+      const res = await fetch(`/api/reports/strikes/${strikeId}/revoke`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Error al revocar strike");
+      return res.json();
+    },
+    onSuccess: (_data, strikeId) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setStrikes(prev => prev.map(s => s.id === strikeId ? { ...s, activo: false } : s));
+      toast({ title: "✅ Strike revocado", description: "TrustScore restaurado en +20" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const loadStrikes = async (userId: string) => {
+    setLoadingStrikes(true);
+    try {
+      const token = localStorage.getItem("radarvecinal_token");
+      const res = await fetch(`/api/users/${userId}/strikes`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStrikes(data.strikes ?? []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingStrikes(false);
+    }
+  };
+
+  const openStrikeModal = (user: User) => {
+    setStrikeModalUser(user);
+    loadStrikes(user.id);
+  };
+
   const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "admin", sector: "" });
   const filtered = (data?.users ?? []).filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -114,6 +197,9 @@ export default function UsersTab() {
     }
     createUser.mutate(formData);
   };
+
+  const isSuspended = (user: User) => user.suspendedUntil && new Date(user.suspendedUntil) > new Date();
+  const activeStrikesCount = (userId: string) => strikes.filter(s => s.activo).length;
 
   return (
     <div className="flex flex-col gap-4 rv-in">
@@ -219,6 +305,8 @@ export default function UsersTab() {
             const roleMeta = ROLE_META[user.role] ?? ROLE_META.user;
             const Icon = roleMeta.icon;
             const expanded = expandedUser === user.id;
+            const trustMeta = getTrustScoreMeta(user.trustScore);
+            const suspended = isSuspended(user);
             return (
               <motion.div key={user.id} custom={i} variants={cardVariants} initial="hidden" animate="visible">
                 <div className="rounded-2xl bg-gradient-to-b from-card to-sidebar border border-white/6 overflow-hidden">
@@ -227,20 +315,36 @@ export default function UsersTab() {
                       <Icon className="w-5 h-5" style={{ color: roleMeta.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-white truncate">{user.name}</span>
                         <span className="label-mono text-[9px] px-2 py-0.5 rounded-full" style={{ background: roleMeta.bg, color: roleMeta.color }}>
                           {roleMeta.label}
+                        </span>
+                        {/* FASE 5: Trust Score badge */}
+                        <span className="label-mono text-[9px] px-2 py-0.5 rounded-full"
+                          style={{ color: trustMeta.color, background: trustMeta.bg }}>
+                          Trust: {user.trustScore}
                         </span>
                         {!user.isActive && (
                           <span className="label-mono text-[9px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive">
                             INACTIVO
                           </span>
                         )}
+                        {suspended && (
+                          <span className="label-mono text-[9px] px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400">
+                            SUSPENDIDO
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">{user.email} · {user.sector}</p>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      {/* FASE 5: Ver strikes button */}
+                      <button onClick={e => { e.stopPropagation(); openStrikeModal(user); }}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        title="Ver strikes">
+                        <Gavel className="w-4 h-4" />
+                      </button>
                       <button onClick={e => { e.stopPropagation(); toggleStatus.mutate({ id: user.id, isActive: !user.isActive }); }}
                         className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all"
                         title={user.isActive ? "Desactivar" : "Activar"}>
@@ -249,8 +353,25 @@ export default function UsersTab() {
                     </div>
                   </div>
 
-                  {/* Panel expandido con estadísticas */}
-                  {expanded && <UserStatsPanel userId={user.id} userName={user.name} />}
+                  {/* FASE 5: Expanded panel with stats + strike info */}
+                  {expanded && (
+                    <div className="px-4 pb-4 pt-1 border-t border-white/5">
+                      <UserStatsPanel userId={user.id} userName={user.name} />
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <button onClick={() => openStrikeModal(user)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
+                          <Gavel className="w-3.5 h-3.5" /> Ver strikes
+                        </button>
+                        {suspended && (
+                          <button onClick={() => liftSuspension.mutate(user.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 transition-colors">
+                            <Ban className="w-3.5 h-3.5" /> Levantar suspensión
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );
@@ -263,6 +384,86 @@ export default function UsersTab() {
           )}
         </div>
       )}
+
+      {/* FASE 5: Strike History Modal */}
+      <AnimatePresence>
+        {strikeModalUser && (
+          <>
+            <div className="fixed inset-0 bg-black/70 z-50" onClick={() => setStrikeModalUser(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+              className="fixed inset-4 md:inset-auto md:top-[10%] md:left-1/2 md:-translate-x-1/2 md:w-[560px] max-h-[80vh] z-50 bg-[#0b0e1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 flex-shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <Gavel className="w-5 h-5 text-red-400" />
+                  <span className="font-display font-bold text-white">Historial de Strikes</span>
+                </div>
+                <button onClick={() => setStrikeModalUser(null)} className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-3 flex-shrink-0 border-b border-white/5">
+                <p className="text-sm text-white font-semibold">{strikeModalUser.name}</p>
+                <p className="text-xs text-muted-foreground">TrustScore: {strikeModalUser.trustScore}</p>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {loadingStrikes ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : strikes.length === 0 ? (
+                  <div className="flex flex-col items-center py-8 text-muted-foreground">
+                    <CheckCircle className="w-8 h-8 mb-2 text-green-400/50" />
+                    <p className="text-sm">No tiene strikes</p>
+                  </div>
+                ) : strikes.map(strike => (
+                  <div key={strike.id}
+                    className={`p-3 rounded-xl border ${
+                      strike.activo
+                        ? "bg-red-500/8 border-red-500/20"
+                        : "bg-white/[0.02] border-white/5 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            strike.activo
+                              ? "bg-red-500/15 text-red-400"
+                              : "bg-green-500/15 text-green-400"
+                          }`}>
+                            {strike.activo ? "Activo" : "Revocado"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(strike.createdAt), "dd MMM yyyy HH:mm", { locale: es })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white font-medium mb-0.5">{strike.motivo}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Reporte: <span className="text-white/70">{strike.reportTitle}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Admin: {strike.adminName}
+                        </p>
+                      </div>
+                      {strike.activo && (
+                        <button
+                          onClick={() => revokeStrike.mutate(strike.id)}
+                          disabled={revokeStrike.isPending}
+                          className="flex-shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                          title="Revocar strike"
+                        >
+                          Revocar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -280,7 +481,7 @@ function UserStatsPanel({ userId, userName }: { userId: string; userName: string
     },
   });
 
-  if (isLoading) return <div className="px-4 pb-4"><div className="h-16 rounded-xl bg-white/[0.03] animate-pulse" /></div>;
+  if (isLoading) return <div className="h-16 rounded-xl bg-white/[0.03] animate-pulse" />;
 
   const stats = [
     { label: "Acciones totales", value: data?.totalActions ?? 0, icon: Activity, color: "#3b82f6" },
@@ -289,7 +490,7 @@ function UserStatsPanel({ userId, userName }: { userId: string; userName: string
   ];
 
   return (
-    <div className="px-4 pb-4 pt-1 border-t border-white/5">
+    <div>
       <p className="label-mono text-[9px] text-muted-foreground/50 mb-2.5">DESEMPEÑO · {userName.toUpperCase()}</p>
       <div className="grid grid-cols-3 gap-2">
         {stats.map(s => {

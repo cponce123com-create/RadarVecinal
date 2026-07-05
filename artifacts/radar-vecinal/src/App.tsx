@@ -10,21 +10,39 @@ import { initApiBaseUrl } from "@/lib/apiConfig";
 // Inicializar URL base de la API (detecta Capacitor vs web automáticamente)
 initApiBaseUrl();
 
+import { lazy, Suspense } from "react";
 import { Layout } from "@/components/Layout";
 import BrandingWrapper from "@/components/BrandingWrapper";
 import Home from "@/pages/Home";
-import MapPage from "@/pages/MapPage";
 import ReportForm from "@/pages/ReportForm";
 import Alerts from "@/pages/Alerts";
-import History from "@/pages/History";
-import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
-import MissingPerson from "@/pages/MissingPerson";
-import Admin from "@/pages/Admin";
 import Notifications from "@/pages/Notifications";
 import Settings from "@/pages/Settings";
 import Emergencias from "@/pages/Emergencias";
-import NotFound from "@/pages/not-found";
+
+// Lazy-loaded heavy pages (code splitting)
+const MapPage = lazy(() => import("@/pages/MapPage"));
+const History = lazy(() => import("@/pages/History"));
+const Stats = lazy(() => import("@/pages/Stats"));
+const MissingPerson = lazy(() => import("@/pages/MissingPerson"));
+const Admin = lazy(() => import("@/pages/Admin"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+
+function SuspenseWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    }>
+      {children}
+    </Suspense>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,7 +87,7 @@ function Router() {
         {() => <Layout><BrandingWrapper><Home /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/mapa">
-        {() => <Layout><BrandingWrapper><MapPage /></BrandingWrapper></Layout>}
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><MapPage /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       <Route path="/reportar">
         {() => <Layout><BrandingWrapper><ReportForm /></BrandingWrapper></Layout>}
@@ -78,19 +96,19 @@ function Router() {
         {() => <Layout><BrandingWrapper><Alerts /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/historial">
-        {() => <Layout><BrandingWrapper><History /></BrandingWrapper></Layout>}
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><History /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       <Route path="/estadisticas">
-        {() => <Layout><BrandingWrapper><Stats /></BrandingWrapper></Layout>}
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><Stats /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       <Route path="/perfil">
         {() => <Layout><BrandingWrapper><Profile /></BrandingWrapper></Layout>}
       </Route>
       <Route path="/menor-perdido">
-        {() => <Layout><BrandingWrapper><MissingPerson /></BrandingWrapper></Layout>}
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><MissingPerson /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       <Route path="/admin">
-        {() => <Layout><BrandingWrapper><Admin /></BrandingWrapper></Layout>}
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><Admin /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       <Route path="/notificaciones">
         {() => <Layout><BrandingWrapper><Notifications /></BrandingWrapper></Layout>}
@@ -102,7 +120,7 @@ function Router() {
         {() => <Layout><BrandingWrapper><Emergencias /></BrandingWrapper></Layout>}
       </Route>
       
-      <Route component={NotFound} />
+      <Route>{() => <SuspenseWrapper><NotFound /></SuspenseWrapper>}</Route>
     </Switch>
   );
 }

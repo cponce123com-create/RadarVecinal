@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, real, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, real, timestamp, integer, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -17,6 +17,11 @@ export const reportCategoryEnum = pgEnum("report_category", [
   "drug_point",
   "bar_trouble",
   "other",
+  "lost_pet",
+  "power_outage",
+  "street_damage",
+  "stray_dogs",
+  "flooding",
 ]);
 
 export const urgencyEnum = pgEnum("urgency_level", ["low", "medium", "high", "critical"]);
@@ -46,6 +51,8 @@ export const districtsTable = pgTable("districts", {
   centerLat: real("center_lat"),
   centerLng: real("center_lng"),
   defaultZoom: integer("default_zoom").default(15),
+  // FASE-2: Polígono del distrito en formato GeoJSON (Polygon o MultiPolygon)
+  boundary: jsonb("boundary"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -74,12 +81,18 @@ export const usersTable = pgTable("users", {
   department: text("department").notNull().default("Junín"),
   isActive: boolean("is_active").notNull().default(true),
   reportsCount: integer("reports_count").notNull().default(0),
+  // FASE 5: Sistema de strikes y reputación
+  trustScore: integer("trust_score").notNull().default(50),
+  suspendedUntil: timestamp("suspended_until"),
   // VecinoId: identificador publico de 6 digitos para anonimizar vecinos
   vecinoId: integer("vecino_id").unique(),
   // displayName: nombre real que se muestra en respuestas a reportes (visores/municipales)
   displayName: text("display_name"),
   // alias: nombre en clave editable por el vecino (reemplaza a "Vecino XXXXXX")
   alias: text("alias"),
+  // Item 4: Progressive login blocking
+  loginAttempts: integer("login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -316,6 +329,10 @@ export const districtResourcesTable = pgTable("district_resources", {
 export const insertVoteSchema = createInsertSchema(votesTable).omit({ id: true, createdAt: true });
 export const insertDistrictResourceSchema = createInsertSchema(districtResourcesTable).omit({ id: true, createdAt: true });
 
+// FASE 5
+export const insertUserStrikeSchema = createInsertSchema(userStrikesTable).omit({ id: true, createdAt: true });
+export const insertCommunityFlagSchema = createInsertSchema(communityFlagsTable).omit({ id: true, createdAt: true });
+
 // ── Confirmaciones de solución (verificación comunitaria) ────────────────────
 // Cuando la municipalidad marca un reporte como "resolved", los vecinos pueden
 // confirmar que la solución es real. Al llegar a 10 confirmaciones, el reporte
@@ -330,6 +347,10 @@ export const resolutionConfirmationsTable = pgTable("resolution_confirmations", 
 
 export const insertResolutionConfirmationSchema = createInsertSchema(resolutionConfirmationsTable).omit({ id: true, createdAt: true });
 export type ResolutionConfirmation = typeof resolutionConfirmationsTable.$inferSelect;
+
+// FASE 5
+export type UserStrike = typeof userStrikesTable.$inferSelect;
+export type CommunityFlag = typeof communityFlagsTable.$inferSelect;
 
 // ── Civic Education (quizzes, lecciones gamificadas) ────────────────────────
 export const civicEducationTopicsTable = pgTable("civic_education_topics", {
@@ -367,6 +388,26 @@ export const refreshTokensTable = pgTable("refresh_tokens", {
   tokenHash: text("token_hash").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   revoked: boolean("revoked").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── FASE 5: Strikes por reportes falsos ─────────────────────────────────────
+export const userStrikesTable = pgTable("user_strikes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  motivo: text("motivo").notNull(),
+  adminId: integer("admin_id").notNull().references(() => usersTable.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  activo: boolean("activo").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+});
+
+// ── FASE 5: Community flags (vecinos reportan reportes falsos) ───────────────
+export const communityFlagsTable = pgTable("community_flags", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

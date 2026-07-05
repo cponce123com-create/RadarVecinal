@@ -211,6 +211,12 @@
   }
   .panic-glow { animation: panic-pulse 2s ease-in-out infinite; }
 
+  @keyframes marker-pulse { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
+  .marker-pulse { animation: marker-pulse 2s ease-in-out infinite; }
+
+  @keyframes critical-pulse { 0%, 100% { opacity: 0.7; transform: scale(1); box-shadow: 0 0 8px currentColor; } 50% { opacity: 1; transform: scale(1.5); box-shadow: 0 0 20px currentColor; } }
+  .critical-pulse { animation: critical-pulse 0.8s ease-in-out infinite; }
+
   @keyframes status-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
   .status-blink { animation: status-blink 1.5s ease-in-out infinite; }
 

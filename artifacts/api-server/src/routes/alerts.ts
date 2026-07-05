@@ -116,9 +116,7 @@ router.get("/panic-alerts/stream", async (req, res) => {
     "X-Accel-Buffering": "no",
   });
 
-  res.write("data: " + JSON.stringify({ event: "connected" }) + "
-
-");
+  res.write("data: " + JSON.stringify({ event: "connected" }) + "\n\n");
 
   const client: SseClient = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -129,9 +127,8 @@ router.get("/panic-alerts/stream", async (req, res) => {
 
   const heartbeat = setInterval(() => {
     try {
-      res.write(":hb
+      res.write(":hb\n\n");
 
-");
     } catch {
       /* la conexión se cerró; el evento close hará la limpieza */
     }

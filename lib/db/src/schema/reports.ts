@@ -329,9 +329,10 @@ export const districtResourcesTable = pgTable("district_resources", {
 export const insertVoteSchema = createInsertSchema(votesTable).omit({ id: true, createdAt: true });
 export const insertDistrictResourceSchema = createInsertSchema(districtResourcesTable).omit({ id: true, createdAt: true });
 
-// FASE 5
-export const insertUserStrikeSchema = createInsertSchema(userStrikesTable).omit({ id: true, createdAt: true });
-export const insertCommunityFlagSchema = createInsertSchema(communityFlagsTable).omit({ id: true, createdAt: true });
+// FASE 5 — Schemas eliminados temporalmente por compatibilidad drizzle-zod
+// Los endpoints usan validación manual con zod directo en vez de createInsertSchema
+export type InsertUserStrike = typeof userStrikesTable.$inferInsert;
+export type InsertCommunityFlag = typeof communityFlagsTable.$inferInsert;
 
 // ── Confirmaciones de solución (verificación comunitaria) ────────────────────
 // Cuando la municipalidad marca un reporte como "resolved", los vecinos pueden

@@ -25,19 +25,19 @@ const STATUS_LABELS: Record<string, string> = {
 router.get("/reports/export/pdf", requireAuth, requireAdmin, async (req, res) => {
   try {
     const districtId = getDistrictId(req);
-    if (!districtId) {
-      res.status(400).json({ error: "Se requiere distrito (districtId)." });
-      return;
-    }
+    let districtName = "Todos los distritos";
+    let districtSlug = "todos";
 
-    const [district] = await db.select().from(districtsTable).where(eq(districtsTable.id, districtId)).limit(1);
-    if (!district) {
-      res.status(404).json({ error: "Distrito no encontrado." });
-      return;
+    if (districtId) {
+      const [district] = await db.select().from(districtsTable).where(eq(districtsTable.id, districtId)).limit(1);
+      if (district) {
+        districtName = district.name;
+        districtSlug = district.slug;
+      }
     }
 
     const reports = await db.select().from(reportsTable)
-      .where(eq(reportsTable.districtId, districtId))
+      .where(districtId ? eq(reportsTable.districtId, districtId) : undefined)
       .orderBy(desc(reportsTable.createdAt))
       .limit(100);
 
@@ -50,11 +50,11 @@ router.get("/reports/export/pdf", requireAuth, requireAdmin, async (req, res) =>
     // Generar PDF
     const doc = new PDFDocument({ margin: 40, size: "A4" });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="reportes-${district.slug}-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename=\"reportes-${districtSlug}-${new Date().toISOString().slice(0, 10)}.pdf\"`);
     doc.pipe(res);
 
     // Header
-    doc.fontSize(18).font("Helvetica-Bold").text(`Reportes Ciudadanos - ${district.name}`, { align: "center" });
+    doc.fontSize(18).font("Helvetica-Bold").text(`Reportes Ciudadanos - ${districtName}`, { align: "center" });
     doc.fontSize(9).font("Helvetica").fillColor("#64748b").text(`Generado el ${new Date().toLocaleDateString("es-PE")} · ${total} reportes`, { align: "center" });
     doc.moveDown(0.8);
 

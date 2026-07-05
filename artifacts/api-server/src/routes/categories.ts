@@ -57,11 +57,14 @@ router.post("/categories", requireAuth, requireAdmin, async (req, res) => {
 router.get("/departments", async (req, res) => {
   try {
     const districtId = getDistrictId(req);
-    if (!districtId) return res.json({ departments: [] });
+    const deptConditions = [eq(departmentsTable.isActive, true)];
+    if (districtId) {
+      deptConditions.push(eq(departmentsTable.districtId, districtId));
+    }
 
     const departments = await db.select()
       .from(departmentsTable)
-      .where(and(eq(departmentsTable.districtId, districtId), eq(departmentsTable.isActive, true)))
+      .where(and(...deptConditions))
       .orderBy(departmentsTable.name);
     return res.json({ departments });
   } catch (err) {

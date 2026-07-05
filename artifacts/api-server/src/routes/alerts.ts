@@ -115,14 +115,10 @@ router.get("/panic-alerts", optionalAuth, async (req, res) => {
   try {
     const { active } = req.query;
     const districtId = getDistrictId(req);
-    if (!districtId) {
-      // FIX: antes devolvía { panicAlerts: [] } — clave inconsistente con el
-      // contrato OpenAPI (getPanicAlerts200 usa `alerts`). El frontend leía
-      // data.alerts y aquí recibía otra forma.
-      return res.json({ alerts: [] });
+    const conditions: any[] = [];
+    if (districtId) {
+      conditions.push(eq(panicAlertsTable.districtId, districtId));
     }
-
-    const conditions = [eq(panicAlertsTable.districtId, districtId)];
     if (active !== undefined) {
       conditions.push(eq(panicAlertsTable.isActive, active === "true"));
     }
@@ -245,11 +241,10 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
   try {
     const { active } = req.query;
     const districtId = getDistrictId(req);
-    if (!districtId) {
-      return res.json({ alerts: [] });
+    const conditions: any[] = [];
+    if (districtId) {
+      conditions.push(eq(missingPersonsTable.districtId, districtId));
     }
-
-    const conditions = [eq(missingPersonsTable.districtId, districtId)];
     if (active !== undefined) {
       conditions.push(eq(missingPersonsTable.status, active === "true" ? "active" : "found"));
     }

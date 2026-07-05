@@ -59,14 +59,12 @@ router.get("/reports", optionalAuth, async (req, res) => {
   try {
     const { category, status, urgency, sector, limit, offset } = req.query;
     const districtId = getDistrictId(req);
-    if (!districtId) {
-      return res.json({ reports: [] });
-    }
-
-    const conditions = [
-      eq(reportsTable.districtId, districtId),
+    const conditions: any[] = [
       isNull(reportsTable.deletedAt),
     ];
+    if (districtId) {
+      conditions.push(eq(reportsTable.districtId, districtId));
+    }
     if (category) conditions.push(eq(reportsTable.category, category as any));
     if (status) conditions.push(eq(reportsTable.status, status as any));
     if (urgency) conditions.push(eq(reportsTable.urgency, urgency as any));
@@ -1247,15 +1245,13 @@ router.post("/reports/strikes/:id/appeal", requireAuth, async (req, res) => {
 router.get("/reports/reviewing", requireAuth, requireAdmin, async (req, res) => {
   try {
     const districtId = getDistrictId(req);
-    if (!districtId) {
-      return res.json({ reports: [] });
-    }
-
     const conditions = [
       eq(reportsTable.status, "reviewing"),
-      eq(reportsTable.districtId, districtId),
       isNull(reportsTable.deletedAt),
     ];
+    if (districtId) {
+      conditions.push(eq(reportsTable.districtId, districtId));
+    }
 
     const reports = await db.select()
       .from(reportsTable)

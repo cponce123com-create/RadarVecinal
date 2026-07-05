@@ -181,11 +181,14 @@ router.get("/reports/:id/vote", optionalAuth, async (req, res) => {
 router.get("/district-resources", async (req, res) => {
   try {
     const districtId = getDistrictId(req);
-    if (!districtId) return res.json({ resources: [] });
+    const resConditions: any[] = [];
+    if (districtId) {
+      resConditions.push(eq(districtResourcesTable.districtId, districtId));
+    }
 
     const resources = await db.select()
       .from(districtResourcesTable)
-      .where(eq(districtResourcesTable.districtId, districtId))
+      .where(resConditions.length > 0 ? and(...resConditions) : undefined)
       .orderBy(districtResourcesTable.sortOrder);
 
     return res.json({ resources });

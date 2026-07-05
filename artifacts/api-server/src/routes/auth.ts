@@ -106,6 +106,13 @@ async function validateRefreshToken(rawToken: string): Promise<number | null> {
   return stored.userId;
 }
 
+function toISO(d: Date | string | null | undefined): string | null {
+  if (d == null) return null;
+  if (typeof d === "string") return d;
+  if (typeof d === "object" && typeof d.toISOString === "function") return d.toISOString();
+  return String(d);
+}
+
 function formatUser(u: typeof usersTable.$inferSelect) {
   return {
     id:           String(u.id),
@@ -120,8 +127,8 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     alias:        u.alias ?? null,
     vecinoId:     u.vecinoId ?? null,
     // Item 7: Include suspension status for appeal UI
-    suspendedUntil: u.suspendedUntil?.toISOString() ?? null,
-    createdAt:    u.createdAt.toISOString(),
+    suspendedUntil: toISO(u.suspendedUntil),
+    createdAt:    toISO(u.createdAt) ?? new Date().toISOString(),
   };
 }
 

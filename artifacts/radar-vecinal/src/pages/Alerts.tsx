@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldAlert, MapPin, Clock, CheckCircle2, AlertTriangle, Heart, Users, Flame, UserX, Zap, Wifi, WifiOff } from "lucide-react";
+import { ShieldAlert, MapPin, Clock, CheckCircle2, AlertTriangle, Heart, Users, Flame, UserX, Zap, Wifi, WifiOff, Check, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGetPanicAlerts } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useDistrict } from "@/contexts/DistrictContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PANIC_META: Record<string, { icon: any; label: string; color: string }> = {
   robbery:        { icon: AlertTriangle, label: "Asalto en Progreso",       color: "#ef4444" },
@@ -31,11 +32,28 @@ export default function Alerts() {
     currentDistrictId ? { districtId: currentDistrictId } : undefined,
   );
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user && ["admin", "moderator", "super_admin"].includes(user.role);
   const alerts = data?.alerts ?? [];
   const [sseConnected, setSseConnected] = useState(false);
   const [newAlertFlash, setNewAlertFlash] = useState(false);
+  const [resolvedFlash, setResolvedFlash] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resolveMutation = useMutation({
+    mutationFn: async ({ id, action }: { id: string; action: string }) => {
+      const token = localStorage.getItem("radarvecinal_token");
+      const res = await fetch(`/api/panic-alerts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ status: action }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      return res.json();
+    },
+    onSuccess: () => { refetch(); },
+  });
 
   useEffect(() => {
     // FIX: antes se conectaba a /api/panic-alerts/stream SIN districtId.
@@ -63,6 +81,11 @@ export default function Alerts() {
             refetch();
             setNewAlertFlash(true);
             setTimeout(() => setNewAlertFlash(false), 3000);
+          }
+          if (msg.event === "alert_resolved" && msg.alertId) {
+            refetch();
+            setResolvedFlash(msg.alertId);
+            setTimeout(() => setResolvedFlash(null), 4000);
           }
         } catch { /* ignore */ }
       };
@@ -102,6 +125,14 @@ export default function Alerts() {
           className="flex items-center gap-2 px-4 py-3 rounded-xl bg-destructive/15 border border-destructive/40 text-red-300 text-sm font-semibold">
           <span className="w-2 h-2 rounded-full bg-destructive status-blink" />
           ¡Nueva alerta de pánico recibida!
+        </motion.div>
+      )}
+
+      {resolvedFlash && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-sm font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          Una alerta fue atendida por las autoridades.
         </motion.div>
       )}
 
@@ -160,6 +191,25 @@ export default function Alerts() {
                       <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                       {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true, locale: es })}
                     </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <button onClick={() => resolveMutation.mutate({ id: alert.id, action: "attending" })}
+                          disabled={resolveMutation.isPending}
+                          className="px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[9px] font-semibold hover:bg-amber-500/20 transition-all">
+                          Atender
+                        </button>
+                        <button onClick={() => resolveMutation.mutate({ id: alert.id, action: "resolved" })}
+                          disabled={resolveMutation.isPending}
+                          className="px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-semibold hover:bg-emerald-500/20 transition-all">
+                          <Check className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => resolveMutation.mutate({ id: alert.id, action: "false_alarm" })}
+                          disabled={resolveMutation.isPending}
+                          className="px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-[9px] font-semibold hover:bg-red-500/20 transition-all">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

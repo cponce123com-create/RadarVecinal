@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown } from "lucide-react";
+import { Shield, Siren, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown } from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ import AdSlotsTab from "./AdSlotsTab";
 import DistrictSwitcher from "./DistrictSwitcher";
 import AnalyticsTab from "./AnalyticsTab";
 import SuperAdminTab from "./SuperAdminTab";
+import AlertsTab from "./AlertsTab";
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>("reports");
   const [search, setSearch] = useState("");
@@ -25,6 +26,7 @@ export default function AdminPanel() {
   const tabs = [
     { id: "reports" as Tab, label: "Reportes",   icon: FileText },
     { id: "analytics" as Tab, label: "Analítica", icon: BarChart3 },
+    { id: "alerts" as Tab,  label: "Alertas",    icon: Siren },
     { id: "users" as Tab,   label: "Usuarios",   icon: UsersIcon },
     { id: "ads" as Tab,     label: "Publicidad", icon: Megaphone },
   ];
@@ -99,6 +101,7 @@ export default function AdminPanel() {
       {/* Tab content */}
       {tab === "reports" && <ReportsTab reports={reportsData?.reports ?? []} search={search} onRefetch={refetch} />}
       {tab === "analytics" && <AnalyticsTab />}
+      {tab === "alerts" && <AlertsTab />}
       {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
       {tab === "ads" && <AdSlotsTab />}
       {tab === "superadmin" && <SuperAdminTab />}

@@ -1,11 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { Readable } from "stream";
 import {
   RequestUploadUrlBody,
-  RequestUploadUrlResponse,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -13,9 +10,21 @@ const objectStorageService = new ObjectStorageService();
 /**
  * POST /storage/uploads/request-url
  *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
+ * Cloudinary: genera parámetros firmados para upload directo desde el cliente.
+ * El cliente recibe:
+ *   - uploadURL    → POST aquí con multipart/form-data
+ *   - signature    → firma SHA-1 para autenticar el upload
+ *   - timestamp    → timestamp UNIX
+ *   - apiKey       → API Key de Cloudinary
+ *   - cloudName    → Cloud name
+ *   - objectPath   → path normalizado para guardar en DB
+ *
+ * El cliente debe enviar multipart/form-data a uploadURL con:
+ *   file: <el archivo>
+ *   api_key: apiKey
+ *   timestamp: timestamp
+ *   signature: signature
+ *   folder: "radarvecinal"
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
@@ -27,18 +36,20 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   try {
     const { name, size, contentType } = parsed.data;
 
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    const uploadResult = await objectStorageService.getObjectEntityUploadURL();
 
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
-        metadata: { name, size, contentType },
-      }),
-    );
+    res.json({
+      uploadURL: uploadResult.uploadURL,
+      signature: uploadResult.signature,
+      timestamp: uploadResult.timestamp,
+      apiKey: uploadResult.apiKey,
+      cloudName: uploadResult.cloudName,
+      folder: "radarvecinal",
+      objectPath: `/pending/${Date.now()}-${name}`,
+      metadata: { name, size, contentType },
+    });
   } catch (error) {
-    req.log.error({ err: error }, "Error generating upload URL");
+    req.log.error({ err: error }, "Error generating Cloudinary upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
   }
 });
@@ -60,17 +71,10 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
       return;
     }
 
-    const response = await objectStorageService.downloadObject(file);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
+    // Redirigir al CDN de Cloudinary
+    const cloudinaryCN = process.env.CLOUDINARY_CLOUD_NAME || "";
+    const publicUrl = `https://res.cloudinary.com/${cloudinaryCN}/image/upload/${filePath}`;
+    res.redirect(301, publicUrl);
   } catch (error) {
     req.log.error({ err: error }, "Error serving public object");
     res.status(500).json({ error: "Failed to serve public object" });
@@ -91,32 +95,10 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const objectPath = `/objects/${wildcardPath}`;
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
-    // --- Protected route example (uncomment when using auth middleware) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
-
-    const response = await objectStorageService.downloadObject(objectFile);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
+    // Redirigir al CDN de Cloudinary (302 para no cachear la redirección)
+    const cloudinaryCN = process.env.CLOUDINARY_CLOUD_NAME || "";
+    const publicUrl = `https://res.cloudinary.com/${cloudinaryCN}/image/upload/${objectFile.path}`;
+    res.redirect(302, publicUrl);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       req.log.warn({ err: error }, "Object not found");

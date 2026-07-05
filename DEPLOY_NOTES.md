@@ -71,7 +71,21 @@ Para que el point-in-polygon funcione, necesitas cargar los límites de los dist
 
 ### 3. Variables de Entorno en Render
 
-No se requieren nuevas variables de entorno para estas fases. Las existentes son suficientes:
+Migrado de Google Cloud Storage a **Cloudinary** para almacenamiento de imágenes.
+
+#### Cloudinary (requerido para subir imágenes)
+
+Crea una cuenta gratis en https://cloudinary.com (25 GB almacenamiento gratis).
+
+Del Dashboard de Cloudinary, copia estos 3 valores y agrégalos en Render:
+
+| Variable | Valor (ejemplo) | Dónde encontrarlo |
+|---|---|---|
+| `CLOUDINARY_CLOUD_NAME` | `dgp7qxhfj` | Dashboard > Account Details > Cloud Name |
+| `CLOUDINARY_API_KEY` | `482916734512873` | Dashboard > Account Details > API Key |
+| `CLOUDINARY_API_SECRET` | `abc123def456...` | Dashboard > Account Details > API Secret |
+
+#### Otras variables requeridas:
 - `DATABASE_URL` — Neon PostgreSQL
 - `JWT_SECRET` — Firma de tokens
 - `SUPER_ADMIN_EMAIL` — Email del superadmin

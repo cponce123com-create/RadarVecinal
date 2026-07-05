@@ -2,22 +2,37 @@ import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Mail, Lock, Phone, MapPin, ChevronRight, Eye, EyeOff, Loader2, Search, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { SECTORS, DISTRICT } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props { open: boolean; onClose: () => void; }
 type Mode = "login" | "register";
 
+// Debe coincidir con CURRENT_CONSENT_VERSION del backend (routes/auth.ts).
+// Si el texto legal cambia, incrementar en ambos lados.
+const CONSENT_VERSION = "2026-07-v1";
+
+const PRIVACY_CONSENT_TEXT = `Al marcar esta casilla otorgo mi consentimiento libre, previo, expreso e informado (Ley N° 29733 — Protección de Datos Personales) para que Radar Vecinal trate mis datos personales (nombres, DNI, correo, teléfono, sector y ubicación GPS) con las siguientes finalidades: (1) verificar mi identidad como vecino, (2) gestionar mis reportes y alertas de emergencia, y (3) compartir mi identidad ÚNICAMENTE con la Municipalidad de mi distrito para la atención de incidentes. Mis datos no serán difundidos a otros vecinos ni a terceros. Puedo ejercer mis derechos de acceso, rectificación, cancelación y oposición escribiendo desde mi perfil o al correo de soporte.`;
+
 const LOGIN_WARNING = "⚠️ ESTÁ PROHIBIDO REALIZAR REPORTES FALSOS.\n\nSegún la Ley N° 30076 (Código Penal Peruano), realizar denuncias falsas es un delito. Los reportes falsos serán investigados y el responsable será BANEADO PERMANENTEMENTE de Radar Vecinal, sin posibilidad de crear una nueva cuenta.\n\nTu identidad está protegida: tus datos personales (DNI, nombre, teléfono) son visibles SOLO para la Municipalidad. Los demás vecinos ven tu reporte como anónimo.\n\nLa Municipalidad se compromete a NO difundir tu identidad. Tus reportes ayudan a construir un distrito más seguro para todos.";
 
 export default function AuthModal({ open, onClose }: Props) {
   const { login } = useAuth();
   const { toast } = useToast();
+  // Lista real de distritos activos (cargada desde /api/districts por el
+  // contexto). Permite registrarse desde CUALQUIER distrito habilitado, no
+  // solo San Ramón. Si aún no carga, se usa el default como fallback.
+  const { districts } = useDistrict();
   const [mode, setMode] = useState<Mode>("login");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
+  // Consentimiento de datos: DESMARCADO por defecto (la ley exige acción
+  // afirmativa del usuario; una casilla pre-marcada no es consentimiento válido)
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [showFullConsent, setShowFullConsent] = useState(false);
 
   const [form, setForm] = useState({
     name: "", email: "", password: "", sector: SECTORS[0], district: DISTRICT.name,
@@ -59,6 +74,15 @@ export default function AuthModal({ open, onClose }: Props) {
       setShowWarning(true);
       return;
     }
+    // El registro no procede sin el consentimiento expreso marcado
+    if (mode === "register" && showWarning && !acceptPrivacy) {
+      toast({
+        title: "Falta tu consentimiento",
+        description: "Debes marcar la casilla de tratamiento de datos personales para crear tu cuenta.",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "login") {
@@ -91,6 +115,9 @@ export default function AuthModal({ open, onClose }: Props) {
             phone: form.phone || undefined,
             firstName: form.firstName || form.name,
             lastName: form.lastName || "",
+            // Ley 29733: consentimiento expreso + versión de la política aceptada
+            privacyConsent: acceptPrivacy,
+            consentVersion: CONSENT_VERSION,
           }),
         });
         const data = await res.json();
@@ -161,6 +188,35 @@ export default function AuthModal({ open, onClose }: Props) {
                       • Autorizas a la Municipalidad a verificar tu identidad con DNI
                       • Entiendes que tus datos son visibles solo para la Municipalidad, no para otros vecinos</p>
                   </div>
+
+                  {/* ── CONSENTIMIENTO DE DATOS (Ley 29733) ── */}
+                  <div className="pt-2 mt-1 border-t border-white/8">
+                    <label className="flex items-start gap-2.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        checked={acceptPrivacy}
+                        onChange={e => setAcceptPrivacy(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 flex-shrink-0 rounded border-white/20 bg-background accent-[#3d7fff] cursor-pointer"
+                      />
+                      <span className="text-[11px] text-white/85 leading-relaxed">
+                        <span className="font-semibold">Acepto la política de privacidad y autorizo el tratamiento de mis datos personales</span>{" "}
+                        (Ley N° 29733) para verificar mi identidad, gestionar mis reportes y alertas, y compartirlos únicamente con la Municipalidad de mi distrito.{" "}
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); setShowFullConsent(v => !v); }}
+                          className="text-primary hover:underline"
+                        >
+                          {showFullConsent ? "Ocultar detalle" : "Leer detalle completo"}
+                        </button>
+                      </span>
+                    </label>
+                    {showFullConsent && (
+                      <div className="mt-2 ml-6 p-3 rounded-lg bg-background/60 border border-white/8 max-h-32 overflow-y-auto">
+                        <p className="text-[10.5px] text-muted-foreground leading-relaxed">{PRIVACY_CONSENT_TEXT}</p>
+                        <p className="text-[9.5px] text-muted-foreground/60 mt-2">Versión de la política: {CONSENT_VERSION}. Tu aceptación quedará registrada con fecha y hora.</p>
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
 
@@ -178,7 +234,7 @@ export default function AuthModal({ open, onClose }: Props) {
               {/* ── Tab switcher ── */}
               <div className="flex gap-0 mt-4 border border-white/8 rounded-xl overflow-hidden p-0.5 bg-card">
                 {(["login", "register"] as Mode[]).map(m => (
-                  <button key={m} onClick={() => { setMode(m); setShowWarning(false); }}
+                  <button key={m} onClick={() => { setMode(m); setShowWarning(false); setAcceptPrivacy(false); }}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === m ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"}`}>
                     {m === "login" ? "Entrar" : "Registrarse"}
                   </button>
@@ -239,7 +295,11 @@ export default function AuthModal({ open, onClose }: Props) {
                         <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <select name="district" value={form.district} onChange={handleChange}
                           className="w-full pl-9 pr-4 py-2.5 bg-background border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none">
-                          <option value={DISTRICT.name}>{DISTRICT.name}</option>
+                          {/* Distritos reales desde /api/districts — funciona en
+                              cualquier distrito habilitado, no solo San Ramón */}
+                          {districts.length > 0
+                            ? districts.map(d => <option key={d.slug} value={d.name}>{d.name}</option>)
+                            : <option value={DISTRICT.name}>{DISTRICT.name}</option>}
                         </select>
                       </div>
                     </div>
@@ -287,13 +347,19 @@ export default function AuthModal({ open, onClose }: Props) {
                 </div>
 
                 {/* Submit */}
-                <button type="submit" disabled={loading}
+                <button type="submit" disabled={loading || (mode === "register" && showWarning && !acceptPrivacy)}
                   className="w-full mt-2 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-50 shadow-[0_0_20px_hsl(217_100%_55%_/_0.25)]">
                   {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando...</>
                     : mode === "register" && !showWarning ? <>Verificar datos <ChevronRight className="w-4 h-4" /></>
                     : mode === "register" && showWarning ? <>Aceptar y continuar <ChevronRight className="w-4 h-4" /></>
                     : <>Entrar <ChevronRight className="w-4 h-4" /></>}
                 </button>
+
+                {mode === "register" && showWarning && !acceptPrivacy && (
+                  <p className="text-center text-[10.5px] text-amber-400/80 -mt-1">
+                    Marca la casilla de tratamiento de datos para continuar.
+                  </p>
+                )}
 
                 <p className="text-center text-xs text-muted-foreground/60 mt-1">
                   {mode === "login"

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, districtsTable, refreshTokensTable } from "@workspace/db/schema";
+import { usersTable, districtsTable, refreshTokensTable, userConsentsTable } from "@workspace/db/schema";
 import { eq, and, sql, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -16,6 +16,10 @@ const JWT_EXPIRES = "15m";
 const JWT_REFRESH_EXPIRES_DAYS = 30;
 
 // ── Zod schemas ─────────────────────────────────────────────────────────────
+// Versión vigente de la política de privacidad y términos. Si el texto legal
+// cambia, incrementar aquí y en el frontend (AuthModal) para exigir re-consentimiento.
+export const CURRENT_CONSENT_VERSION = "2026-07-v1";
+
 const registerSchema = z.object({
   name:       z.string().min(2, "Nombre muy corto").max(100),
   email:      z.string().email("Email inválido"),
@@ -31,6 +35,13 @@ const registerSchema = z.object({
   firstName:  z.string().min(1, "Nombre requerido").max(100).optional(),
   lastName:   z.string().min(1, "Apellido requerido").max(100).optional(),
   districtId: z.number().positive("Distrito requerido").optional(),
+  // Ley N° 29733: el consentimiento debe ser previo, expreso e inequívoco.
+  // z.literal(true) rechaza el registro si el checkbox no fue marcado —
+  // el servidor lo exige aunque alguien manipule el frontend.
+  privacyConsent: z.literal(true, {
+    errorMap: () => ({ message: "Debes aceptar la política de privacidad y el tratamiento de tus datos personales para crear una cuenta." }),
+  }),
+  consentVersion: z.string().min(1).max(30).optional().default(CURRENT_CONSENT_VERSION),
 });
 
 const loginSchema = z.object({
@@ -140,7 +151,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     return res.status(400).json({ error: msg });
   }
 
-  const { name, email, password, sector, district, dni } = parsed.data;
+  const { name, email, password, sector, district, dni, consentVersion } = parsed.data;
 
   try {
     const existing = await db.select({ id: usersTable.id, lockedUntil: usersTable.lockedUntil })
@@ -181,6 +192,24 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       isActive:     true,
       reportsCount: 0,
     }).returning();
+
+    // ── Ley N° 29733: guardar evidencia del consentimiento ────────────────
+    // Registro append-only con versión de la política, fecha, IP y navegador.
+    // `trust proxy` está activo en app.ts, así que req.ip es la IP real del
+    // cliente detrás del proxy de Render. Best-effort: si el insert falla no
+    // debe bloquear el registro (el consentimiento ya fue validado por Zod),
+    // pero se loguea como error para corregirlo.
+    try {
+      await db.insert(userConsentsTable).values({
+        userId: user.id,
+        type: "privacy_policy",
+        version: consentVersion ?? CURRENT_CONSENT_VERSION,
+        ipAddress: req.ip ?? null,
+        userAgent: (req.headers["user-agent"] ?? "").slice(0, 300) || null,
+      });
+    } catch (consentErr) {
+      req.log.error({ err: consentErr, userId: user.id }, "Failed to persist user consent record");
+    }
 
     const token = signToken(user);
     return res.status(201).json({ token, user: formatUser(user) });

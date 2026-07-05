@@ -39,8 +39,6 @@ export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
   "other",
 ]);
 
-export const panicAlertStatusEnum = pgEnum("panic_alert_status", ["active", "attending", "resolved", "false_alarm", "expired"]);
-
 export const missingPersonStatusEnum = pgEnum("missing_person_status", ["active", "found", "archived"]);
 
 // ── M-05: Catálogo oficial de distritos (multi-tenant) ───────────────────────
@@ -129,7 +127,6 @@ export const reportsTable = pgTable("reports", {
   assignedTo: integer("assigned_to").references(() => departmentsTable.id),
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
-  panicAlertId: integer("panic_alert_id").references(() => panicAlertsTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -144,13 +141,7 @@ export const panicAlertsTable = pgTable("panic_alerts", {
   address: text("address").notNull().default(""),
   authorName: text("author_name").notNull(),
   sector: text("sector").notNull(),
-  status: panicAlertStatusEnum("status").notNull().default("active"),
   isActive: boolean("is_active").notNull().default(true),
-  resolvedAt: timestamp("resolved_at"),
-  resolvedById: integer("resolved_by_id").references(() => usersTable.id),
-  resolutionNote: text("resolution_note"),
-  expiresAt: timestamp("expires_at"),
-  linkedReportId: integer("linked_report_id").references(() => reportsTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -440,4 +431,22 @@ export const staticPointsTable = pgTable("static_points", {
   resolvedAt: timestamp("resolved_at", { mode: "string" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ── CONSENTIMIENTO DE DATOS (Ley N° 29733 — Protección de Datos Personales) ──
+// Registro append-only: nunca se actualiza ni borra. Cada aceptación del
+// usuario queda como evidencia con versión de la política, fecha, IP y agente.
+export const consentTypeEnum = pgEnum("consent_type", [
+  "privacy_policy",   // Política de privacidad / tratamiento de datos
+  "terms_of_use",     // Términos y condiciones de uso
+]);
+
+export const userConsentsTable = pgTable("user_consents", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  type: consentTypeEnum("type").notNull(),
+  version: text("version").notNull(),          // ej. "2026-07-v1"
+  acceptedAt: timestamp("accepted_at").notNull().defaultNow(),
+  ipAddress: text("ip_address"),               // evidencia; se conserva por interés legítimo
+  userAgent: text("user_agent"),
 });

@@ -33,7 +33,8 @@ const reniecLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const jwtUser = (req as any).jwtUser;
-    return jwtUser?.sub ? `reniec_user_${jwtUser.sub}` : `reniec_ip_${req.ip ?? ""}`;
+    if (jwtUser?.sub) return `reniec_user_${jwtUser.sub}`;
+    return `reniec_ip_${ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "")}`;
   },
   message: { error: "Límite de consultas RENIEC alcanzado (10/hora). Intenta más tarde." },
 });

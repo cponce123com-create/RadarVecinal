@@ -131,10 +131,10 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Demasiados intentos. Intenta en 15 minutos." },
   keyGenerator: (req) => {
-    // Rate limit por email (si disponible) + IP
+    // Rate limit por email (si disponible) + IP (con ipKeyGenerator para IPv6)
     const email = req.body?.email;
-    const ip = req.ip ?? req.socket.remoteAddress ?? "";
-    return email ? `auth_${email.toLowerCase().trim()}_${ip}` : `auth_ip_${ip}`;
+    const ipKey = ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "");
+    return email ? `auth_${email.toLowerCase().trim()}_${ipKey}` : `auth_ip_${ipKey}`;
   },
 });
 
@@ -147,7 +147,7 @@ app.use("/api", generalLimiter);
 app.use("/api", router);
 
 // ── 404 JSON para rutas /api desconocidas ─────────────────────────────────
-app.use("/api/*", (_req, res) => {
+app.use("/api/:path(.*)", (_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
 

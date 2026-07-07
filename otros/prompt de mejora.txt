@@ -1,0 +1,143 @@
+CONTEXTO
+Estás trabajando en RadarVecinal, una plataforma de seguridad ciudadana (alertas de
+pánico + reporte de incidencias) para municipalidades del Perú. Monorepo pnpm:
+- Backend: artifacts/api-server (Express 5, Drizzle ORM, Neon PostgreSQL, TypeScript)
+- Frontend: artifacts/radar-vecinal (React 19 + Vite + Tailwind + shadcn/ui)
+- Móvil: Capacitor 7 (APK Android), tokens JWT en localStorage
+- Deploy: Render (free tier), imágenes en Cloudinary, push por FCM/firebase-admin
+- Multi-tenant por distrito; aislamiento en capa de aplicación (getDistrictId/checkTenant)
+
+Voy a lanzar a producción. Una auditoría dejó pendientes los siguientes puntos.
+Resuélvelos TODOS. Trabaja endpoint por endpoint sin romper el contrato de la API
+ni el aislamiento por distrito existente.
+
+═══════════════════════════════════════════════════════════════════
+P0 — BLOQUEANTES DE SEGURIDAD / PRIVACIDAD (obligatorios antes de lanzar)
+═══════════════════════════════════════════════════════════════════
+
+1) artifacts/api-server/src/routes/reniec.ts
+   GET /reniec/lookup/:dni está ABIERTO (sin auth ni rate limit). Expone DNI→nombre
+   legal de terceros (riesgo Ley 29733) y drena el RENIEC_API_TOKEN de pago.
+   - Exigir requireAuth + requireBackoffice (solo personal municipal).
+   - Agregar un rate limiter dedicado y estricto (ej. 10/hora por usuario).
+   - Cachear resultados por DNI usando lib/memoryCache.ts (evitar reconsultas).
+   - Registrar cada consulta en audit_log (quién consultó qué DNI y cuándo).
+
+2) artifacts/api-server/src/routes/alerts.ts  →  GET /missing-persons
+   Usa db.select() sin proyección y filtra contactInfo y reportedBy (PII) a anónimos.
+   - Proyección explícita con lista blanca. contactInfo/reportedBy SOLO para
+     backoffice del mismo distrito; para el público, omitirlos.
+
+3) artifacts/api-server/src/routes/reports.ts  →  POST /reports/:id/confirm
+   El .returning() devuelve la fila completa (incluye contactPhone/contactEmail) y
+   la responde a cualquiera sin sesión.
+   - Proyectar el returning a { id, confirmedCount, status, updatedAt } (sin PII).
+   - Aprovechar para deduplicar confirmaciones (que un mismo usuario/IP no infle
+     confirmedCount ni trustScore repetidamente); reutiliza el patrón de la tabla
+     resolution_confirmations que ya usa /confirm-resolution.
+
+4) artifacts/api-server/src/routes/storage.ts + artifacts/api-server/src/lib/objectStorage.ts
+   POST /storage/uploads/request-url entrega credenciales firmadas de Cloudinary
+   SIN autenticación, y la firma solo cubre timestamp+folder (sin límite de tipo/tamaño).
+   - Exigir requireAuth.
+   - Firmar restricciones: resource_type=image, allowed_formats (jpg/png/webp),
+     y aplicar límite de tamaño. Validar contentType/size del body contra lo firmado.
+
+5) artifacts/api-server/src/routes/auth.ts  →  POST /auth/claim-superadmin
+   Tiene email por defecto hardcodeado: SUPER_ADMIN_EMAIL || "cponce123.com@gmail.com".
+   - Quitar el default y fallar cerrado (503) si la env var no está definida.
+   - Idealmente, sembrar el super_admin una sola vez por migración/seed y considerar
+     retirar este endpoint self-service.
+
+6) SEED en producción
+   Existe POST /api/seed protegido por header x-seed-key (SEED_KEY). El .env.example
+   trae un valor débil de ejemplo.
+   - Deshabilitar la ruta de seed cuando NODE_ENV === "production" (o exigir SEED_KEY
+     fuerte y distinta del ejemplo). Documentar que SEED_KEY debe rotarse.
+
+═══════════════════════════════════════════════════════════════════
+P0 — BLOQUEANTES DE INFRAESTRUCTURA
+═══════════════════════════════════════════════════════════════════
+
+7) lib/db/src/index.ts
+   El pool se crea con new Pool({ connectionString }) sin límite → default de 10
+   conexiones, que excede el free tier de Neon y causará errores de conexión.
+   - Fijar max: 3 (o el límite real de tu plan) y idle/connectionTimeout razonables,
+     o usar el connection string "-pooler" de Neon. Explica cuál elegiste y por qué.
+
+8) artifacts/api-server/src/app.ts
+   No hay manejador de errores global ni 404 JSON para rutas /api desconocidas.
+   - Agregar, al final de las rutas /api: un handler 404 JSON para /api/* y un
+     middleware de error global app.use((err, req, res, next) => ...) que loguee con
+     req.log y responda 500 genérico sin filtrar el stack.
+
+9) artifacts/api-server/src/index.ts
+   No hay manejo de señales ni de errores no capturados. Render envía SIGTERM en cada
+   deploy; hoy se cortan requests/SSE y el pool no se drena.
+   - Agregar process.on("unhandledRejection") y ("uncaughtException") con log.
+   - Graceful shutdown en SIGTERM/SIGINT: dejar de aceptar conexiones, cerrar SSE,
+     cerrar el pool (pool.end()) y salir.
+
+10) .env.example  (RAÍZ del repo)
+    Está desactualizado: documenta GCS/Google Cloud Storage cuando el código ya migró
+    a Cloudinary, y le faltan variables que el código sí usa.
+    - Reemplázalo por uno correcto que incluya: DATABASE_URL, JWT_SECRET, LICENSE_SECRET,
+      PORT, NODE_ENV=production, CORS_ORIGIN (lo usa app.ts), SUPER_ADMIN_EMAIL,
+      CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET,
+      RENIEC_API_TOKEN, RENIEC_API_URL, SEED_KEY, y las variables de FCM/firebase-admin
+      que use lib/fcm.ts. Quita todo lo de GCS y (si ya no se usa) REDIS_URL.
+    - También agrega .env y .env.local al .gitignore.
+
+═══════════════════════════════════════════════════════════════════
+P1 — ROBUSTEZ Y CUMPLIMIENTO (fuertemente recomendado para lanzar)
+═══════════════════════════════════════════════════════════════════
+
+11) artifacts/api-server/src/routes/alerts.ts  →  GET /panic-alerts/stream (SSE)
+    No aplica auth y el array sseClients no tiene tope → cualquiera escucha alertas en
+    vivo (coordenadas + authorName) de cualquier distrito, y es un vector de
+    agotamiento en Render free.
+    - Aplicar al menos optionalAuth y validar pertenencia al distrito para el authorName.
+    - Imponer un tope de conexiones concurrentes por IP y global.
+
+12) artifacts/api-server/src/routes/alerts.ts  →  POST /panic-alerts
+    El anti-spam de usuarios autenticados cuenta por data.authorName (del body), no por
+    el sub del JWT → se evade cambiando el nombre, y permite suplantación.
+    - Para autenticados, derivar el identificador anti-spam del token, no del body.
+    - Validar authorName contra la lista negra que ya usas para alias
+      (admin/municipal/serenazgo/anónimo).
+
+13) Monitoreo de errores en producción
+    Los logs de Render free son efímeros. Integrar Sentry (o equivalente) en el backend
+    para capturar excepciones, o al menos un transporte de logs persistente. Indícame qué
+    variables de entorno agrega.
+
+14) Política de Privacidad y Términos (Ley N° 29733)
+    Verifica que exista una página/pantalla real y accesible con la política de privacidad
+    y los términos (no solo el checkbox del AuthModal). Si no existe como ruta navegable,
+    créala y enlázala desde el registro y desde Settings. La versión debe coincidir con
+    CURRENT_CONSENT_VERSION del backend.
+
+═══════════════════════════════════════════════════════════════════
+P2 — POST-LANZAMIENTO (no bloqueante, pero anótalo)
+═══════════════════════════════════════════════════════════════════
+
+15) RLS: las políticas de las migraciones 0007/0009 están habilitadas pero son inertes
+    (nunca se setea app.district_id y no hay FORCE ROW LEVEL SECURITY, así que el rol
+    dueño las ignora). Decide: eliminarlas (para no dar falsa confianza) o implementarlas
+    bien con rol dedicado + FORCE + set_config por transacción. Recomiéndame la vía dada
+    la restricción de conexiones de Neon.
+16) CSP en app.ts: quitar 'unsafe-eval' de scriptSrc en producción (Vite no lo necesita).
+17) Firma de release del APK (keystore) si vas a distribuir el Android fuera de debug.
+
+═══════════════════════════════════════════════════════════════════
+FORMATO DE ENTREGA (obligatorio)
+═══════════════════════════════════════════════════════════════════
+- Entrégame ARCHIVOS COMPLETOS DE REEMPLAZO con su ruta exacta del repositorio.
+  NUNCA diffs, NUNCA fragmentos parciales, NUNCA "...resto igual".
+- Si un cambio requiere una migración nueva de Drizzle, créala con el siguiente número
+  correlativo (0024_...) y su archivo completo.
+- Al final, dame:
+  (a) la lista de variables de entorno nuevas/cambiadas que debo configurar en Render, y
+  (b) un checklist de despliegue de 1 página (orden de pasos: env vars → migraciones →
+      build → verificación de health check → prueba de humo de los endpoints tocados).
+- No cambies el stack ni introduzcas dependencias pesadas nuevas sin justificarlo.

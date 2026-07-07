@@ -55,9 +55,29 @@ const updateReportSchema = z.object({
 });
 
 // ── B-12, M-01: GET /reports (with district filter) ───────────────────────
+const VALID_CATEGORIES = [
+  "robbery", "fight", "suspicious", "water_cut", "garbage",
+  "informal_commerce", "noise", "missing_person", "fire",
+  "medical_emergency", "prostitution", "drug_point", "bar_trouble", "other",
+  "lost_pet", "power_outage", "street_damage", "stray_dogs", "flooding",
+] as const;
+
+const VALID_STATUSES = ["active", "reviewing", "resolved", "archived"] as const;
+const VALID_URGENCIES = ["low", "medium", "high", "critical"] as const;
+
 router.get("/reports", optionalAuth, async (req, res) => {
   try {
     const { category, status, urgency, sector, limit, offset } = req.query;
+    // B-03: Validar category contra enum antes de pasarlo a Drizzle
+    if (category && !VALID_CATEGORIES.includes(category as any)) {
+      return res.status(400).json({ error: `Categoría inválida: "${category}". Valores válidos: ${VALID_CATEGORIES.join(", ")}` });
+    }
+    if (status && !VALID_STATUSES.includes(status as any)) {
+      return res.status(400).json({ error: `Estado inválido: "${status}".` });
+    }
+    if (urgency && !VALID_URGENCIES.includes(urgency as any)) {
+      return res.status(400).json({ error: `Urgencia inválida: "${urgency}".` });
+    }
     const districtId = getDistrictId(req);
     const conditions: any[] = [
       isNull(reportsTable.deletedAt),
@@ -203,6 +223,14 @@ router.post("/reports", optionalAuth, async (req, res) => {
       contactPhone: isAnonymous ? null : (data.contactPhone ?? null),
       imageUrl: data.imageUrl ?? null,
     }).returning();
+
+    // B-15: Incrementar reportsCount del autor
+    if (authorUserId) {
+      await db.update(usersTable)
+        .set({ reportsCount: sql<number>`${usersTable.reportsCount} + 1` })
+        .where(eq(usersTable.id, authorUserId))
+        .catch(() => {}); // non-critical
+    }
 
     // Smart auto-asignación: mapea categoría → departamento (inspirado CivicReporter)
     const CATEGORY_TO_DEPT: Record<string, string> = {

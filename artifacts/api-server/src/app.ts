@@ -147,7 +147,9 @@ app.use("/api", generalLimiter);
 app.use("/api", router);
 
 // ── 404 JSON para rutas /api desconocidas ─────────────────────────────────
-app.use("/api/:path*", (_req, res) => {
+// Sin patrón de ruta: se ejecuta solo si el router (arriba) llamó a next()
+// porque no encontró una ruta que coincida.
+app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
 
@@ -164,7 +166,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDist = path.resolve(__dirname, "../../radar-vecinal/dist/public");
 app.use(express.static(frontendDist));
 // SPA fallback — todas las rutas no-API sirven index.html
-app.get(":path*", (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(frontendDist, "index.html"), (err) => {
     if (err) res.status(404).json({ error: "Not found" });
   });

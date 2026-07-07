@@ -147,7 +147,7 @@ app.use("/api", generalLimiter);
 app.use("/api", router);
 
 // ── 404 JSON para rutas /api desconocidas ─────────────────────────────────
-app.use("/api/:path(.*)", (_req, res) => {
+app.use("/api/*", (_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
 

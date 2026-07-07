@@ -62,7 +62,10 @@ export class ObjectStorageService {
    * Genera los parámetros para un upload firmado a Cloudinary.
    * Devuelve la URL de upload + los campos que el cliente debe enviar.
    */
-  async getObjectEntityUploadURL(): Promise<{
+  async getObjectEntityUploadURL(options?: {
+    allowedFormats?: string[];
+    maxSizeBytes?: number;
+  }): Promise<{
     uploadURL: string;
     signature: string;
     timestamp: number;
@@ -76,12 +79,22 @@ export class ObjectStorageService {
     const params: Record<string, string | number> = {
       timestamp,
       folder,
+      resource_type: "image",
     };
+
+    // Restricciones: solo imágenes, formatos específicos
+    const formats = options?.allowedFormats ?? ["jpg", "png", "webp"];
+    params.allowed_formats = formats.join(",");
+
+    // Límite de tamaño (default 10MB)
+    if (options?.maxSizeBytes) {
+      params.max_file_size = options.maxSizeBytes;
+    }
 
     const signature = generateSignature(params, apiSecret);
 
     return {
-      uploadURL: `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+      uploadURL: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
       signature,
       timestamp,
       apiKey,

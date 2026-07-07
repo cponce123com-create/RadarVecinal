@@ -3,14 +3,30 @@ import {
   RequestUploadUrlBody,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { requireAuth } from "./auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+// Formatos de imagen permitidos
+const ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_FORMATS = ["jpg", "png", "webp"];
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
+function getFormatFromContentType(contentType: string): string | null {
+  const map: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  return map[contentType] ?? null;
+}
 
 /**
  * POST /storage/uploads/request-url
  *
  * Cloudinary: genera parámetros firmados para upload directo desde el cliente.
+ * Solo usuarios autenticados. Solo imágenes (jpg/png/webp) de hasta 10MB.
  * El cliente recibe:
  *   - uploadURL    → POST aquí con multipart/form-data
  *   - signature    → firma SHA-1 para autenticar el upload
@@ -26,17 +42,37 @@ const objectStorageService = new ObjectStorageService();
  *   signature: signature
  *   folder: "radarvecinal"
  */
-router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
     return;
   }
 
-  try {
-    const { name, size, contentType } = parsed.data;
+  const { name, size, contentType } = parsed.data;
 
-    const uploadResult = await objectStorageService.getObjectEntityUploadURL();
+  // Validar tipo de contenido
+  if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    res.status(400).json({
+      error: `Tipo de archivo no permitido: "${contentType}". Solo se aceptan imágenes: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
+    });
+    return;
+  }
+
+  // Validar tamaño
+  if (size > MAX_FILE_SIZE_BYTES) {
+    res.status(400).json({
+      error: `Archivo demasiado grande (${(size / 1024 / 1024).toFixed(1)}MB). Máximo permitido: 10MB.`,
+    });
+    return;
+  }
+
+  try {
+    const format = getFormatFromContentType(contentType);
+    const uploadResult = await objectStorageService.getObjectEntityUploadURL({
+      allowedFormats: format ? [format] : ALLOWED_FORMATS,
+      maxSizeBytes: MAX_FILE_SIZE_BYTES,
+    });
 
     res.json({
       uploadURL: uploadResult.uploadURL,

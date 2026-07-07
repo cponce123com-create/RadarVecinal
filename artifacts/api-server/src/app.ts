@@ -22,7 +22,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // necesario para React dev
+      scriptSrc: ["'self'", "'unsafe-inline'", ...(process.env.NODE_ENV === "production" ? [] : ["'unsafe-eval'"])], // unsafe-eval solo para React dev
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       connectSrc: ["'self'", "https://*.googleapis.com", "https://*.firebaseio.com"],
@@ -145,6 +145,17 @@ app.use("/api/reports", reportLimiter);
 app.use("/api", generalLimiter);
 
 app.use("/api", router);
+
+// ── 404 JSON para rutas /api desconocidas ─────────────────────────────────
+app.use("/api/*", (_req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada" });
+});
+
+// ── Error handler global ──────────────────────────────────────────────────
+app.use((err: any, req: any, res: any, _next: any) => {
+  req.log?.error?.({ err }, "Unhandled error");
+  res.status(500).json({ error: "Error interno del servidor." });
+});
 
 // ── Servir frontend React build en producción ──────────────────────────────
 import path from "path";

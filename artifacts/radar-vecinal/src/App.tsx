@@ -28,6 +28,8 @@ const Stats = lazy(() => import("@/pages/Stats"));
 const MissingPerson = lazy(() => import("@/pages/MissingPerson"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
 
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -118,6 +120,12 @@ function Router() {
       </Route>
       <Route path="/emergencias">
         {() => <Layout><BrandingWrapper><Emergencias /></BrandingWrapper></Layout>}
+      </Route>
+      <Route path="/privacidad">
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><Privacy /></SuspenseWrapper></BrandingWrapper></Layout>}
+      </Route>
+      <Route path="/terminos">
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><Terms /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       
       <Route>{() => <SuspenseWrapper><NotFound /></SuspenseWrapper>}</Route>

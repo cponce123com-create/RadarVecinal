@@ -216,6 +216,14 @@ export default function AuthModal({ open, onClose }: Props) {
                         <p className="text-[9.5px] text-muted-foreground/60 mt-2">Versión de la política: {CONSENT_VERSION}. Tu aceptación quedará registrada con fecha y hora.</p>
                       </div>
                     )}
+                    <div className="mt-1 ml-6 flex gap-3 text-[10.5px]">
+                      <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" onClick={e => { e.stopPropagation(); }}>
+                        📜 Política de Privacidad completa
+                      </a>
+                      <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" onClick={e => { e.stopPropagation(); }}>
+                        📋 Términos y Condiciones
+                      </a>
+                    </div>
                   </div>
                 </motion.div>
               )}

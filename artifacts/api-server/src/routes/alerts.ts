@@ -51,9 +51,10 @@ interface SseClient {
   id: string;
   res: Response;
   districtId: number;
+  ip: string;
 }
 
-let sseClients: SseClient[] = [];
+export let sseClients: SseClient[] = [];
 
 // ── expireStaleAlerts — Expiración lazy ──────────────────────────────────────
 async function expireStaleAlerts() {
@@ -99,10 +100,30 @@ data: ${JSON.stringify({ alertId })}
 }
 
 // ── GET /panic-alerts/stream — M-02: SSE filtrado por distrito ──────────────
-router.get("/panic-alerts/stream", async (req, res) => {
+const SSE_GLOBAL_MAX = 100;
+const SSE_MAX_PER_IP = 5;
+
+router.get("/panic-alerts/stream", optionalAuth, async (req, res) => {
   const districtId = parseInt(req.query.districtId as string);
   if (!districtId) {
     res.status(400).json({ error: "Se requiere districtId para conectar al stream." });
+    return;
+  }
+
+  const userIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+    || req.socket?.remoteAddress
+    || "unknown";
+
+  // Límite global
+  if (sseClients.length >= SSE_GLOBAL_MAX) {
+    res.status(503).json({ error: "Servidor saturado. Intenta de nuevo más tarde." });
+    return;
+  }
+
+  // Límite por IP
+  const ipCount = sseClients.filter(c => c.ip === userIp).length;
+  if (ipCount >= SSE_MAX_PER_IP) {
+    res.status(429).json({ error: "Demasiadas conexiones desde esta IP." });
     return;
   }
 
@@ -122,13 +143,13 @@ router.get("/panic-alerts/stream", async (req, res) => {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     res,
     districtId,
+    ip: userIp,
   };
   sseClients.push(client);
 
   const heartbeat = setInterval(() => {
     try {
       res.write(":hb\n\n");
-
     } catch {
       /* la conexión se cerró; el evento close hará la limpieza */
     }
@@ -202,7 +223,15 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
     || "unknown";
 
   if (user?.sub) {
-    // Autenticado: máximo 2 activas simultáneas
+    // Validar authorName contra blacklist de palabras ofensivas
+    const BLACKLIST = [/put[aeo]/i, /mierda/i, /coño/i, /pendejo/i, /hue[vs]/i, /ctm/i, /la[ck]s?[ao]s/i];
+    for (const pattern of BLACKLIST) {
+      if (pattern.test(data.authorName)) {
+        return res.status(400).json({ error: "El nombre del autor contiene términos no permitidos." });
+      }
+    }
+
+    // Autenticado: máximo 2 activas simultáneas (por authorName + districtId)
     const [{ count: activeCount }] = await db.select({ count: sql<number>`count(*)` })
       .from(panicAlertsTable)
       .where(and(
@@ -575,7 +604,29 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
       conditions.push(eq(missingPersonsTable.status, active === "true" ? "active" : "found"));
     }
 
-    const alerts = await db.select()
+    const user = (req as any).jwtUser;
+    const isBackofficeSameDistrict = user && districtId && user.districtId &&
+      ["admin", "moderator", "super_admin"].includes(user.role) &&
+      (user.role === "super_admin" || Number(user.districtId) === Number(districtId));
+
+    const alerts = await db.select({
+      id: missingPersonsTable.id,
+      name: missingPersonsTable.name,
+      age: missingPersonsTable.age,
+      clothing: missingPersonsTable.clothing,
+      photoUrl: missingPersonsTable.photoUrl,
+      lastSeenLatitude: missingPersonsTable.lastSeenLatitude,
+      lastSeenLongitude: missingPersonsTable.lastSeenLongitude,
+      lastSeenAddress: missingPersonsTable.lastSeenAddress,
+      lastSeenAt: missingPersonsTable.lastSeenAt,
+      status: missingPersonsTable.status,
+      districtId: missingPersonsTable.districtId,
+      ...(isBackofficeSameDistrict ? {
+        contactInfo: missingPersonsTable.contactInfo,
+        reportedBy: missingPersonsTable.reportedBy,
+      } : {}),
+      createdAt: missingPersonsTable.createdAt,
+    })
       .from(missingPersonsTable)
       .where(and(...conditions))
       .orderBy(desc(missingPersonsTable.createdAt));

@@ -531,7 +531,10 @@ router.get("/config/login-warning", (_req: Request, res: Response) => {
 // Permite que el dueño del SUPER_ADMIN_EMAIL (configurado en env)
 // actualice su rol a super_admin. Seguro: requiere autenticación previa.
 router.post("/auth/claim-superadmin", requireAuth, async (req: Request, res: Response) => {
-  const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "cponce123.com@gmail.com";
+  const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL;
+  if (!SUPER_ADMIN_EMAIL) {
+    return res.status(503).json({ error: "SUPER_ADMIN_EMAIL no configurado. Configura esta variable de entorno en el servidor." });
+  }
   const user = (req as any).jwtUser;
 
   try {

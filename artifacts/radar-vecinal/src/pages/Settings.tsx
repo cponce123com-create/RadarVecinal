@@ -315,6 +315,14 @@ export default function Settings() {
           >
             <Toggle checked={shareLocation} onChange={setShareLocation} />
           </SettingRow>
+          <div className="px-4 py-3 flex gap-4 text-xs">
+            <a href="/privacidad" className="text-primary hover:underline flex items-center gap-1">
+              📜 Política de Privacidad
+            </a>
+            <a href="/terminos" className="text-primary hover:underline flex items-center gap-1">
+              📋 Términos y Condiciones
+            </a>
+          </div>
         </SettingSection>
       </motion.div>
 

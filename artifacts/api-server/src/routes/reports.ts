@@ -529,17 +529,15 @@ router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
 // FASE 5: También incrementa trustScore del autor en +1
 router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
   try {
+    const reportId = parseInt(req.params.id as string);
     const [report] = await db.select({
       id: reportsTable.id,
       districtId: reportsTable.districtId,
       authorUserId: reportsTable.authorUserId,
-      confirmedCount: reportsTable.confirmedCount,
       status: reportsTable.status,
-      createdAt: reportsTable.createdAt,
-      updatedAt: reportsTable.updatedAt,
     })
       .from(reportsTable)
-      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+      .where(eq(reportsTable.id, reportId))
       .limit(1);
 
     if (!report) return res.status(404).json({ error: "Reporte no encontrado." });
@@ -549,12 +547,61 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
       return res.status(403).json({ error: "No puedes confirmar reportes de otro distrito." });
     }
 
-    const [updated] = await db.update(reportsTable)
-      .set({ confirmedCount: report.confirmedCount + 1, updatedAt: new Date() })
-      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
-      .returning();
+    const user = (req as any).jwtUser;
+    const userId = user?.sub ? Number(user.sub) : null;
+    const userIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+      || req.socket?.remoteAddress
+      || null;
 
-    // FASE 5: Aumentar trustScore del autor en +1
+    // Deduplicación: verificar si ya confirmó este reporte
+    const dupConditions = userId
+      ? and(
+          eq(resolutionConfirmationsTable.reportId, reportId),
+          eq(resolutionConfirmationsTable.userId, userId),
+        )
+      : and(
+          eq(resolutionConfirmationsTable.reportId, reportId),
+          isNull(resolutionConfirmationsTable.userId),
+          eq(resolutionConfirmationsTable.userIp, userIp ?? ""),
+        );
+    const [existing] = await db.select({ id: resolutionConfirmationsTable.id })
+      .from(resolutionConfirmationsTable)
+      .where(dupConditions)
+      .limit(1);
+    if (existing) {
+      return res.status(409).json({ error: "Ya confirmaste este reporte. ¡Gracias!" });
+    }
+
+    // Registrar confirmación
+    try {
+      await db.insert(resolutionConfirmationsTable).values({
+        reportId,
+        userId: userId ?? null,
+        userIp,
+      });
+    } catch (insertErr: any) {
+      // Violación de unique = confirmación duplicada concurrente
+      return res.status(409).json({ error: "Ya confirmaste este reporte. ¡Gracias!" });
+    }
+
+    // Recontar desde la tabla (fuente de verdad)
+    const [{ count: confCount }] = await db.select({ count: sql<number>`count(*)` })
+      .from(resolutionConfirmationsTable)
+      .where(eq(resolutionConfirmationsTable.reportId, reportId));
+
+    const totalConfirmed = Number(confCount);
+
+    const [updated] = await db.update(reportsTable)
+      .set({ confirmedCount: totalConfirmed, updatedAt: new Date() })
+      .where(eq(reportsTable.id, reportId))
+      .returning({
+        id: reportsTable.id,
+        confirmedCount: reportsTable.confirmedCount,
+        status: reportsTable.status,
+        updatedAt: reportsTable.updatedAt,
+      });
+
+    // Aumentar trustScore del autor en +1
     if (report.authorUserId) {
       await db.update(usersTable)
         .set({ trustScore: sql`GREATEST(0, LEAST(100, ${usersTable.trustScore} + 1))` })
@@ -562,9 +609,9 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
     }
 
     return res.json({
-      ...updated,
       id: String(updated.id),
-      createdAt: updated.createdAt.toISOString(),
+      confirmedCount: updated.confirmedCount,
+      status: updated.status,
       updatedAt: updated.updatedAt.toISOString(),
     });
   } catch (err) {
@@ -842,9 +889,9 @@ const seedLimiter = rateLimit({
 
 router.post("/seed", seedLimiter, async (req, res) => {
   try {
-    // Seguridad: en producción, seed solo si ALLOW_SEED=true explícitamente
-    if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
-      return res.status(403).json({ error: "Seed deshabilitado en producción. Configura ALLOW_SEED=true para habilitarlo." });
+    // Seguridad: seed deshabilitado permanentemente en producción
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ error: "Seed deshabilitado en producción." });
     }
     // Verificar seed key
     const seedKey = req.headers["x-seed-key"];

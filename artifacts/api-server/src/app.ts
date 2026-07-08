@@ -31,7 +31,8 @@ app.use(helmet({
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
     },
-  }),
+  },
+}),
 );
 
 // Disable ETag so API responses are never cached as stale empty data

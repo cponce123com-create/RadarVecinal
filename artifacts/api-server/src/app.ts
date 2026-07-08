@@ -17,22 +17,32 @@ app.use(swaggerRouter);
 app.set("trust proxy", 1);
 
 // B-19: Security headers (helmet) — CSP básico para prevenir XSS
-app.use(helmet({
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", ...(process.env.NODE_ENV === "production" ? [] : ["'unsafe-eval'"])], // unsafe-eval solo para React dev
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https://*.googleapis.com", "https://*.firebaseio.com"],
-      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          ...(process.env.NODE_ENV === "production" ? [] : ["'unsafe-eval'"]),
+        ], // unsafe-eval solo para React dev
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        connectSrc: [
+          "'self'",
+          "https://*.googleapis.com",
+          "https://*.firebaseio.com",
+        ],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+      },
     },
-  },
-}));
+  }),
+);
 
 // Disable ETag so API responses are never cached as stale empty data
 app.set("etag", false);
@@ -43,17 +53,23 @@ app.use("/api", optionalAuth);
 // CORS: incluir orígenes fijos de Capacitor (BUG-3) + los que vengan de env var.
 // En producción el frontend se sirve desde express.static (mismo origen),
 // así que no necesita CORS, pero Capacitor (APK) usa https://localhost.
-const CAPACITOR_ORIGINS = ["https://localhost", "capacitor://localhost", "http://localhost"];
+const CAPACITOR_ORIGINS = [
+  "https://localhost",
+  "capacitor://localhost",
+  "http://localhost",
+];
 const allowedOrigins = [
   ...CAPACITOR_ORIGINS,
   ...(process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+    ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
     : ["http://localhost:5173", "http://localhost:3000"]),
 ];
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+);
 
 // BUG-2: RLS por variables de sesión abandonado — ver replit.md para rationale.
 // La defensa multi-tenant está en la capa de aplicación (tenant.ts checkTenant),
@@ -92,7 +108,12 @@ app.use("/api", (_req, res, next) => {
 
 // B-18: Rate limiting — specific limits per endpoint type to prevent spam
 // Authenticated users get higher limits than anonymous users
-function authAwareRateLimit(windowMs: number, authMax: number, anonMax: number, message: string) {
+function authAwareRateLimit(
+  windowMs: number,
+  authMax: number,
+  anonMax: number,
+  message: string,
+) {
   return rateLimit({
     windowMs,
     standardHeaders: true,
@@ -110,18 +131,35 @@ function authAwareRateLimit(windowMs: number, authMax: number, anonMax: number, 
   });
 }
 
-const generalLimiter = authAwareRateLimit(60 * 1000, 200, 60, "Demasiadas solicitudes. Intenta de nuevo en un minuto.");
+const generalLimiter = authAwareRateLimit(
+  60 * 1000,
+  200,
+  60,
+  "Demasiadas solicitudes. Intenta de nuevo en un minuto.",
+);
 
-const reportLimiter = authAwareRateLimit(60 * 1000, 30, 5, "Límite de reportes alcanzado. Máximo 30 por minuto (autenticados) o 5 por minuto (anónimo).");
+const reportLimiter = authAwareRateLimit(
+  60 * 1000,
+  30,
+  5,
+  "Límite de reportes alcanzado. Máximo 30 por minuto (autenticados) o 5 por minuto (anónimo).",
+);
 
-const panicLimiter = authAwareRateLimit(60 * 1000, 15, 3, "Límite de alertas de pánico alcanzado. Máximo 15 por minuto (autenticados) o 3 por minuto (anónimo).");
+const panicLimiter = authAwareRateLimit(
+  60 * 1000,
+  15,
+  3,
+  "Límite de alertas de pánico alcanzado. Máximo 15 por minuto (autenticados) o 3 por minuto (anónimo).",
+);
 
 const sseLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Demasiadas conexiones SSE. Intenta reconectar en un minuto." },
+  message: {
+    error: "Demasiadas conexiones SSE. Intenta reconectar en un minuto.",
+  },
 });
 
 const authLimiter = rateLimit({
@@ -134,7 +172,9 @@ const authLimiter = rateLimit({
     // Rate limit por email (si disponible) + IP (con ipKeyGenerator para IPv6)
     const email = req.body?.email;
     const ipKey = ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "");
-    return email ? `auth_${email.toLowerCase().trim()}_${ipKey}` : `auth_ip_${ipKey}`;
+    return email
+      ? `auth_${email.toLowerCase().trim()}_${ipKey}`
+      : `auth_ip_${ipKey}`;
   },
 });
 

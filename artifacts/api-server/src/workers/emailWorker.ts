@@ -39,9 +39,7 @@ export function startEmailWorker(): void {
     "email-notifications",
     async () => {
       try {
-        const twentyFourHoursAgo = new Date(
-          Date.now() - 24 * 60 * 60 * 1000,
-        );
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
         const districtsWithBacklog = await db
           .select({

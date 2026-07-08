@@ -1,0 +1,9 @@
+# Código generado por orval — no debe formatearse a mano (se regenera)
+**/generated/**
+
+# Artefactos de build y dependencias
+**/dist/**
+**/node_modules/**
+
+# Lockfile
+pnpm-lock.yaml

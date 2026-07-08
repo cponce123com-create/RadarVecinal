@@ -12,7 +12,11 @@ const JWT_SECRET = "radar-vecinal-dev-secret-2024";
 // ── Replicate middleware logic inline ────────────────────────────────────────
 // This avoids importing the actual auth module (which depends on @workspace/db)
 
-function requireAuthInline(req: Partial<Request>, res: Partial<Response>, next: NextFunction) {
+function requireAuthInline(
+  req: Partial<Request>,
+  res: Partial<Response>,
+  next: NextFunction,
+) {
   const authHeader = req.headers?.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status?.(401);
@@ -29,7 +33,11 @@ function requireAuthInline(req: Partial<Request>, res: Partial<Response>, next: 
   }
 }
 
-function requireAdminInline(req: Partial<Request>, res: Partial<Response>, next: NextFunction) {
+function requireAdminInline(
+  req: Partial<Request>,
+  res: Partial<Response>,
+  next: NextFunction,
+) {
   const user = (req as any).jwtUser;
   if (!user || !["admin", "moderator"].includes(user.role)) {
     res.status?.(403);
@@ -39,7 +47,11 @@ function requireAdminInline(req: Partial<Request>, res: Partial<Response>, next:
   next();
 }
 
-function optionalAuthInline(req: Partial<Request>, _res: Partial<Response>, next: NextFunction) {
+function optionalAuthInline(
+  req: Partial<Request>,
+  _res: Partial<Response>,
+  next: NextFunction,
+) {
   const authHeader = req.headers?.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     try {
@@ -90,7 +102,12 @@ describe("JWT token operations", () => {
   });
 
   it("should extract admin user info from valid token", () => {
-    const payload = { sub: "42", email: "admin@radarvecinal.pe", role: "admin", district: "San Ramón" };
+    const payload = {
+      sub: "42",
+      email: "admin@radarvecinal.pe",
+      role: "admin",
+      district: "San Ramón",
+    };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     expect(decoded.sub).toBe("42");
@@ -108,7 +125,9 @@ describe("requireAuth middleware", () => {
     requireAuthInline(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(String) }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.any(String) }),
+    );
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -135,7 +154,11 @@ describe("requireAuth middleware", () => {
   });
 
   it("should call next() if token is valid", () => {
-    const token = jwt.sign({ sub: "1", email: "test@test.com", role: "user" }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(
+      { sub: "1", email: "test@test.com", role: "user" },
+      JWT_SECRET,
+      { expiresIn: "1h" },
+    );
     const req = createMockReq({ authorization: `Bearer ${token}` });
     const res = createMockRes() as Response;
     const next = vi.fn();
@@ -208,7 +231,11 @@ describe("optionalAuth middleware", () => {
   });
 
   it("should attach jwtUser if valid token provided", () => {
-    const token = jwt.sign({ sub: "5", email: "user@test.com", role: "user" }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(
+      { sub: "5", email: "user@test.com", role: "user" },
+      JWT_SECRET,
+      { expiresIn: "1h" },
+    );
     const req = createMockReq({ authorization: `Bearer ${token}` });
     const res = createMockRes() as Response;
     const next = vi.fn();
@@ -220,7 +247,9 @@ describe("optionalAuth middleware", () => {
   });
 
   it("should ignore invalid tokens and continue", () => {
-    const req = createMockReq({ authorization: "Bearer absolutely-invalid-token" });
+    const req = createMockReq({
+      authorization: "Bearer absolutely-invalid-token",
+    });
     const res = createMockRes() as Response;
     const next = vi.fn();
 

@@ -42,11 +42,7 @@ export function pointInPolygon(
  * Core ray-casting check against a single ring.
  * The ring is an array of [x, y] pairs where x = longitude, y = latitude.
  */
-function rayCastHit(
-  px: number,
-  py: number,
-  ring: number[][],
-): boolean {
+function rayCastHit(px: number, py: number, ring: number[][]): boolean {
   let inside = false;
   const n = ring.length;
 
@@ -58,8 +54,7 @@ function rayCastHit(
 
     // Check if the horizontal ray at py crosses the edge (xi, yi) -> (xj, yj)
     const intersect =
-      yi > py !== yj > py &&
-      px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+      yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
 
     if (intersect) inside = !inside;
   }

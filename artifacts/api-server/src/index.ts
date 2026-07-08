@@ -36,7 +36,10 @@ async function gracefulShutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
 
-  logger.info({ signal }, "Shutdown signal received — starting graceful shutdown");
+  logger.info(
+    { signal },
+    "Shutdown signal received — starting graceful shutdown",
+  );
 
   try {
     // 1. Dejar de aceptar nuevas conexiones
@@ -53,10 +56,14 @@ async function gracefulShutdown(signal: string) {
         for (const client of sseClients ?? []) {
           try {
             client.res.end();
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
-    } catch { /* alerts module may not have SSE clients */ }
+    } catch {
+      /* alerts module may not have SSE clients */
+    }
 
     // 3. Cerrar el pool de base de datos
     await pool.end();
@@ -77,7 +84,6 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // ── Iniciar servidor ───────────────────────────────────────────────────────
 const server = app.listen(port, () => {
-
   logger.info({ port }, "Server listening");
 
   // Start background workers (non-blocking)

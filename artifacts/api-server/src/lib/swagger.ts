@@ -24,9 +24,7 @@ const options: swaggerJsdoc.Options = {
       solo ven/modifican datos de su propio distrito (excepto super_admin).
       `.trim(),
     },
-    servers: [
-      { url: "/api", description: "API principal" },
-    ],
+    servers: [{ url: "/api", description: "API principal" }],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -43,10 +41,15 @@ const options: swaggerJsdoc.Options = {
 const swaggerSpec = swaggerJsdoc(options);
 
 const router = Router();
-router.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: ".swagger-ui .topbar { display: none } .swagger-ui { background: #0f1219 }",
-  customSiteTitle: "Radar Vecinal — API Docs",
-}));
+router.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss:
+      ".swagger-ui .topbar { display: none } .swagger-ui { background: #0f1219 }",
+    customSiteTitle: "Radar Vecinal — API Docs",
+  }),
+);
 
 // Endpoint para descargar spec JSON
 router.get("/api-docs.json", (_req, res) => res.json(swaggerSpec));

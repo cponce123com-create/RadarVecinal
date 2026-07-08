@@ -30,22 +30,28 @@ describe.skipIf(!process.env.DATABASE_URL)(
       districtsTable = schema.districtsTable;
 
       // Crear distritos de prueba
-      const [d1] = await db.insert(districtsTable).values({
-        slug: "test-rls-district-a",
-        name: "Test RLS District A",
-        province: "Test",
-        department: "Test",
-        isActive: true,
-      }).returning();
+      const [d1] = await db
+        .insert(districtsTable)
+        .values({
+          slug: "test-rls-district-a",
+          name: "Test RLS District A",
+          province: "Test",
+          department: "Test",
+          isActive: true,
+        })
+        .returning();
       testDistrict1Id = d1.id;
 
-      const [d2] = await db.insert(districtsTable).values({
-        slug: "test-rls-district-b",
-        name: "Test RLS District B",
-        province: "Test",
-        department: "Test",
-        isActive: true,
-      }).returning();
+      const [d2] = await db
+        .insert(districtsTable)
+        .values({
+          slug: "test-rls-district-b",
+          name: "Test RLS District B",
+          province: "Test",
+          department: "Test",
+          isActive: true,
+        })
+        .returning();
       testDistrict2Id = d2.id;
 
       // Insertar un reporte en cada distrito
@@ -61,13 +67,19 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     afterAll(async () => {
       if (!db) return;
-      await db.execute(sql`DELETE FROM "reports" WHERE "title" LIKE 'RLS Test Report%'`);
-      await db.execute(sql`DELETE FROM "districts" WHERE "slug" LIKE 'test-rls-district-%'`);
+      await db.execute(
+        sql`DELETE FROM "reports" WHERE "title" LIKE 'RLS Test Report%'`,
+      );
+      await db.execute(
+        sql`DELETE FROM "districts" WHERE "slug" LIKE 'test-rls-district-%'`,
+      );
     });
 
     it("debe filtrar reportes por app.district_id cuando role=admin", async () => {
       await db.execute(sql`SELECT set_config('app.role', 'admin', true)`);
-      await db.execute(sql`SELECT set_config('app.district_id', ${String(testDistrict1Id)}, true)`);
+      await db.execute(
+        sql`SELECT set_config('app.district_id', ${String(testDistrict1Id)}, true)`,
+      );
 
       const { rows } = await db.execute(sql`
         SELECT "title" FROM "reports" WHERE "title" LIKE 'RLS Test Report%'
@@ -80,7 +92,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("super_admin debe poder ver reportes de ambos distritos (bypass RLS)", async () => {
       await db.execute(sql`SELECT set_config('app.role', 'super_admin', true)`);
-      await db.execute(sql`SELECT set_config('app.district_id', ${String(testDistrict1Id)}, true)`);
+      await db.execute(
+        sql`SELECT set_config('app.district_id', ${String(testDistrict1Id)}, true)`,
+      );
 
       const { rows } = await db.execute(sql`
         SELECT "title" FROM "reports" WHERE "title" LIKE 'RLS Test Report%'
@@ -88,11 +102,16 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       // super_admin ve ambos por la política super_admin_all_reports
       expect(rows.length).toBe(2);
-      expect(rows.map((r: any) => r.title).sort()).toEqual(["RLS Test Report A", "RLS Test Report B"]);
+      expect(rows.map((r: any) => r.title).sort()).toEqual([
+        "RLS Test Report A",
+        "RLS Test Report B",
+      ]);
     });
 
     it("current_setting con missing_ok=true no debe fallar sin variable seteada", async () => {
-      const { rows } = await db.execute(sql`SELECT current_setting('app.role', true) AS role`);
+      const { rows } = await db.execute(
+        sql`SELECT current_setting('app.role', true) AS role`,
+      );
       expect(rows).toBeDefined();
       // Si nunca se seteó, el valor es NULL
       expect(rows[0]?.role).toBeNull();

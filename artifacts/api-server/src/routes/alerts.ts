@@ -23,7 +23,14 @@ const router: IRouter = Router();
 
 // ── Zod schemas ─────────────────────────────────────────────────────────────
 const panicAlertSchema = z.object({
-  type: z.enum(["robbery", "medical", "fight", "fire", "missing_person", "other"]),
+  type: z.enum([
+    "robbery",
+    "medical",
+    "fight",
+    "fire",
+    "missing_person",
+    "other",
+  ]),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   address: z.string().optional().default(""),
@@ -58,19 +65,25 @@ export let sseClients: SseClient[] = [];
 
 // ── expireStaleAlerts — Expiración lazy ──────────────────────────────────────
 async function expireStaleAlerts() {
-  await db.update(panicAlertsTable)
+  await db
+    .update(panicAlertsTable)
     .set({ status: "expired", isActive: false })
-    .where(and(
-      eq(panicAlertsTable.status, "active"),
-      lt(panicAlertsTable.expiresAt, new Date()),
-    ));
+    .where(
+      and(
+        eq(panicAlertsTable.status, "active"),
+        lt(panicAlertsTable.expiresAt, new Date()),
+      ),
+    );
 
-  await db.update(panicAlertsTable)
+  await db
+    .update(panicAlertsTable)
     .set({ status: "expired", isActive: false })
-    .where(and(
-      eq(panicAlertsTable.status, "attending"),
-      lt(panicAlertsTable.expiresAt, new Date()),
-    ));
+    .where(
+      and(
+        eq(panicAlertsTable.status, "attending"),
+        lt(panicAlertsTable.expiresAt, new Date()),
+      ),
+    );
 }
 
 // ── M-02: Broadcast de alerta solo a clientes del mismo distrito ────────────
@@ -83,12 +96,12 @@ export function broadcastPanicAlert(alert: any) {
     createdAt: alert.createdAt?.toISOString?.() ?? alert.createdAt,
   };
   const body = "data: " + JSON.stringify(payload) + "\n\n";
-  sseClients.forEach(client => {
+  sseClients.forEach((client) => {
     if (client.districtId === alertDistrictId) {
       client.res.write(body);
     }
   });
-  }
+}
 
 // ── broadcastAlertResolved — Notifica resolución por SSE ────────────────────
 export function broadcastAlertResolved(alertId: string) {
@@ -96,7 +109,7 @@ export function broadcastAlertResolved(alertId: string) {
 data: ${JSON.stringify({ alertId })}
 
 `;
-  sseClients.forEach(client => client.res.write(body));
+  sseClients.forEach((client) => client.res.write(body));
 }
 
 // ── GET /panic-alerts/stream — M-02: SSE filtrado por distrito ──────────────
@@ -106,22 +119,27 @@ const SSE_MAX_PER_IP = 5;
 router.get("/panic-alerts/stream", optionalAuth, async (req, res) => {
   const districtId = parseInt(req.query.districtId as string);
   if (!districtId) {
-    res.status(400).json({ error: "Se requiere districtId para conectar al stream." });
+    res
+      .status(400)
+      .json({ error: "Se requiere districtId para conectar al stream." });
     return;
   }
 
-  const userIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-    || req.socket?.remoteAddress
-    || "unknown";
+  const userIp =
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    "unknown";
 
   // Límite global
   if (sseClients.length >= SSE_GLOBAL_MAX) {
-    res.status(503).json({ error: "Servidor saturado. Intenta de nuevo más tarde." });
+    res
+      .status(503)
+      .json({ error: "Servidor saturado. Intenta de nuevo más tarde." });
     return;
   }
 
   // Límite por IP
-  const ipCount = sseClients.filter(c => c.ip === userIp).length;
+  const ipCount = sseClients.filter((c) => c.ip === userIp).length;
   if (ipCount >= SSE_MAX_PER_IP) {
     res.status(429).json({ error: "Demasiadas conexiones desde esta IP." });
     return;
@@ -157,7 +175,7 @@ router.get("/panic-alerts/stream", optionalAuth, async (req, res) => {
 
   req.on("close", () => {
     clearInterval(heartbeat);
-    sseClients = sseClients.filter(c => c.id !== client.id);
+    sseClients = sseClients.filter((c) => c.id !== client.id);
   });
 });
 
@@ -177,14 +195,15 @@ router.get("/panic-alerts", optionalAuth, async (req, res) => {
       conditions.push(eq(panicAlertsTable.isActive, active === "true"));
     }
 
-    const alerts = await db.select()
+    const alerts = await db
+      .select()
       .from(panicAlertsTable)
       .where(and(...conditions))
       .orderBy(desc(panicAlertsTable.createdAt))
       .limit(50);
 
     return res.json({
-      alerts: alerts.map(a => ({
+      alerts: alerts.map((a) => ({
         ...a,
         id: String(a.id),
         createdAt: a.createdAt.toISOString(),
@@ -202,7 +221,9 @@ router.get("/panic-alerts", optionalAuth, async (req, res) => {
 router.post("/panic-alerts", optionalAuth, async (req, res) => {
   const parsed = panicAlertSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
 
   const data = parsed.data;
@@ -214,77 +235,108 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
   } else if (data.districtId) {
     districtId = Number(data.districtId);
   } else {
-    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    return res
+      .status(400)
+      .json({ error: "Se requiere distrito (districtId)." });
   }
 
   // ── Anti-spam ────────────────────────────────────────────────────
-  const userIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-    || req.socket?.remoteAddress
-    || "unknown";
+  const userIp =
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    "unknown";
 
   if (user?.sub) {
     // Validar authorName contra blacklist de palabras ofensivas
-    const BLACKLIST = [/put[aeo]/i, /mierda/i, /coño/i, /pendejo/i, /hue[vs]/i, /ctm/i, /la[ck]s?[ao]s/i];
+    const BLACKLIST = [
+      /put[aeo]/i,
+      /mierda/i,
+      /coño/i,
+      /pendejo/i,
+      /hue[vs]/i,
+      /ctm/i,
+      /la[ck]s?[ao]s/i,
+    ];
     for (const pattern of BLACKLIST) {
       if (pattern.test(data.authorName)) {
-        return res.status(400).json({ error: "El nombre del autor contiene términos no permitidos." });
+        return res.status(400).json({
+          error: "El nombre del autor contiene términos no permitidos.",
+        });
       }
     }
 
     // Autenticado: máximo 2 activas simultáneas (por authorName + districtId)
-    const [{ count: activeCount }] = await db.select({ count: sql<number>`count(*)` })
+    const [{ count: activeCount }] = await db
+      .select({ count: sql<number>`count(*)` })
       .from(panicAlertsTable)
-      .where(and(
-        eq(panicAlertsTable.authorName, data.authorName),
-        eq(panicAlertsTable.districtId, districtId),
-        eq(panicAlertsTable.isActive, true),
-      ));
+      .where(
+        and(
+          eq(panicAlertsTable.authorName, data.authorName),
+          eq(panicAlertsTable.districtId, districtId),
+          eq(panicAlertsTable.isActive, true),
+        ),
+      );
     if (Number(activeCount) >= 2) {
-      return res.status(429).json({ error: "Ya tienes 2 alertas activas. Espera a que se resuelvan." });
+      return res.status(429).json({
+        error: "Ya tienes 2 alertas activas. Espera a que se resuelvan.",
+      });
     }
 
     // Mismo tipo en últimos 5 min
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const [{ count: recentCount }] = await db.select({ count: sql<number>`count(*)` })
+    const [{ count: recentCount }] = await db
+      .select({ count: sql<number>`count(*)` })
       .from(panicAlertsTable)
-      .where(and(
-        eq(panicAlertsTable.authorName, data.authorName),
-        eq(panicAlertsTable.districtId, districtId),
-        eq(panicAlertsTable.type, data.type as any),
-        gt(panicAlertsTable.createdAt, fiveMinAgo),
-      ));
+      .where(
+        and(
+          eq(panicAlertsTable.authorName, data.authorName),
+          eq(panicAlertsTable.districtId, districtId),
+          eq(panicAlertsTable.type, data.type as any),
+          gt(panicAlertsTable.createdAt, fiveMinAgo),
+        ),
+      );
     if (Number(recentCount) >= 1) {
-      return res.status(429).json({ error: "Ya enviaste una alerta del mismo tipo hace menos de 5 minutos." });
+      return res.status(429).json({
+        error: "Ya enviaste una alerta del mismo tipo hace menos de 5 minutos.",
+      });
     }
   } else {
     // Anónimo: máximo 3 alertas por IP en 10 minutos
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
-    const [{ count: ipCount }] = await db.select({ count: sql<number>`count(*)` })
+    const [{ count: ipCount }] = await db
+      .select({ count: sql<number>`count(*)` })
       .from(panicAlertsTable)
-      .where(and(
-        eq(panicAlertsTable.sector, data.sector),
-        eq(panicAlertsTable.districtId, districtId),
-        gt(panicAlertsTable.createdAt, tenMinAgo),
-      ));
+      .where(
+        and(
+          eq(panicAlertsTable.sector, data.sector),
+          eq(panicAlertsTable.districtId, districtId),
+          gt(panicAlertsTable.createdAt, tenMinAgo),
+        ),
+      );
     // Nota: no tenemos campo IP en panic_alerts, usamos sector+authorName como aproximación
     if (Number(ipCount) >= 3) {
-      return res.status(429).json({ error: "Demasiadas alertas desde este sector. Espera 10 minutos." });
+      return res.status(429).json({
+        error: "Demasiadas alertas desde este sector. Espera 10 minutos.",
+      });
     }
   }
 
   try {
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 horas
 
-    const [alert] = await db.insert(panicAlertsTable).values({
-      districtId,
-      type: data.type as any,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      address: data.address ?? "",
-      authorName: data.authorName,
-      sector: data.sector,
-      expiresAt,
-    }).returning();
+    const [alert] = await db
+      .insert(panicAlertsTable)
+      .values({
+        districtId,
+        type: data.type as any,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        address: data.address ?? "",
+        authorName: data.authorName,
+        sector: data.sector,
+        expiresAt,
+      })
+      .returning();
 
     // ── También crear un reporte visible en el radar, mapa y feed ─────
     const PANIC_CATEGORY_MAP: Record<string, string> = {
@@ -304,45 +356,56 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
       other: "🚨 Alerta de Pánico - Otra Emergencia",
     };
 
-    const [district] = await db.select({
-      name: districtsTable.name,
-      province: districtsTable.province,
-      department: districtsTable.department,
-    }).from(districtsTable)
+    const [district] = await db
+      .select({
+        name: districtsTable.name,
+        province: districtsTable.province,
+        department: districtsTable.department,
+      })
+      .from(districtsTable)
       .where(eq(districtsTable.id, districtId))
       .limit(1);
 
     // Nota: .catch() puede devolver null; se evita desestructurar null
     // directamente (lanzaría "null is not iterable" en runtime si falla el insert).
-    const mirrorRows = await db.insert(reportsTable).values({
-      title: PANIC_TITLE_MAP[data.type] ?? "🚨 Alerta de Pánico",
-      description: `Alerta de pánico generada automáticamente. Tipo: ${data.type}.${data.address ? ` Ubicación: ${data.address}` : ""}`,
-      category: (PANIC_CATEGORY_MAP[data.type] ?? "other") as any,
-      urgency: "critical" as const,
-      isAnonymous: false,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      address: data.address ?? "",
-      sector: data.sector,
-      districtId,
-      district: district?.name ?? "San Ramón",
-      province: district?.province ?? "Chanchamayo",
-      department: district?.department ?? "Junín",
-      authorName: data.authorName,
-      panicAlertId: alert.id,
-    }).returning().catch((err2: any) => {
-      req.log.error({ err: err2 }, "Failed to create report from panic alert");
-      return null;
-    });
+    const mirrorRows = await db
+      .insert(reportsTable)
+      .values({
+        title: PANIC_TITLE_MAP[data.type] ?? "🚨 Alerta de Pánico",
+        description: `Alerta de pánico generada automáticamente. Tipo: ${data.type}.${data.address ? ` Ubicación: ${data.address}` : ""}`,
+        category: (PANIC_CATEGORY_MAP[data.type] ?? "other") as any,
+        urgency: "critical" as const,
+        isAnonymous: false,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        address: data.address ?? "",
+        sector: data.sector,
+        districtId,
+        district: district?.name ?? "San Ramón",
+        province: district?.province ?? "Chanchamayo",
+        department: district?.department ?? "Junín",
+        authorName: data.authorName,
+        panicAlertId: alert.id,
+      })
+      .returning()
+      .catch((err2: any) => {
+        req.log.error(
+          { err: err2 },
+          "Failed to create report from panic alert",
+        );
+        return null;
+      });
     const mirrorReport = mirrorRows?.[0] ?? null;
 
     // ── Sync bidireccional linkedReportId / panicAlertId ──────────
     if (mirrorReport) {
-      await db.update(panicAlertsTable)
+      await db
+        .update(panicAlertsTable)
         .set({ linkedReportId: mirrorReport.id })
         .where(eq(panicAlertsTable.id, alert.id));
 
-      await db.update(reportsTable)
+      await db
+        .update(reportsTable)
         .set({ panicAlertId: alert.id })
         .where(eq(reportsTable.id, mirrorReport.id));
     }
@@ -371,152 +434,200 @@ const manageAlertSchema = z.object({
   resolutionNote: z.string().max(500).optional(),
 });
 
-router.patch("/panic-alerts/:id", requireAuth, requireAdmin, async (req, res) => {
-  const parsed = manageAlertSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
-  }
-
-  const { status: newStatus, resolutionNote } = parsed.data;
-  const user = (req as any).jwtUser;
-
-  try {
-    const alertId = parseInt(req.params.id as string);
-    const [alert] = await db.select()
-      .from(panicAlertsTable)
-      .where(eq(panicAlertsTable.id, alertId))
-      .limit(1);
-
-    if (!alert) return res.status(404).json({ error: "Alerta no encontrada." });
-
-    // Tenant check: admin/moderator solo su distrito; super_admin cualquiera
-    if (user.role !== "super_admin" && Number(user.districtId) !== Number(alert.districtId)) {
-      return res.status(403).json({ error: "No puedes gestionar alertas de otro distrito." });
+router.patch(
+  "/panic-alerts/:id",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = manageAlertSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
     }
 
-    const isResolved = newStatus === "resolved" || newStatus === "false_alarm";
-    const updates: Record<string, any> = {
-      status: newStatus,
-      isActive: newStatus === "attending",
-    };
+    const { status: newStatus, resolutionNote } = parsed.data;
+    const user = (req as any).jwtUser;
 
-    if (isResolved) {
-      updates.resolvedAt = new Date();
-      updates.resolvedById = Number(user.sub);
-      if (resolutionNote) {
-        updates.resolutionNote = resolutionNote;
-      }
-    }
+    try {
+      const alertId = parseInt(req.params.id as string);
+      const [alert] = await db
+        .select()
+        .from(panicAlertsTable)
+        .where(eq(panicAlertsTable.id, alertId))
+        .limit(1);
 
-    const [updated] = await db.update(panicAlertsTable)
-      .set(updates)
-      .where(eq(panicAlertsTable.id, alertId))
-      .returning();
+      if (!alert)
+        return res.status(404).json({ error: "Alerta no encontrada." });
 
-    // ── Sincronizar reporte espejo ────────────────────────────────
-    if (alert.linkedReportId) {
-      let reportStatus: string;
-      if (newStatus === "false_alarm") {
-        reportStatus = "archived";
-      } else if (newStatus === "resolved") {
-        reportStatus = "resolved";
-      } else {
-        reportStatus = "active";
+      // Tenant check: admin/moderator solo su distrito; super_admin cualquiera
+      if (
+        user.role !== "super_admin" &&
+        Number(user.districtId) !== Number(alert.districtId)
+      ) {
+        return res
+          .status(403)
+          .json({ error: "No puedes gestionar alertas de otro distrito." });
       }
 
-      await db.update(reportsTable)
-        .set({ status: reportStatus as any, updatedAt: new Date() })
-        .where(eq(reportsTable.id, alert.linkedReportId));
-    }
+      const isResolved =
+        newStatus === "resolved" || newStatus === "false_alarm";
+      const updates: Record<string, any> = {
+        status: newStatus,
+        isActive: newStatus === "attending",
+      };
 
-    // ── Audit log ─────────────────────────────────────────────────
-    await db.insert(auditLogTable).values({
-      districtId: alert.districtId,
-      entityType: "panic_alert",
-      entityId: alert.id,
-      action: newStatus,
-      previousValue: alert.status,
-      newValue: newStatus,
-      changedBy: user?.email ?? "unknown",
-      changedById: user ? Number(user.sub) : undefined,
-    }).catch(() => {});
+      if (isResolved) {
+        updates.resolvedAt = new Date();
+        updates.resolvedById = Number(user.sub);
+        if (resolutionNote) {
+          updates.resolutionNote = resolutionNote;
+        }
+      }
 
-    // Broadcast SSE
-    broadcastAlertResolved(String(alert.id));
+      const [updated] = await db
+        .update(panicAlertsTable)
+        .set(updates)
+        .where(eq(panicAlertsTable.id, alertId))
+        .returning();
 
-    return res.json({
-      ...updated,
-      id: String(updated.id),
-      createdAt: updated.createdAt.toISOString(),
-      resolvedAt: updated.resolvedAt?.toISOString?.() ?? updated.resolvedAt ?? null,
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to manage panic alert");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
-
-// ── DELETE /panic-alerts/:id — Solo super_admin ────────────────────────────
-router.delete("/panic-alerts/:id", requireAuth, requireAdmin, async (req, res) => {
-  const user = (req as any).jwtUser;
-  if (user.role !== "super_admin") {
-    return res.status(403).json({ error: "Solo super_admin puede eliminar alertas." });
-  }
-
-  try {
-    const alertId = parseInt(req.params.id as string);
-    const [alert] = await db.select()
-      .from(panicAlertsTable)
-      .where(eq(panicAlertsTable.id, alertId))
-      .limit(1);
-
-    if (!alert) return res.status(404).json({ error: "Alerta no encontrada." });
-
-    await db.transaction(async (tx) => {
-      // Eliminar hijos del linkedReport si existe
+      // ── Sincronizar reporte espejo ────────────────────────────────
       if (alert.linkedReportId) {
-        await tx.delete(reportMessagesTable)
-          .where(eq(reportMessagesTable.reportId, alert.linkedReportId));
-        await tx.delete(votesTable)
-          .where(eq(votesTable.reportId, alert.linkedReportId));
-        await tx.delete(resolutionConfirmationsTable)
-          .where(eq(resolutionConfirmationsTable.reportId, alert.linkedReportId));
-        await tx.delete(communityFlagsTable)
-          .where(eq(communityFlagsTable.reportId, alert.linkedReportId));
-        await tx.delete(userStrikesTable)
-          .where(eq(userStrikesTable.reportId, alert.linkedReportId));
-        await tx.delete(reportsTable)
+        let reportStatus: string;
+        if (newStatus === "false_alarm") {
+          reportStatus = "archived";
+        } else if (newStatus === "resolved") {
+          reportStatus = "resolved";
+        } else {
+          reportStatus = "active";
+        }
+
+        await db
+          .update(reportsTable)
+          .set({ status: reportStatus as any, updatedAt: new Date() })
           .where(eq(reportsTable.id, alert.linkedReportId));
       }
 
-      // Eliminar audit logs de la alerta
-      await tx.delete(auditLogTable)
-        .where(and(
-          eq(auditLogTable.entityType, "panic_alert"),
-          eq(auditLogTable.entityId, alert.id),
-        ));
+      // ── Audit log ─────────────────────────────────────────────────
+      await db
+        .insert(auditLogTable)
+        .values({
+          districtId: alert.districtId,
+          entityType: "panic_alert",
+          entityId: alert.id,
+          action: newStatus,
+          previousValue: alert.status,
+          newValue: newStatus,
+          changedBy: user?.email ?? "unknown",
+          changedById: user ? Number(user.sub) : undefined,
+        })
+        .catch(() => {});
 
-      // Eliminar la alerta
-      await tx.delete(panicAlertsTable)
-        .where(eq(panicAlertsTable.id, alert.id));
-    });
+      // Broadcast SSE
+      broadcastAlertResolved(String(alert.id));
 
-    // Audit log de eliminación (después de la tx para no complicar)
-    await db.insert(auditLogTable).values({
-      districtId: alert.districtId,
-      entityType: "panic_alert",
-      entityId: alert.id,
-      action: "deleted",
-      changedBy: user?.email ?? "unknown",
-      changedById: user ? Number(user.sub) : undefined,
-    }).catch(() => {});
+      return res.json({
+        ...updated,
+        id: String(updated.id),
+        createdAt: updated.createdAt.toISOString(),
+        resolvedAt:
+          updated.resolvedAt?.toISOString?.() ?? updated.resolvedAt ?? null,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to manage panic alert");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
-    return res.json({ success: true, message: "Alerta eliminada permanentemente." });
-  } catch (err) {
-    req.log.error({ err }, "Failed to delete panic alert");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+// ── DELETE /panic-alerts/:id — Solo super_admin ────────────────────────────
+router.delete(
+  "/panic-alerts/:id",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const user = (req as any).jwtUser;
+    if (user.role !== "super_admin") {
+      return res
+        .status(403)
+        .json({ error: "Solo super_admin puede eliminar alertas." });
+    }
+
+    try {
+      const alertId = parseInt(req.params.id as string);
+      const [alert] = await db
+        .select()
+        .from(panicAlertsTable)
+        .where(eq(panicAlertsTable.id, alertId))
+        .limit(1);
+
+      if (!alert)
+        return res.status(404).json({ error: "Alerta no encontrada." });
+
+      await db.transaction(async (tx) => {
+        // Eliminar hijos del linkedReport si existe
+        if (alert.linkedReportId) {
+          await tx
+            .delete(reportMessagesTable)
+            .where(eq(reportMessagesTable.reportId, alert.linkedReportId));
+          await tx
+            .delete(votesTable)
+            .where(eq(votesTable.reportId, alert.linkedReportId));
+          await tx
+            .delete(resolutionConfirmationsTable)
+            .where(
+              eq(resolutionConfirmationsTable.reportId, alert.linkedReportId),
+            );
+          await tx
+            .delete(communityFlagsTable)
+            .where(eq(communityFlagsTable.reportId, alert.linkedReportId));
+          await tx
+            .delete(userStrikesTable)
+            .where(eq(userStrikesTable.reportId, alert.linkedReportId));
+          await tx
+            .delete(reportsTable)
+            .where(eq(reportsTable.id, alert.linkedReportId));
+        }
+
+        // Eliminar audit logs de la alerta
+        await tx
+          .delete(auditLogTable)
+          .where(
+            and(
+              eq(auditLogTable.entityType, "panic_alert"),
+              eq(auditLogTable.entityId, alert.id),
+            ),
+          );
+
+        // Eliminar la alerta
+        await tx
+          .delete(panicAlertsTable)
+          .where(eq(panicAlertsTable.id, alert.id));
+      });
+
+      // Audit log de eliminación (después de la tx para no complicar)
+      await db
+        .insert(auditLogTable)
+        .values({
+          districtId: alert.districtId,
+          entityType: "panic_alert",
+          entityId: alert.id,
+          action: "deleted",
+          changedBy: user?.email ?? "unknown",
+          changedById: user ? Number(user.sub) : undefined,
+        })
+        .catch(() => {});
+
+      return res.json({
+        success: true,
+        message: "Alerta eliminada permanentemente.",
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to delete panic alert");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ── POST /panic-alerts/purge — Solo super_admin limpiar historial ──────────
 const purgeSchema = z.object({
@@ -524,75 +635,104 @@ const purgeSchema = z.object({
   districtId: z.number().optional(),
 });
 
-router.post("/panic-alerts/purge", requireAuth, requireAdmin, async (req, res) => {
-  const user = (req as any).jwtUser;
-  if (user.role !== "super_admin") {
-    return res.status(403).json({ error: "Solo super_admin puede purgar alertas." });
-  }
-
-  const parsed = purgeSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Debes escribir ELIMINAR_TODO para confirmar." });
-  }
-
-  const { districtId: filterDistrictId } = parsed.data;
-
-  try {
-    const conditions: any[] = [];
-    if (filterDistrictId) {
-      conditions.push(eq(panicAlertsTable.districtId, filterDistrictId));
+router.post(
+  "/panic-alerts/purge",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const user = (req as any).jwtUser;
+    if (user.role !== "super_admin") {
+      return res
+        .status(403)
+        .json({ error: "Solo super_admin puede purgar alertas." });
     }
 
-    const alertsToDelete = await db.select({ id: panicAlertsTable.id, linkedReportId: panicAlertsTable.linkedReportId })
-      .from(panicAlertsTable)
-      .where(and(...conditions));
-
-    const alertIds = alertsToDelete.map(a => a.id);
-    const reportIds = alertsToDelete.map(a => a.linkedReportId).filter(Boolean) as number[];
-
-    if (alertIds.length === 0) {
-      return res.json({ success: true, message: "No hay alertas para purgar.", deletedCount: 0 });
+    const parsed = purgeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: "Debes escribir ELIMINAR_TODO para confirmar." });
     }
 
-    await db.transaction(async (tx) => {
-      // Eliminar hijos de los linkedReports
-      if (reportIds.length > 0) {
-        await tx.delete(reportMessagesTable)
-          .where(inArray(reportMessagesTable.reportId, reportIds));
-        await tx.delete(votesTable)
-          .where(inArray(votesTable.reportId, reportIds));
-        await tx.delete(resolutionConfirmationsTable)
-          .where(inArray(resolutionConfirmationsTable.reportId, reportIds));
-        await tx.delete(communityFlagsTable)
-          .where(inArray(communityFlagsTable.reportId, reportIds));
-        await tx.delete(userStrikesTable)
-          .where(inArray(userStrikesTable.reportId, reportIds));
-        await tx.delete(reportsTable)
-          .where(inArray(reportsTable.id, reportIds));
+    const { districtId: filterDistrictId } = parsed.data;
+
+    try {
+      const conditions: any[] = [];
+      if (filterDistrictId) {
+        conditions.push(eq(panicAlertsTable.districtId, filterDistrictId));
       }
 
-      // Eliminar audit logs
-      await tx.delete(auditLogTable)
-        .where(and(
-          eq(auditLogTable.entityType, "panic_alert"),
-          inArray(auditLogTable.entityId, alertIds),
-        ));
+      const alertsToDelete = await db
+        .select({
+          id: panicAlertsTable.id,
+          linkedReportId: panicAlertsTable.linkedReportId,
+        })
+        .from(panicAlertsTable)
+        .where(and(...conditions));
 
-      // Eliminar alertas
-      await tx.delete(panicAlertsTable)
-        .where(inArray(panicAlertsTable.id, alertIds));
-    });
+      const alertIds = alertsToDelete.map((a) => a.id);
+      const reportIds = alertsToDelete
+        .map((a) => a.linkedReportId)
+        .filter(Boolean) as number[];
 
-    return res.json({
-      success: true,
-      message: `${alertIds.length} alerta(s) purgada(s).`,
-      deletedCount: alertIds.length,
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to purge panic alerts");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+      if (alertIds.length === 0) {
+        return res.json({
+          success: true,
+          message: "No hay alertas para purgar.",
+          deletedCount: 0,
+        });
+      }
+
+      await db.transaction(async (tx) => {
+        // Eliminar hijos de los linkedReports
+        if (reportIds.length > 0) {
+          await tx
+            .delete(reportMessagesTable)
+            .where(inArray(reportMessagesTable.reportId, reportIds));
+          await tx
+            .delete(votesTable)
+            .where(inArray(votesTable.reportId, reportIds));
+          await tx
+            .delete(resolutionConfirmationsTable)
+            .where(inArray(resolutionConfirmationsTable.reportId, reportIds));
+          await tx
+            .delete(communityFlagsTable)
+            .where(inArray(communityFlagsTable.reportId, reportIds));
+          await tx
+            .delete(userStrikesTable)
+            .where(inArray(userStrikesTable.reportId, reportIds));
+          await tx
+            .delete(reportsTable)
+            .where(inArray(reportsTable.id, reportIds));
+        }
+
+        // Eliminar audit logs
+        await tx
+          .delete(auditLogTable)
+          .where(
+            and(
+              eq(auditLogTable.entityType, "panic_alert"),
+              inArray(auditLogTable.entityId, alertIds),
+            ),
+          );
+
+        // Eliminar alertas
+        await tx
+          .delete(panicAlertsTable)
+          .where(inArray(panicAlertsTable.id, alertIds));
+      });
+
+      return res.json({
+        success: true,
+        message: `${alertIds.length} alerta(s) purgada(s).`,
+        deletedCount: alertIds.length,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to purge panic alerts");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ── M-01: GET /missing-persons ──────────────────────────────────────────────
 router.get("/missing-persons", optionalAuth, async (req, res) => {
@@ -604,38 +744,47 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
       conditions.push(eq(missingPersonsTable.districtId, districtId));
     }
     if (active !== undefined) {
-      conditions.push(eq(missingPersonsTable.status, active === "true" ? "active" : "found"));
+      conditions.push(
+        eq(missingPersonsTable.status, active === "true" ? "active" : "found"),
+      );
     }
 
     const user = (req as any).jwtUser;
-    const isBackofficeSameDistrict = user && districtId && user.districtId &&
+    const isBackofficeSameDistrict =
+      user &&
+      districtId &&
+      user.districtId &&
       ["admin", "moderator", "super_admin"].includes(user.role) &&
-      (user.role === "super_admin" || Number(user.districtId) === Number(districtId));
+      (user.role === "super_admin" ||
+        Number(user.districtId) === Number(districtId));
 
-    const alerts = await db.select({
-      id: missingPersonsTable.id,
-      name: missingPersonsTable.name,
-      age: missingPersonsTable.age,
-      clothing: missingPersonsTable.clothing,
-      photoUrl: missingPersonsTable.photoUrl,
-      lastSeenLatitude: missingPersonsTable.lastSeenLatitude,
-      lastSeenLongitude: missingPersonsTable.lastSeenLongitude,
-      lastSeenAddress: missingPersonsTable.lastSeenAddress,
-      lastSeenAt: missingPersonsTable.lastSeenAt,
-      status: missingPersonsTable.status,
-      districtId: missingPersonsTable.districtId,
-      ...(isBackofficeSameDistrict ? {
-        contactInfo: missingPersonsTable.contactInfo,
-        reportedBy: missingPersonsTable.reportedBy,
-      } : {}),
-      createdAt: missingPersonsTable.createdAt,
-    })
+    const alerts = await db
+      .select({
+        id: missingPersonsTable.id,
+        name: missingPersonsTable.name,
+        age: missingPersonsTable.age,
+        clothing: missingPersonsTable.clothing,
+        photoUrl: missingPersonsTable.photoUrl,
+        lastSeenLatitude: missingPersonsTable.lastSeenLatitude,
+        lastSeenLongitude: missingPersonsTable.lastSeenLongitude,
+        lastSeenAddress: missingPersonsTable.lastSeenAddress,
+        lastSeenAt: missingPersonsTable.lastSeenAt,
+        status: missingPersonsTable.status,
+        districtId: missingPersonsTable.districtId,
+        ...(isBackofficeSameDistrict
+          ? {
+              contactInfo: missingPersonsTable.contactInfo,
+              reportedBy: missingPersonsTable.reportedBy,
+            }
+          : {}),
+        createdAt: missingPersonsTable.createdAt,
+      })
       .from(missingPersonsTable)
       .where(and(...conditions))
       .orderBy(desc(missingPersonsTable.createdAt));
 
     return res.json({
-      alerts: alerts.map(a => ({
+      alerts: alerts.map((a) => ({
         ...a,
         id: String(a.id),
         createdAt: a.createdAt.toISOString(),
@@ -652,7 +801,9 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
 router.post("/missing-persons", optionalAuth, async (req, res) => {
   const parsed = missingPersonSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
 
   const data = parsed.data;
@@ -664,24 +815,29 @@ router.post("/missing-persons", optionalAuth, async (req, res) => {
   } else if (data.districtId) {
     districtId = Number(data.districtId);
   } else {
-    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    return res
+      .status(400)
+      .json({ error: "Se requiere distrito (districtId)." });
   }
 
   try {
-    const [alert] = await db.insert(missingPersonsTable).values({
-      districtId,
-      name: data.name,
-      age: data.age ?? null,
-      clothing: data.clothing,
-      photoUrl: data.photoUrl ?? null,
-      lastSeenLatitude: data.lastSeenLatitude,
-      lastSeenLongitude: data.lastSeenLongitude,
-      lastSeenAddress: data.lastSeenAddress,
-      lastSeenAt: new Date(data.lastSeenAt),
-      contactInfo: data.contactInfo,
-      reportedBy: data.reportedBy,
-      reportedById: user?.sub ? Number(user.sub) : null,
-    }).returning();
+    const [alert] = await db
+      .insert(missingPersonsTable)
+      .values({
+        districtId,
+        name: data.name,
+        age: data.age ?? null,
+        clothing: data.clothing,
+        photoUrl: data.photoUrl ?? null,
+        lastSeenLatitude: data.lastSeenLatitude,
+        lastSeenLongitude: data.lastSeenLongitude,
+        lastSeenAddress: data.lastSeenAddress,
+        lastSeenAt: new Date(data.lastSeenAt),
+        contactInfo: data.contactInfo,
+        reportedBy: data.reportedBy,
+        reportedById: user?.sub ? Number(user.sub) : null,
+      })
+      .returning();
 
     return res.status(201).json({
       ...alert,
@@ -701,27 +857,37 @@ router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
 
   try {
     const personId = parseInt(req.params.id as string);
-    const [person] = await db.select()
+    const [person] = await db
+      .select()
       .from(missingPersonsTable)
       .where(eq(missingPersonsTable.id, personId))
       .limit(1);
 
-    if (!person) return res.status(404).json({ error: "Persona no encontrada." });
+    if (!person)
+      return res.status(404).json({ error: "Persona no encontrada." });
 
     // Permisos: solo autor, admin del distrito, o super_admin.
     // Migración 0024: la autoría se determina por `reportedById` (user id).
     // Filas previas sin ese dato → isAuthor false (solo admin/super_admin).
-    const isAuthor = !!user.sub && person.reportedById != null && Number(user.sub) === person.reportedById;
+    const isAuthor =
+      !!user.sub &&
+      person.reportedById != null &&
+      Number(user.sub) === person.reportedById;
     const isAdmin = ["admin", "moderator", "super_admin"].includes(user.role);
-    const isSameDistrict = user.role === "super_admin" || Number(user.districtId) === Number(person.districtId);
+    const isSameDistrict =
+      user.role === "super_admin" ||
+      Number(user.districtId) === Number(person.districtId);
 
     if (!isAuthor && !(isAdmin && isSameDistrict)) {
-      return res.status(403).json({ error: "No tienes permiso para modificar esta persona desaparecida." });
+      return res.status(403).json({
+        error: "No tienes permiso para modificar esta persona desaparecida.",
+      });
     }
 
     const { status, clothing: newClothing, photoUrl: newPhotoUrl } = req.body;
 
-    const [updated] = await db.update(missingPersonsTable)
+    const [updated] = await db
+      .update(missingPersonsTable)
       .set({
         ...(status ? { status } : {}),
         ...(newClothing ? { clothing: newClothing } : {}),

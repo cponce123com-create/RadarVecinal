@@ -1,18 +1,94 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserX, Phone, MapPin, Clock, Plus, X, Camera, Upload } from "lucide-react";
+import { UserX, Phone, MapPin, Clock, Plus, X, Camera, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { useGetMissingPersons, useCreateMissingPerson } from "@workspace/api-client-react";
+import { useGetMissingPersons, useCreateMissingPerson, customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { useUpload } from "@workspace/object-storage-web";
+
+interface MissingRow {
+  id: string;
+  name: string;
+  age?: number | null;
+  clothing?: string;
+  photoUrl?: string | null;
+  lastSeenAddress?: string;
+  contactInfo?: string | null;
+  status?: string;
+  createdAt: string;
+}
 
 const INPUT_CLASS = "w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500/60 transition-colors";
 
 export default function MissingPerson() {
-  const { data, isLoading } = useGetMissingPersons({ active: true });
+  const { data, isLoading, refetch } = useGetMissingPersons({ active: true });
   const createMissing = useCreateMissingPerson();
   const { toast } = useToast();
+  const { isAdmin, isModerator } = useAuth();
+
+  // ── Gestión (moderador+: editar/marcar; municipalidad+: eliminar) ──────────
+  const [editing, setEditing] = useState<MissingRow | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", status: "active",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const openEdit = (p: MissingRow) => {
+    setEditForm({
+      name: p.name ?? "",
+      age: p.age != null ? String(p.age) : "",
+      clothing: p.clothing ?? "",
+      lastSeenAddress: p.lastSeenAddress ?? "",
+      contactInfo: p.contactInfo ?? "",
+      status: p.status ?? "active",
+    });
+    setEditing(p);
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSavingEdit(true);
+    try {
+      await customFetch(`/api/missing-persons/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name,
+          age: editForm.age ? Number(editForm.age) : null,
+          clothing: editForm.clothing,
+          lastSeenAddress: editForm.lastSeenAddress,
+          contactInfo: editForm.contactInfo,
+          status: editForm.status,
+        }),
+      });
+      toast({ title: "✓ Cambios guardados" });
+      setEditing(null);
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Error al guardar", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      await customFetch(`/api/missing-persons/${deleteId}`, { method: "DELETE" });
+      toast({ title: "Alerta eliminada" });
+      setDeleteId(null);
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Error al eliminar", description: err?.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
   const { uploadFile, isUploading: isUploadingPhoto, error: uploadError } = useUpload({
     basePath: "/api/storage",
     onSuccess: (response) => {
@@ -235,6 +311,27 @@ export default function MissingPerson() {
                 <div className="absolute top-3 left-3 px-2.5 py-1 bg-amber-500 text-amber-950 text-[10px] font-bold rounded-lg shadow-lg status-blink">
                   BÚSQUEDA ACTIVA
                 </div>
+                {/* Controles de gestión (moderador+: editar; municipalidad+: eliminar) */}
+                {isModerator && (
+                  <div className="absolute top-2.5 right-2.5 flex gap-1.5">
+                    <button
+                      onClick={() => openEdit(person as MissingRow)}
+                      aria-label={`Editar ${person.name}`}
+                      className="w-8 h-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg bg-black/55 backdrop-blur-sm border border-white/15 text-white/90 hover:bg-black/75 hover:text-white transition-all"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setDeleteId(person.id)}
+                        aria-label={`Eliminar ${person.name}`}
+                        className="w-8 h-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg bg-black/55 backdrop-blur-sm border border-red-500/40 text-red-300 hover:bg-red-600/80 hover:text-white transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Info */}
@@ -280,6 +377,114 @@ export default function MissingPerson() {
           ))}
         </div>
       )}
+
+      {/* ── Modal de edición (moderador+) ─────────────────────────────────── */}
+      <AnimatePresence>
+        {editing && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => !savingEdit && setEditing(null)}
+            role="dialog" aria-modal="true" aria-label="Editar persona extraviada"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-card border border-amber-500/25 shadow-2xl"
+            >
+              <div className="h-1 w-full bg-amber-500" />
+              <div className="p-5 md:p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-base font-bold text-white">Editar alerta</h3>
+                  <button onClick={() => setEditing(null)} aria-label="Cerrar" className="p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/80 mb-1.5">Nombre completo</label>
+                      <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className={INPUT_CLASS} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/80 mb-1.5">Edad</label>
+                      <input type="number" min="0" max="120" value={editForm.age} onChange={e => setEditForm(f => ({ ...f, age: e.target.value }))} className={INPUT_CLASS} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1.5">Descripción y vestimenta</label>
+                    <textarea rows={3} value={editForm.clothing} onChange={e => setEditForm(f => ({ ...f, clothing: e.target.value }))} className={`${INPUT_CLASS} resize-none`} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1.5">Último lugar visto</label>
+                    <input type="text" value={editForm.lastSeenAddress} onChange={e => setEditForm(f => ({ ...f, lastSeenAddress: e.target.value }))} className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1.5">Teléfono de contacto</label>
+                    <input type="tel" value={editForm.contactInfo} onChange={e => setEditForm(f => ({ ...f, contactInfo: e.target.value }))} className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1.5">Estado</label>
+                    <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))} className={INPUT_CLASS}>
+                      <option value="active">Búsqueda activa</option>
+                      <option value="found">Encontrado(a)</option>
+                      <option value="archived">Archivado</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3 pt-2 border-t border-white/5">
+                    <button type="button" onClick={() => setEditing(null)} disabled={savingEdit} className="px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/6 rounded-xl transition-all disabled:opacity-50">
+                      Cancelar
+                    </button>
+                    <button type="button" onClick={saveEdit} disabled={savingEdit} className="ml-auto flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 text-amber-950 text-sm font-bold hover:bg-amber-400 transition-all disabled:opacity-60">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {savingEdit ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Confirmación de eliminación (municipalidad+) ──────────────────── */}
+      <AnimatePresence>
+        {deleteId && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => !deleting && setDeleteId(null)}
+            role="dialog" aria-modal="true" aria-label="Confirmar eliminación"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-[#0f1219] border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Eliminar alerta</h3>
+                  <p className="text-xs text-muted-foreground">Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-5">
+                ¿Seguro que deseas eliminar esta alerta de persona extraviada?
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setDeleteId(null)} disabled={deleting} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-muted-foreground hover:text-white hover:border-white/20 transition-all disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button onClick={confirmDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-sm font-bold text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50">
+                  {deleting ? "Eliminando..." : "Sí, eliminar"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

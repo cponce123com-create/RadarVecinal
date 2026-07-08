@@ -14,9 +14,10 @@ import {
   communityFlagsTable,
   userStrikesTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, lt, gt, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, lt, gt, sql, inArray, isNull } from "drizzle-orm";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
+import { isMunicipalityLevel, isModeratorLevel } from "../lib/roles";
 import { sendPanicAlertPush } from "../lib/fcm";
 
 const router: IRouter = Router();
@@ -739,7 +740,7 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
   try {
     const { active } = req.query;
     const districtId = getDistrictId(req);
-    const conditions: any[] = [];
+    const conditions: any[] = [isNull(missingPersonsTable.deletedAt)];
     if (districtId) {
       conditions.push(eq(missingPersonsTable.districtId, districtId));
     }
@@ -751,12 +752,10 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
 
     const user = (req as any).jwtUser;
     const isBackofficeSameDistrict =
-      user &&
-      districtId &&
-      user.districtId &&
-      ["admin", "moderator", "super_admin"].includes(user.role) &&
-      (user.role === "super_admin" ||
-        Number(user.districtId) === Number(districtId));
+      !!user &&
+      !!districtId &&
+      isModeratorLevel(user.role) &&
+      checkTenant(req, districtId);
 
     const alerts = await db
       .select({
@@ -866,33 +865,37 @@ router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
     if (!person)
       return res.status(404).json({ error: "Persona no encontrada." });
 
-    // Permisos: solo autor, admin del distrito, o super_admin.
+    // Permisos para EDITAR (sin eliminar): autor, o nivel moderador (viewer+)
+    // del mismo distrito (super_admin en cualquier distrito).
     // Migración 0024: la autoría se determina por `reportedById` (user id).
-    // Filas previas sin ese dato → isAuthor false (solo admin/super_admin).
     const isAuthor =
       !!user.sub &&
       person.reportedById != null &&
       Number(user.sub) === person.reportedById;
-    const isAdmin = ["admin", "moderator", "super_admin"].includes(user.role);
-    const isSameDistrict =
-      user.role === "super_admin" ||
-      Number(user.districtId) === Number(person.districtId);
+    const canModerate =
+      isModeratorLevel(user.role) && checkTenant(req, person.districtId);
 
-    if (!isAuthor && !(isAdmin && isSameDistrict)) {
+    if (!isAuthor && !canModerate) {
       return res.status(403).json({
         error: "No tienes permiso para modificar esta persona desaparecida.",
       });
     }
 
-    const { status, clothing: newClothing, photoUrl: newPhotoUrl } = req.body;
+    // Edición completa: los campos ausentes se dejan sin cambios.
+    const b = req.body ?? {};
+    const patch: Record<string, unknown> = {};
+    if (b.status !== undefined) patch.status = b.status;
+    if (b.name !== undefined) patch.name = b.name;
+    if (b.age !== undefined) patch.age = b.age === null ? null : Number(b.age);
+    if (b.clothing !== undefined) patch.clothing = b.clothing;
+    if (b.photoUrl !== undefined) patch.photoUrl = b.photoUrl;
+    if (b.lastSeenAddress !== undefined)
+      patch.lastSeenAddress = b.lastSeenAddress;
+    if (b.contactInfo !== undefined) patch.contactInfo = b.contactInfo;
 
     const [updated] = await db
       .update(missingPersonsTable)
-      .set({
-        ...(status ? { status } : {}),
-        ...(newClothing ? { clothing: newClothing } : {}),
-        ...(newPhotoUrl !== undefined ? { photoUrl: newPhotoUrl } : {}),
-      })
+      .set(patch)
       .where(eq(missingPersonsTable.id, personId))
       .returning();
 
@@ -904,6 +907,45 @@ router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update missing person");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── DELETE /missing-persons/:id — municipalidad (mismo distrito) o super_admin ─
+// ELIMINAR es nivel municipalidad+ (los moderadores no eliminan). Borrado suave.
+router.delete("/missing-persons/:id", requireAuth, async (req, res) => {
+  const user = (req as any).jwtUser;
+  try {
+    const personId = parseInt(req.params.id as string);
+    const [person] = await db
+      .select({
+        id: missingPersonsTable.id,
+        districtId: missingPersonsTable.districtId,
+      })
+      .from(missingPersonsTable)
+      .where(eq(missingPersonsTable.id, personId))
+      .limit(1);
+
+    if (!person)
+      return res.status(404).json({ error: "Persona no encontrada." });
+
+    if (
+      !isMunicipalityLevel(user.role) ||
+      !checkTenant(req, person.districtId)
+    ) {
+      return res.status(403).json({
+        error: "No tienes permiso para eliminar esta persona desaparecida.",
+      });
+    }
+
+    await db
+      .update(missingPersonsTable)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(eq(missingPersonsTable.id, personId));
+
+    return res.json({ success: true, id: String(personId) });
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete missing person");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

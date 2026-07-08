@@ -48,9 +48,7 @@ function generateSignature(
   apiSecret: string,
 ): string {
   const sortedKeys = Object.keys(params).sort();
-  const sortedStr = sortedKeys
-    .map((key) => `${key}=${params[key]}`)
-    .join("&");
+  const sortedStr = sortedKeys.map((key) => `${key}=${params[key]}`).join("&");
   return crypto
     .createHash("sha1")
     .update(sortedStr + apiSecret)

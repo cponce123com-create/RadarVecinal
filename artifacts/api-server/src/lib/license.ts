@@ -32,7 +32,11 @@ const EPOCH = new Date("2020-01-01T00:00:00Z").getTime();
  * En desarrollo usa un default, en producción debe estar en env.
  */
 function getLicenseSecret(): string {
-  return process.env.LICENSE_SECRET || process.env.JWT_SECRET || "radar-vecinal-license-dev-secret-key-2024";
+  return (
+    process.env.LICENSE_SECRET ||
+    process.env.JWT_SECRET ||
+    "radar-vecinal-license-dev-secret-key-2024"
+  );
 }
 
 /**
@@ -128,7 +132,9 @@ export function formatLicenseResponse(license: any) {
     province: license.province,
     department: license.department,
     districtId: license.districtId ? String(license.districtId) : null,
-    municipalUserId: license.municipalUserId ? String(license.municipalUserId) : null,
+    municipalUserId: license.municipalUserId
+      ? String(license.municipalUserId)
+      : null,
     createdBy: String(license.createdBy),
     createdAt: license.createdAt?.toISOString?.() ?? license.createdAt,
     activatedAt: license.activatedAt?.toISOString?.() ?? null,
@@ -137,7 +143,12 @@ export function formatLicenseResponse(license: any) {
     maxViewers: license.maxViewers,
     // Calcular días restantes si está activa
     daysRemaining: license.expiresAt
-      ? Math.max(0, Math.floor((new Date(license.expiresAt).getTime() - Date.now()) / 86400000))
+      ? Math.max(
+          0,
+          Math.floor(
+            (new Date(license.expiresAt).getTime() - Date.now()) / 86400000,
+          ),
+        )
       : null,
   };
 }

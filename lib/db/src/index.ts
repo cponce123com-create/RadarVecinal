@@ -18,7 +18,7 @@ export const pool = new Pool({
   // Neon porque queremos control explícito sobre timeouts y evitar la capa extra
   // de pooler que añade latencia.
   max: 3,
-  idleTimeoutMillis: 30000,       // cerrar conexiones inactivas después de 30s
+  idleTimeoutMillis: 30000, // cerrar conexiones inactivas después de 30s
   connectionTimeoutMillis: 10000, // fallar rápido si no hay conexión disponible
 });
 export const db = drizzle(pool, { schema });

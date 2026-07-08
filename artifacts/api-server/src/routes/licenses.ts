@@ -1,10 +1,17 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { licensesTable, districtsTable, usersTable } from "@workspace/db/schema";
+import {
+  licensesTable,
+  districtsTable,
+  usersTable,
+} from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireMunicipal } from "./auth";
-import { validateLicenseCodeFormat, formatLicenseResponse } from "../lib/license";
+import {
+  validateLicenseCodeFormat,
+  formatLicenseResponse,
+} from "../lib/license";
 
 const router: IRouter = Router();
 
@@ -20,13 +27,17 @@ const router: IRouter = Router();
 
 // ── POST /licenses/activate — Activar licencia con código de 16 dígitos ──────
 const activateSchema = z.object({
-  code: z.string().regex(/^\d{16}$/, "El código debe tener 16 dígitos numéricos"),
+  code: z
+    .string()
+    .regex(/^\d{16}$/, "El código debe tener 16 dígitos numéricos"),
 });
 
 router.post("/licenses/activate", requireAuth, async (req, res) => {
   const parsed = activateSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Código inválido" });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Código inválido" });
   }
 
   const user = (req as any).jwtUser;
@@ -35,34 +46,45 @@ router.post("/licenses/activate", requireAuth, async (req, res) => {
   try {
     // 1. Validar formato del código
     if (!validateLicenseCodeFormat(code)) {
-      return res.status(400).json({ error: "Código de licencia inválido (checksum incorrecto)." });
+      return res
+        .status(400)
+        .json({ error: "Código de licencia inválido (checksum incorrecto)." });
     }
 
     // 2. Buscar licencia en DB
-    const [license] = await db.select()
+    const [license] = await db
+      .select()
       .from(licensesTable)
       .where(eq(licensesTable.code, code))
       .limit(1);
 
     if (!license) {
-      return res.status(404).json({ error: "Código de licencia no encontrado. Verifica los datos." });
+      return res.status(404).json({
+        error: "Código de licencia no encontrado. Verifica los datos.",
+      });
     }
 
     // 3. Verificar que no esté ya activa
     if (license.isActive) {
-      return res.status(409).json({ error: "Esta licencia ya fue activada por otro usuario municipal." });
+      return res.status(409).json({
+        error: "Esta licencia ya fue activada por otro usuario municipal.",
+      });
     }
 
     // 4. Verificar que no haya expirado
     if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
-      return res.status(410).json({ error: "Esta licencia ha expirado. Solicita una renovación al superadmin." });
+      return res.status(410).json({
+        error:
+          "Esta licencia ha expirado. Solicita una renovación al superadmin.",
+      });
     }
 
     // 5. Activar: vincular al usuario y poner fecha
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 12 meses
 
-    const [updated] = await db.update(licensesTable)
+    const [updated] = await db
+      .update(licensesTable)
       .set({
         municipalUserId: Number(user.sub),
         activatedAt: now,
@@ -74,13 +96,15 @@ router.post("/licenses/activate", requireAuth, async (req, res) => {
 
     // 6. También vincular el distrito al usuario municipal
     if (license.districtId) {
-      const [district] = await db.select()
+      const [district] = await db
+        .select()
         .from(districtsTable)
         .where(eq(districtsTable.id, license.districtId))
         .limit(1);
 
       if (district) {
-        await db.update(usersTable)
+        await db
+          .update(usersTable)
           .set({
             districtId: district.id,
             district: district.name,
@@ -107,13 +131,17 @@ router.get("/licenses/my", requireAuth, requireMunicipal, async (req, res) => {
   const user = (req as any).jwtUser;
 
   try {
-    const [license] = await db.select()
+    const [license] = await db
+      .select()
       .from(licensesTable)
       .where(eq(licensesTable.municipalUserId, Number(user.sub)))
       .limit(1);
 
     if (!license) {
-      return res.status(404).json({ error: "No tienes una licencia activa. Ingresa un código en /licenses/activate." });
+      return res.status(404).json({
+        error:
+          "No tienes una licencia activa. Ingresa un código en /licenses/activate.",
+      });
     }
 
     return res.json(formatLicenseResponse(license));

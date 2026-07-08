@@ -26,7 +26,9 @@ describe.skipIf(!process.env.DATABASE_URL)("CORS", () => {
       .get("/api/healthz")
       .set("Origin", "http://localhost:5173");
 
-    expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(res.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:5173",
+    );
   });
 
   it("debe permitir origin configurado via CORS_ORIGIN env var", async () => {
@@ -36,7 +38,9 @@ describe.skipIf(!process.env.DATABASE_URL)("CORS", () => {
       .get("/api/healthz")
       .set("Origin", "http://localhost:5173");
 
-    expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(res.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:5173",
+    );
     delete process.env.CORS_ORIGIN;
   });
 });

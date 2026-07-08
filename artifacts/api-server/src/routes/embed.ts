@@ -42,9 +42,15 @@ router.get("/embed/map", async (req, res) => {
   const districtSlug = (req.query.district as string) || "san-ramon";
 
   try {
-    const [district] = await db.select()
+    const [district] = await db
+      .select()
       .from(districtsTable)
-      .where(and(eq(districtsTable.slug, districtSlug), eq(districtsTable.isActive, true)))
+      .where(
+        and(
+          eq(districtsTable.slug, districtSlug),
+          eq(districtsTable.isActive, true),
+        ),
+      )
       .limit(1);
 
     if (!district) {
@@ -52,15 +58,17 @@ router.get("/embed/map", async (req, res) => {
       return;
     }
 
-    const reports = await db.select({
-      id: reportsTable.id,
-      title: reportsTable.title,
-      category: reportsTable.category,
-      latitude: reportsTable.latitude,
-      longitude: reportsTable.longitude,
-      status: reportsTable.status,
-      createdAt: reportsTable.createdAt,
-    }).from(reportsTable)
+    const reports = await db
+      .select({
+        id: reportsTable.id,
+        title: reportsTable.title,
+        category: reportsTable.category,
+        latitude: reportsTable.latitude,
+        longitude: reportsTable.longitude,
+        status: reportsTable.status,
+        createdAt: reportsTable.createdAt,
+      })
+      .from(reportsTable)
       .where(eq(reportsTable.districtId, district.id))
       .orderBy(desc(reportsTable.createdAt))
       .limit(20);

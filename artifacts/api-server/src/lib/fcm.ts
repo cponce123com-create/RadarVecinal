@@ -22,7 +22,7 @@ function initFcm(): boolean {
   if (!raw) {
     logger.warn(
       "[FCM] FCM_SERVICE_ACCOUNT no configurada. Notificaciones push nativas desactivadas. " +
-      "Las alertas de pánico solo llegarán por SSE (web).",
+        "Las alertas de pánico solo llegarán por SSE (web).",
     );
     fcmWarnShown = true;
     return false;
@@ -98,9 +98,15 @@ export async function sendPanicAlertPush(alert: {
       },
     });
 
-    logger.info({ districtId: alert.districtId, alertId: alert.id }, "[FCM] Push enviado");
+    logger.info(
+      { districtId: alert.districtId, alertId: alert.id },
+      "[FCM] Push enviado",
+    );
   } catch (err) {
-    logger.error({ err, alertId: alert.id }, "[FCM] Error al enviar push (best-effort, ignorado)");
+    logger.error(
+      { err, alertId: alert.id },
+      "[FCM] Error al enviar push (best-effort, ignorado)",
+    );
   }
 }
 
@@ -119,7 +125,10 @@ export async function sendMunicipalPushToUser(data: {
 }): Promise<void> {
   try {
     if (!initFcm()) {
-      logger.warn({ userId: data.userId }, "[FCM] No disponible — push municipal no enviado");
+      logger.warn(
+        { userId: data.userId },
+        "[FCM] No disponible — push municipal no enviado",
+      );
       return;
     }
 
@@ -128,20 +137,25 @@ export async function sendMunicipalPushToUser(data: {
     const { db } = await import("@workspace/db");
     const { eq, and } = await import("drizzle-orm");
 
-    const [sub] = await db.select()
+    const [sub] = await db
+      .select()
       .from(subscriptionsTable)
-      .where(and(
-        eq(subscriptionsTable.email, String(data.userId)),
-        eq(subscriptionsTable.districtId, data.districtId),
-        eq(subscriptionsTable.isActive, true),
-      ))
+      .where(
+        and(
+          eq(subscriptionsTable.email, String(data.userId)),
+          eq(subscriptionsTable.districtId, data.districtId),
+          eq(subscriptionsTable.isActive, true),
+        ),
+      )
       .limit(1);
 
     const fcmToken = sub?.fcmToken;
 
     if (!fcmToken) {
-      logger.warn({ userId: data.userId, reportId: data.reportId },
-        "[FCM] Sin fcmToken registrado para este usuario — push no enviado. Solo notificación in-app.");
+      logger.warn(
+        { userId: data.userId, reportId: data.reportId },
+        "[FCM] Sin fcmToken registrado para este usuario — push no enviado. Solo notificación in-app.",
+      );
       return;
     }
 
@@ -167,8 +181,14 @@ export async function sendMunicipalPushToUser(data: {
       },
     });
 
-    logger.info({ userId: data.userId, reportId: data.reportId }, "[FCM] Push municipal enviado al vecino");
+    logger.info(
+      { userId: data.userId, reportId: data.reportId },
+      "[FCM] Push municipal enviado al vecino",
+    );
   } catch (err) {
-    logger.error({ err, reportId: data.reportId }, "[FCM] Error al enviar push municipal (best-effort)");
+    logger.error(
+      { err, reportId: data.reportId },
+      "[FCM] Error al enviar push municipal (best-effort)",
+    );
   }
 }

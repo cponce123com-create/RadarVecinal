@@ -100,11 +100,7 @@ export function startReportWorker(): void {
   );
 
   // Programar ejecución cada hora
-  queue.add(
-    "escalate-stale-reports",
-    {},
-    { repeat: { pattern: "0 * * * *" } },
-  );
+  queue.add("escalate-stale-reports", {}, { repeat: { pattern: "0 * * * *" } });
 
   worker.on("completed", (job) => {
     logger.info({ jobId: job.id }, "ReportWorker job completed");

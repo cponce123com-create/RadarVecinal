@@ -1,4 +1,15 @@
-import { pgTable, text, serial, boolean, real, timestamp, integer, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  boolean,
+  real,
+  timestamp,
+  integer,
+  jsonb,
+  pgEnum,
+  type AnyPgColumn,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -24,11 +35,28 @@ export const reportCategoryEnum = pgEnum("report_category", [
   "flooding",
 ]);
 
-export const urgencyEnum = pgEnum("urgency_level", ["low", "medium", "high", "critical"]);
+export const urgencyEnum = pgEnum("urgency_level", [
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
 
-export const reportStatusEnum = pgEnum("report_status", ["active", "reviewing", "resolved", "archived"]);
+export const reportStatusEnum = pgEnum("report_status", [
+  "active",
+  "reviewing",
+  "resolved",
+  "archived",
+]);
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "moderator", "user", "super_admin", "municipal", "viewer"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "admin",
+  "moderator",
+  "user",
+  "super_admin",
+  "municipal",
+  "viewer",
+]);
 
 export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
   "robbery",
@@ -39,7 +67,20 @@ export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
   "other",
 ]);
 
-export const missingPersonStatusEnum = pgEnum("missing_person_status", ["active", "found", "archived"]);
+export const missingPersonStatusEnum = pgEnum("missing_person_status", [
+  "active",
+  "found",
+  "archived",
+]);
+
+// Migración 0023: ciclo de vida de las alertas de pánico.
+export const panicAlertStatusEnum = pgEnum("panic_alert_status", [
+  "active",
+  "attending",
+  "resolved",
+  "false_alarm",
+  "expired",
+]);
 
 // ── M-05: Catálogo oficial de distritos (multi-tenant) ───────────────────────
 export const districtsTable = pgTable("districts", {
@@ -69,13 +110,19 @@ export const usersTable = pgTable("users", {
   lastName: text("last_name").notNull().default(""),
   bannedAt: timestamp("banned_at", { mode: "string" }),
   banReason: text("ban_reason"),
-  banReportedById: integer("ban_reported_by_id").references(() => usersTable.id),
+  // Auto-referencia: se anota el tipo de retorno (AnyPgColumn) para romper la
+  // inferencia circular y satisfacer noImplicitAny (patrón oficial de Drizzle).
+  banReportedById: integer("ban_reported_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
   helpfulReports: integer("helpful_reports").notNull().default(0),
   role: userRoleEnum("role").notNull().default("user"),
   sector: text("sector").notNull().default(""),
   // M-05: districtId es la fuente de verdad; district/province/department se
   // mantienen como campos derivados de solo lectura para el frontend legacy.
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   district: text("district").notNull().default("San Ramón"),
   province: text("province").notNull().default("Chanchamayo"),
   department: text("department").notNull().default("Junín"),
@@ -109,7 +156,9 @@ export const reportsTable = pgTable("reports", {
   address: text("address").notNull().default(""),
   sector: text("sector").notNull(),
   // M-05: districtId es la fuente de verdad
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   district: text("district").notNull().default("San Ramón"),
   province: text("province").notNull().default("Chanchamayo"),
   department: text("department").notNull().default("Junín"),
@@ -123,8 +172,14 @@ export const reportsTable = pgTable("reports", {
   confirmedCount: integer("confirmed_count").notNull().default(0),
   // Verificación comunitaria: vecinos que confirman que la solución es real.
   // Al llegar a 10 el reporte pasa a "archived" y desaparece del mapa/radar.
-  resolutionConfirmedCount: integer("resolution_confirmed_count").notNull().default(0),
+  resolutionConfirmedCount: integer("resolution_confirmed_count")
+    .notNull()
+    .default(0),
   assignedTo: integer("assigned_to").references(() => departmentsTable.id),
+  // Migración 0023: reporte generado a partir de una alerta de pánico.
+  panicAlertId: integer("panic_alert_id").references(
+    (): AnyPgColumn => panicAlertsTable.id,
+  ),
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -134,7 +189,9 @@ export const reportsTable = pgTable("reports", {
 // ── M-03: panic_alerts ahora tiene districtId ───────────────────────────────
 export const panicAlertsTable = pgTable("panic_alerts", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   type: panicAlertTypeEnum("type").notNull(),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
@@ -142,13 +199,26 @@ export const panicAlertsTable = pgTable("panic_alerts", {
   authorName: text("author_name").notNull(),
   sector: text("sector").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  // Migración 0023: ciclo de vida (estado, resolución, expiración, reporte enlazado).
+  status: panicAlertStatusEnum("status").default("active"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedById: integer("resolved_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
+  resolutionNote: text("resolution_note"),
+  expiresAt: timestamp("expires_at"),
+  linkedReportId: integer("linked_report_id").references(
+    (): AnyPgColumn => reportsTable.id,
+  ),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── M-03: missing_persons ahora tiene districtId ────────────────────────────
 export const missingPersonsTable = pgTable("missing_persons", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   name: text("name").notNull(),
   age: integer("age"),
   clothing: text("clothing").notNull(),
@@ -160,6 +230,11 @@ export const missingPersonsTable = pgTable("missing_persons", {
   contactInfo: text("contact_info").notNull(),
   status: missingPersonStatusEnum("status").notNull().default("active"),
   reportedBy: text("reported_by").notNull(),
+  // Migración 0024: user id del reportante (para identificar al autor de forma
+  // fiable; `reportedBy` solo guarda el nombre). Nullable: filas previas sin dato.
+  reportedById: integer("reported_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -168,7 +243,9 @@ export const missingPersonsTable = pgTable("missing_persons", {
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
 export const adSlotsTable = pgTable("ad_slots", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   businessName: text("business_name").notNull(),
   tagline: text("tagline").notNull(),
   imageUrl: text("image_url"),
@@ -189,7 +266,9 @@ export const notificationTypeEnum = pgEnum("notification_type", [
 // ── M-03: notifications ahora tiene districtId ──────────────────────────────
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   userId: integer("user_id"),
   type: notificationTypeEnum("type").notNull().default("system"),
   title: text("title").notNull(),
@@ -202,11 +281,17 @@ export const notificationsTable = pgTable("notifications", {
 
 // ── Report Messages (hilo de comunicación vecino ↔ admin) ────────────────────
 export const messageSenderEnum = pgEnum("message_sender", ["admin", "vecino"]);
-export const messageChannelEnum = pgEnum("message_channel", ["whatsapp", "app", "email"]);
+export const messageChannelEnum = pgEnum("message_channel", [
+  "whatsapp",
+  "app",
+  "email",
+]);
 
 export const reportMessagesTable = pgTable("report_messages", {
   id: serial("id").primaryKey(),
-  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  reportId: integer("report_id")
+    .notNull()
+    .references(() => reportsTable.id),
   sender: messageSenderEnum("sender").notNull(),
   channel: messageChannelEnum("channel").notNull(),
   content: text("content").notNull(),
@@ -235,12 +320,28 @@ export const licensesTable = pgTable("licenses", {
   maxViewers: integer("max_viewers").notNull().default(10),
 });
 
-export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertPanicAlertSchema = createInsertSchema(panicAlertsTable).omit({ id: true, createdAt: true });
-export const insertMissingPersonSchema = createInsertSchema(missingPersonsTable).omit({ id: true, createdAt: true });
-export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });
-export const insertAdSlotSchema = createInsertSchema(adSlotsTable).omit({ id: true, createdAt: true });
-export const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });
+export const insertReportSchema = createInsertSchema(reportsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertPanicAlertSchema = createInsertSchema(panicAlertsTable).omit(
+  { id: true, createdAt: true },
+);
+export const insertMissingPersonSchema = createInsertSchema(
+  missingPersonsTable,
+).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(usersTable).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertAdSlotSchema = createInsertSchema(adSlotsTable).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertNotificationSchema = createInsertSchema(
+  notificationsTable,
+).omit({ id: true, createdAt: true });
 
 // ── Nuevas: Categorías dinámicas (reemplazan pgEnum) ────────────────────────
 export const categoriesTable = pgTable("categories", {
@@ -257,7 +358,9 @@ export const categoriesTable = pgTable("categories", {
 // ── Nuevas: Departamentos municipales (asignación de reportes) ──────────────
 export const departmentsTable = pgTable("departments", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   name: text("name").notNull(),
   slug: text("slug").notNull(),
   description: text("description").notNull().default(""),
@@ -268,7 +371,9 @@ export const departmentsTable = pgTable("departments", {
 // ── Nuevas: Auditoría de cambios (timeline público + accountability) ────────
 export const auditLogTable = pgTable("audit_log", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   entityType: text("entity_type").notNull(), // "report" | "panic_alert" | "missing_person"
   entityId: integer("entity_id").notNull(),
   action: text("action").notNull(), // "created" | "status_changed" | "assigned" | "updated" | "deleted"
@@ -282,21 +387,33 @@ export const auditLogTable = pgTable("audit_log", {
 // ── Nuevas: Suscripciones a categorías/sectores (push FCM selectivo) ────────
 export const subscriptionsTable = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   fcmToken: text("fcm_token"),
   email: text("email"),
   categories: text("categories").notNull().default("[]"), // JSON array of slugs
-  sectors: text("sectors").notNull().default("[]"),       // JSON array of sector names
+  sectors: text("sectors").notNull().default("[]"), // JSON array of sector names
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Mantener compatibilidad con insertSchemas existentes más los nuevos
-export const insertCategorySchema = createInsertSchema(categoriesTable).omit({ id: true, createdAt: true });
-export const insertDepartmentSchema = createInsertSchema(departmentsTable).omit({ id: true, createdAt: true });
-export const insertAuditLogSchema = createInsertSchema(auditLogTable).omit({ id: true, createdAt: true });
-export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCategorySchema = createInsertSchema(categoriesTable).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertDepartmentSchema = createInsertSchema(departmentsTable).omit(
+  { id: true, createdAt: true },
+);
+export const insertAuditLogSchema = createInsertSchema(auditLogTable).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertSubscriptionSchema = createInsertSchema(
+  subscriptionsTable,
+).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type Category = typeof categoriesTable.$inferSelect;
 export type Department = typeof departmentsTable.$inferSelect;
@@ -306,7 +423,9 @@ export type Subscription = typeof subscriptionsTable.$inferSelect;
 // ── Votos de usuarios en reportes (upvote system) ───────────────────────────
 export const votesTable = pgTable("votes", {
   id: serial("id").primaryKey(),
-  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  reportId: integer("report_id")
+    .notNull()
+    .references(() => reportsTable.id),
   userId: integer("user_id"),
   userIp: text("user_ip"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -315,7 +434,9 @@ export const votesTable = pgTable("votes", {
 // ── Recursos comunitarios por distrito ──────────────────────────────────────
 export const districtResourcesTable = pgTable("district_resources", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   type: text("type").notNull(), // "police" | "fire" | "hospital" | "helpline" | "other"
   name: text("name").notNull(),
   phone: text("phone"),
@@ -326,8 +447,13 @@ export const districtResourcesTable = pgTable("district_resources", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertVoteSchema = createInsertSchema(votesTable).omit({ id: true, createdAt: true });
-export const insertDistrictResourceSchema = createInsertSchema(districtResourcesTable).omit({ id: true, createdAt: true });
+export const insertVoteSchema = createInsertSchema(votesTable).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertDistrictResourceSchema = createInsertSchema(
+  districtResourcesTable,
+).omit({ id: true, createdAt: true });
 
 // FASE 5 — Schemas eliminados temporalmente por compatibilidad drizzle-zod
 // Los endpoints usan validación manual con zod directo en vez de createInsertSchema
@@ -338,16 +464,24 @@ export type InsertCommunityFlag = typeof communityFlagsTable.$inferInsert;
 // Cuando la municipalidad marca un reporte como "resolved", los vecinos pueden
 // confirmar que la solución es real. Al llegar a 10 confirmaciones, el reporte
 // pasa a "archived" y desaparece del mapa y del radar.
-export const resolutionConfirmationsTable = pgTable("resolution_confirmations", {
-  id: serial("id").primaryKey(),
-  reportId: integer("report_id").notNull().references(() => reportsTable.id),
-  userId: integer("user_id").references(() => usersTable.id),
-  userIp: text("user_ip"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const resolutionConfirmationsTable = pgTable(
+  "resolution_confirmations",
+  {
+    id: serial("id").primaryKey(),
+    reportId: integer("report_id")
+      .notNull()
+      .references(() => reportsTable.id),
+    userId: integer("user_id").references(() => usersTable.id),
+    userIp: text("user_ip"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+);
 
-export const insertResolutionConfirmationSchema = createInsertSchema(resolutionConfirmationsTable).omit({ id: true, createdAt: true });
-export type ResolutionConfirmation = typeof resolutionConfirmationsTable.$inferSelect;
+export const insertResolutionConfirmationSchema = createInsertSchema(
+  resolutionConfirmationsTable,
+).omit({ id: true, createdAt: true });
+export type ResolutionConfirmation =
+  typeof resolutionConfirmationsTable.$inferSelect;
 
 // FASE 5
 export type UserStrike = typeof userStrikesTable.$inferSelect;
@@ -372,7 +506,9 @@ export const civicEducationTopicsTable = pgTable("civic_education_topics", {
 export const userEducationProgressTable = pgTable("user_education_progress", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  topicId: integer("topic_id").notNull().references(() => civicEducationTopicsTable.id),
+  topicId: integer("topic_id")
+    .notNull()
+    .references(() => civicEducationTopicsTable.id),
   completed: boolean("completed").notNull().default(false),
   score: integer("score").notNull().default(0),
   xpEarned: integer("xp_earned").notNull().default(0),
@@ -380,12 +516,16 @@ export const userEducationProgressTable = pgTable("user_education_progress", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertCivicTopicSchema = createInsertSchema(civicEducationTopicsTable).omit({ id: true, createdAt: true });
+export const insertCivicTopicSchema = createInsertSchema(
+  civicEducationTopicsTable,
+).omit({ id: true, createdAt: true });
 
 // ── Refresh tokens para renovación de sesión (BUG-4) ─────────────────────────
 export const refreshTokensTable = pgTable("refresh_tokens", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => usersTable.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id),
   tokenHash: text("token_hash").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   revoked: boolean("revoked").notNull().default(false),
@@ -395,10 +535,16 @@ export const refreshTokensTable = pgTable("refresh_tokens", {
 // ── FASE 5: Strikes por reportes falsos ─────────────────────────────────────
 export const userStrikesTable = pgTable("user_strikes", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => usersTable.id),
-  reportId: integer("report_id").notNull().references(() => reportsTable.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id),
+  reportId: integer("report_id")
+    .notNull()
+    .references(() => reportsTable.id),
   motivo: text("motivo").notNull(),
-  adminId: integer("admin_id").notNull().references(() => usersTable.id),
+  adminId: integer("admin_id")
+    .notNull()
+    .references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   activo: boolean("activo").notNull().default(true),
   expiresAt: timestamp("expires_at"),
@@ -407,15 +553,21 @@ export const userStrikesTable = pgTable("user_strikes", {
 // ── FASE 5: Community flags (vecinos reportan reportes falsos) ───────────────
 export const communityFlagsTable = pgTable("community_flags", {
   id: serial("id").primaryKey(),
-  reportId: integer("report_id").notNull().references(() => reportsTable.id),
-  userId: integer("user_id").notNull().references(() => usersTable.id),
+  reportId: integer("report_id")
+    .notNull()
+    .references(() => reportsTable.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── Puntos estáticos (acumulan reportes en una misma ubicación) ──────────────
 export const staticPointsTable = pgTable("static_points", {
   id: serial("id").primaryKey(),
-  districtId: integer("district_id").notNull().references(() => districtsTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
   category: reportCategoryEnum("category").notNull(),
@@ -437,16 +589,18 @@ export const staticPointsTable = pgTable("static_points", {
 // Registro append-only: nunca se actualiza ni borra. Cada aceptación del
 // usuario queda como evidencia con versión de la política, fecha, IP y agente.
 export const consentTypeEnum = pgEnum("consent_type", [
-  "privacy_policy",   // Política de privacidad / tratamiento de datos
-  "terms_of_use",     // Términos y condiciones de uso
+  "privacy_policy", // Política de privacidad / tratamiento de datos
+  "terms_of_use", // Términos y condiciones de uso
 ]);
 
 export const userConsentsTable = pgTable("user_consents", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => usersTable.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id),
   type: consentTypeEnum("type").notNull(),
-  version: text("version").notNull(),          // ej. "2026-07-v1"
+  version: text("version").notNull(), // ej. "2026-07-v1"
   acceptedAt: timestamp("accepted_at").notNull().defaultNow(),
-  ipAddress: text("ip_address"),               // evidencia; se conserva por interés legítimo
+  ipAddress: text("ip_address"), // evidencia; se conserva por interés legítimo
   userAgent: text("user_agent"),
 });

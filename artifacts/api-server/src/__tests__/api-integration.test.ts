@@ -25,9 +25,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
     let pool: any;
     let usersTable: any;
     let reportsTable: any;
+    let districtsTable: any;
     let sql: any;
     let jwt: any;
     let bcrypt: any;
+    // districtId es NOT NULL (multi-tenant, migración 0003): se siembra un
+    // distrito de prueba y se referencia en los inserts de users/reports.
+    let testDistrictId: number;
 
     beforeAll(async () => {
       const dbMod = await import("@workspace/db");
@@ -35,6 +39,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       pool = dbMod.pool;
       usersTable = (await import("@workspace/db/schema")).usersTable;
       reportsTable = (await import("@workspace/db/schema")).reportsTable;
+      districtsTable = (await import("@workspace/db/schema")).districtsTable;
       sql = (await import("drizzle-orm")).sql;
       jwt = (await import("jsonwebtoken")).default;
       bcrypt = (await import("bcryptjs")).default;
@@ -42,6 +47,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
       // Verify DB connectivity
       const result = await db.execute(sql`SELECT 1 AS ok`);
       expect(result.rows[0]).toEqual({ ok: 1 });
+
+      // Sembrar un distrito de prueba para satisfacer el FK districtId.
+      const [district] = await db
+        .insert(districtsTable)
+        .values({
+          slug: `e2e-${Date.now()}`,
+          name: "San Ramón",
+          province: "Chanchamayo",
+          department: "Junín",
+        })
+        .returning();
+      testDistrictId = district.id;
     });
 
     // ── Helper: seed a test user ───────────────────────────────────────────────
@@ -56,6 +73,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           role: "user",
           sector: "E2E Test",
           district: "San Ramón",
+          districtId: testDistrictId,
           isActive: true,
           reportsCount: 0,
         })
@@ -102,16 +120,28 @@ describe.skipIf(!process.env.DATABASE_URL)(
         const hash = await bcrypt.hash("TestPass123!", 10);
 
         await db.insert(usersTable).values({
-          name: "User One", email, passwordHash: hash,
-          role: "user", sector: "Test", district: "San Ramón",
-          isActive: true, reportsCount: 0,
+          name: "User One",
+          email,
+          passwordHash: hash,
+          role: "user",
+          sector: "Test",
+          district: "San Ramón",
+          districtId: testDistrictId,
+          isActive: true,
+          reportsCount: 0,
         });
 
         await expect(
           db.insert(usersTable).values({
-            name: "User Two", email, passwordHash: hash,
-            role: "user", sector: "Test", district: "San Ramón",
-            isActive: true, reportsCount: 0,
+            name: "User Two",
+            email,
+            passwordHash: hash,
+            role: "user",
+            sector: "Test",
+            district: "San Ramón",
+            districtId: testDistrictId,
+            isActive: true,
+            reportsCount: 0,
           }),
         ).rejects.toThrow();
 
@@ -124,13 +154,17 @@ describe.skipIf(!process.env.DATABASE_URL)(
         const user = await createTestUser();
 
         const [updated] = await db
-          .update(usersTable).set({ sector: "Nuevo Sector E2E" })
-          .where(sql`id = ${user.id}`).returning();
+          .update(usersTable)
+          .set({ sector: "Nuevo Sector E2E" })
+          .where(sql`id = ${user.id}`)
+          .returning();
         expect(updated.sector).toBe("Nuevo Sector E2E");
 
         const [withDni] = await db
-          .update(usersTable).set({ dni: "12345678" })
-          .where(sql`id = ${user.id}`).returning();
+          .update(usersTable)
+          .set({ dni: "12345678" })
+          .where(sql`id = ${user.id}`)
+          .returning();
         expect(withDni.dni).toBe("12345678");
 
         await db.delete(usersTable).where(sql`id = ${user.id}`);
@@ -140,35 +174,51 @@ describe.skipIf(!process.env.DATABASE_URL)(
         const user1 = await createTestUser();
         const user2 = await createTestUser();
 
-        await db.update(usersTable).set({ dni: "87654321" })
+        await db
+          .update(usersTable)
+          .set({ dni: "87654321" })
           .where(sql`id = ${user1.id}`);
 
         await expect(
-          db.update(usersTable).set({ dni: "87654321" })
+          db
+            .update(usersTable)
+            .set({ dni: "87654321" })
             .where(sql`id = ${user2.id}`),
         ).rejects.toThrow();
 
-        await db.delete(usersTable).where(sql`id IN (${user1.id}, ${user2.id})`);
+        await db
+          .delete(usersTable)
+          .where(sql`id IN (${user1.id}, ${user2.id})`);
       });
     });
 
     describe("Reports", () => {
       it("should insert and retrieve a report", async () => {
-        const [report] = await db.insert(reportsTable).values({
-          title: "E2E Test Report",
-          description: "This is an automated test report",
-          category: "robbery", urgency: "high",
-          latitude: -11.1272, longitude: -75.3548,
-          address: "Jr. Tarma cdra. 3, San Ramón",
-          sector: "San Ramón Centro", district: "San Ramón",
-          isAnonymous: false, authorName: "E2E Test User",
-          status: "active",
-        }).returning();
+        const [report] = await db
+          .insert(reportsTable)
+          .values({
+            title: "E2E Test Report",
+            description: "This is an automated test report",
+            category: "robbery",
+            urgency: "high",
+            latitude: -11.1272,
+            longitude: -75.3548,
+            address: "Jr. Tarma cdra. 3, San Ramón",
+            sector: "San Ramón Centro",
+            district: "San Ramón",
+            districtId: testDistrictId,
+            isAnonymous: false,
+            authorName: "E2E Test User",
+            status: "active",
+          })
+          .returning();
 
         expect(report.id).toBeGreaterThan(0);
         expect(report.title).toBe("E2E Test Report");
 
-        const [fetched] = await db.select().from(reportsTable)
+        const [fetched] = await db
+          .select()
+          .from(reportsTable)
           .where(sql`id = ${report.id}`);
         expect(fetched.confirmedCount).toBe(0);
 
@@ -176,38 +226,67 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
 
       it("should increment confirmedCount", async () => {
-        const [report] = await db.insert(reportsTable).values({
-          title: "E2E Confirm Test",
-          description: "Testing confirmation increment",
-          category: "fight", urgency: "medium",
-          latitude: -11.1272, longitude: -75.3548,
-          address: "Jr. Tarma cdra. 3",
-          sector: "San Ramón Centro", district: "San Ramón",
-          isAnonymous: true, authorName: "Anónimo",
-          status: "active",
-        }).returning();
+        const [report] = await db
+          .insert(reportsTable)
+          .values({
+            title: "E2E Confirm Test",
+            description: "Testing confirmation increment",
+            category: "fight",
+            urgency: "medium",
+            latitude: -11.1272,
+            longitude: -75.3548,
+            address: "Jr. Tarma cdra. 3",
+            sector: "San Ramón Centro",
+            district: "San Ramón",
+            districtId: testDistrictId,
+            isAnonymous: true,
+            authorName: "Anónimo",
+            status: "active",
+          })
+          .returning();
 
         const [confirmed] = await db
           .update(reportsTable)
           .set({ confirmedCount: sql`confirmed_count + 1` })
-          .where(sql`id = ${report.id}`).returning();
+          .where(sql`id = ${report.id}`)
+          .returning();
         expect(confirmed.confirmedCount).toBe(1);
 
         await db.delete(reportsTable).where(sql`id = ${report.id}`);
       });
 
       it("should support category enum values", async () => {
-        const categories = ["robbery","fight","suspicious","water_cut","garbage","noise","fire","medical_emergency","other"] as const;
+        const categories = [
+          "robbery",
+          "fight",
+          "suspicious",
+          "water_cut",
+          "garbage",
+          "noise",
+          "fire",
+          "medical_emergency",
+          "other",
+        ] as const;
 
         for (const cat of categories) {
-          const [report] = await db.insert(reportsTable).values({
-            title: `E2E Category: ${cat}`, description: `Testing ${cat}`,
-            category: cat, urgency: "low",
-            latitude: -11.1272, longitude: -75.3548,
-            address: "Test addr", sector: "Test", district: "San Ramón",
-            isAnonymous: true, authorName: "E2E Test",
-            status: "active",
-          }).returning();
+          const [report] = await db
+            .insert(reportsTable)
+            .values({
+              title: `E2E Category: ${cat}`,
+              description: `Testing ${cat}`,
+              category: cat,
+              urgency: "low",
+              latitude: -11.1272,
+              longitude: -75.3548,
+              address: "Test addr",
+              sector: "Test",
+              district: "San Ramón",
+              districtId: testDistrictId,
+              isAnonymous: true,
+              authorName: "E2E Test",
+              status: "active",
+            })
+            .returning();
           expect(report.category).toBe(cat);
           await db.delete(reportsTable).where(sql`id = ${report.id}`);
         }

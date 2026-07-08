@@ -59,9 +59,27 @@ const SAN_RAMON_POLYGON: [number, number][] = [
 describe("Soft Delete", () => {
   function freshReports(): MockReport[] {
     return [
-      { id: 1, title: "Reporte activo 1", status: "active", deletedAt: null, deletedBy: null },
-      { id: 2, title: "Reporte activo 2", status: "reviewing", deletedAt: null, deletedBy: null },
-      { id: 3, title: "Reporte eliminado", status: "active", deletedAt: "2024-01-01T00:00:00Z", deletedBy: "user-123" },
+      {
+        id: 1,
+        title: "Reporte activo 1",
+        status: "active",
+        deletedAt: null,
+        deletedBy: null,
+      },
+      {
+        id: 2,
+        title: "Reporte activo 2",
+        status: "reviewing",
+        deletedAt: null,
+        deletedBy: null,
+      },
+      {
+        id: 3,
+        title: "Reporte eliminado",
+        status: "active",
+        deletedAt: "2024-01-01T00:00:00Z",
+        deletedBy: "user-123",
+      },
     ];
   }
 

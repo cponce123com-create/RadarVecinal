@@ -21,7 +21,8 @@ router.get("/districts", async (_req, res) => {
       return res.json(cached);
     }
 
-    const districts = await db.select()
+    const districts = await db
+      .select()
       .from(districtsTable)
       .where(eq(districtsTable.isActive, true))
       .orderBy(districtsTable.name);
@@ -48,28 +49,37 @@ router.get("/districts/nearby", async (req, res) => {
   });
   const parsed = schema.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Parámetros inválidos" });
+    return res.status(400).json({
+      error: parsed.error.issues[0]?.message ?? "Parámetros inválidos",
+    });
   }
   try {
-    const districts = await db.select().from(districtsTable).where(eq(districtsTable.isActive, true));
+    const districts = await db
+      .select()
+      .from(districtsTable)
+      .where(eq(districtsTable.isActive, true));
     // Calcular distancia con haversine y ordenar
     const R = 6371000;
     const withDistance = districts
-      .map(d => {
-        const dLat = ((d.centerLat ?? 0) - parsed.data.lat) * Math.PI / 180;
-        const dLng = ((d.centerLng ?? 0) - parsed.data.lng) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) ** 2
-          + Math.cos(parsed.data.lat * Math.PI / 180)
-          * Math.cos((d.centerLat ?? 0) * Math.PI / 180)
-          * Math.sin(dLng / 2) ** 2;
+      .map((d) => {
+        const dLat = (((d.centerLat ?? 0) - parsed.data.lat) * Math.PI) / 180;
+        const dLng = (((d.centerLng ?? 0) - parsed.data.lng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((parsed.data.lat * Math.PI) / 180) *
+            Math.cos(((d.centerLat ?? 0) * Math.PI) / 180) *
+            Math.sin(dLng / 2) ** 2;
         const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return { ...d, distance: Math.round(dist) };
       })
-      .filter(d => d.distance < 3000) // Solo dentro de 3 km — evita distritos vecinos lejanos
+      .filter((d) => d.distance < 3000) // Solo dentro de 3 km — evita distritos vecinos lejanos
       .sort((a, b) => a.distance - b.distance)
       .slice(0, parsed.data.limit);
 
-    return res.json({ districts: withDistance, query: { lat: parsed.data.lat, lng: parsed.data.lng } });
+    return res.json({
+      districts: withDistance,
+      query: { lat: parsed.data.lat, lng: parsed.data.lng },
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to get nearby districts");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -86,13 +96,16 @@ router.get("/districts/locate", async (req, res) => {
   });
   const parsed = schema.safeParse(req.query);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Parámetros inválidos" });
+    return res.status(400).json({
+      error: parsed.error.issues[0]?.message ?? "Parámetros inválidos",
+    });
   }
   try {
     const { lat, lng } = parsed.data;
 
     // 1. Intentar detección exacta por polígono
-    const districtsWithBoundary = await db.select()
+    const districtsWithBoundary = await db
+      .select()
       .from(districtsTable)
       .where(eq(districtsTable.isActive, true));
 
@@ -122,7 +135,8 @@ router.get("/districts/locate", async (req, res) => {
     }
 
     // 2. Fallback: haversine — buscar el distrito activo más cercano
-    const allActive = await db.select()
+    const allActive = await db
+      .select()
       .from(districtsTable)
       .where(eq(districtsTable.isActive, true));
 
@@ -132,12 +146,13 @@ router.get("/districts/locate", async (req, res) => {
 
     for (const d of allActive) {
       if (d.centerLat == null || d.centerLng == null) continue;
-      const dLat = (d.centerLat - lat) * Math.PI / 180;
-      const dLng = (d.centerLng - lng) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2
-        + Math.cos(lat * Math.PI / 180)
-        * Math.cos(d.centerLat * Math.PI / 180)
-        * Math.sin(dLng / 2) ** 2;
+      const dLat = ((d.centerLat - lat) * Math.PI) / 180;
+      const dLng = ((d.centerLng - lng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((lat * Math.PI) / 180) *
+          Math.cos((d.centerLat * Math.PI) / 180) *
+          Math.sin(dLng / 2) ** 2;
       const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -145,7 +160,8 @@ router.get("/districts/locate", async (req, res) => {
       }
     }
 
-    if (nearest && nearestDist < 50000) { // 50 km de tolerancia
+    if (nearest && nearestDist < 50000) {
+      // 50 km de tolerancia
       return res.json({
         district: {
           id: nearest.id,

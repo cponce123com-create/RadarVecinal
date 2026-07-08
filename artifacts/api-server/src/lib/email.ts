@@ -18,7 +18,9 @@ function getTransporter() {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
   if (!SMTP_HOST) {
     if (!warnShown) {
-      logger.warn("[Email] SMTP_HOST no configurado. Notificaciones email desactivadas.");
+      logger.warn(
+        "[Email] SMTP_HOST no configurado. Notificaciones email desactivadas.",
+      );
       warnShown = true;
     }
     return null;
@@ -59,7 +61,9 @@ const STATUS_LABELS: Record<string, string> = {
  * Envía email de notificación cuando un reporte cambia de estado.
  * Best-effort: no lanza errores.
  */
-export async function sendStatusChangeEmail(data: StatusChangeEmail): Promise<void> {
+export async function sendStatusChangeEmail(
+  data: StatusChangeEmail,
+): Promise<void> {
   try {
     const t = getTransporter();
     if (!t) return;
@@ -84,9 +88,15 @@ export async function sendStatusChangeEmail(data: StatusChangeEmail): Promise<vo
       `,
     });
 
-    logger.info({ reportId: data.reportId, status: data.newStatus }, "[Email] Notificación enviada");
+    logger.info(
+      { reportId: data.reportId, status: data.newStatus },
+      "[Email] Notificación enviada",
+    );
   } catch (err) {
-    logger.error({ err, reportId: data.reportId }, "[Email] Error al enviar (best-effort)");
+    logger.error(
+      { err, reportId: data.reportId },
+      "[Email] Error al enviar (best-effort)",
+    );
   }
 }
 
@@ -114,7 +124,9 @@ interface CustomMessageEmail {
  * Envía un email con un mensaje personalizado redactado por el admin municipal.
  * Best-effort: no lanza errores.
  */
-export async function sendCustomMessageEmail(data: CustomMessageEmail): Promise<void> {
+export async function sendCustomMessageEmail(
+  data: CustomMessageEmail,
+): Promise<void> {
   try {
     const t = getTransporter();
     if (!t) return;
@@ -161,8 +173,14 @@ export async function sendCustomMessageEmail(data: CustomMessageEmail): Promise<
       `,
     });
 
-    logger.info({ reportId: data.reportId }, "[Email] Mensaje personalizado enviado");
+    logger.info(
+      { reportId: data.reportId },
+      "[Email] Mensaje personalizado enviado",
+    );
   } catch (err) {
-    logger.error({ err, reportId: data.reportId }, "[Email] Error al enviar mensaje personalizado (best-effort)");
+    logger.error(
+      { err, reportId: data.reportId },
+      "[Email] Error al enviar mensaje personalizado (best-effort)",
+    );
   }
 }

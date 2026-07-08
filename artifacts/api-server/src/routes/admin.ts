@@ -36,7 +36,9 @@ const router: IRouter = Router();
 function requireSuperAdmin(req: any, res: any, next: any) {
   const user = req.jwtUser;
   if (!user || user.role !== "super_admin") {
-    return res.status(403).json({ error: "Acceso denegado. Solo el superadmin puede acceder a este panel." });
+    return res.status(403).json({
+      error: "Acceso denegado. Solo el superadmin puede acceder a este panel.",
+    });
   }
   return next();
 }
@@ -54,93 +56,124 @@ const generateSchema = z.object({
   maxViewers: z.number().int().min(1).max(100).default(10),
 });
 
-router.post("/admin/licenses/generate", requireAuth, requireSuperAdmin, async (req, res) => {
-  const parsed = generateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
-  }
+router.post(
+  "/admin/licenses/generate",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    const parsed = generateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    }
 
-  const { siglas, distrito, provincia, departamento, maxViewers } = parsed.data;
-  const user = (req as any).jwtUser;
+    const { siglas, distrito, provincia, departamento, maxViewers } =
+      parsed.data;
+    const user = (req as any).jwtUser;
 
-  try {
-    // 1. Generar código de 16 dígitos
-    const code = generateLicenseCode(siglas, distrito, provincia, departamento);
+    try {
+      // 1. Generar código de 16 dígitos
+      const code = generateLicenseCode(
+        siglas,
+        distrito,
+        provincia,
+        departamento,
+      );
 
-    // 2. Buscar distrito en catálogo por nombre
-    const [district] = await db.select()
-      .from(districtsTable)
-      .where(eq(districtsTable.name, distrito.trim()))
-      .limit(1);
+      // 2. Buscar distrito en catálogo por nombre
+      const [district] = await db
+        .select()
+        .from(districtsTable)
+        .where(eq(districtsTable.name, distrito.trim()))
+        .limit(1);
 
-    // 3. Guardar en DB
-    const [license] = await db.insert(licensesTable).values({
-      code,
-      siglas: siglas.toUpperCase().trim(),
-      districtName: distrito.trim(),
-      province: provincia.trim(),
-      department: departamento.trim(),
-      districtId: district?.id ?? null,
-      createdBy: Number(user.sub),
-      isActive: false,
-      maxViewers,
-    }).returning();
+      // 3. Guardar en DB
+      const [license] = await db
+        .insert(licensesTable)
+        .values({
+          code,
+          siglas: siglas.toUpperCase().trim(),
+          districtName: distrito.trim(),
+          province: provincia.trim(),
+          department: departamento.trim(),
+          districtId: district?.id ?? null,
+          createdBy: Number(user.sub),
+          isActive: false,
+          maxViewers,
+        })
+        .returning();
 
-    return res.status(201).json({
-      success: true,
-      message: `Código generado para ${siglas.toUpperCase()} / ${distrito}. Entrégaselo al municipal.`,
-      license: formatLicenseResponse(license),
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to generate license");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+      return res.status(201).json({
+        success: true,
+        message: `Código generado para ${siglas.toUpperCase()} / ${distrito}. Entrégaselo al municipal.`,
+        license: formatLicenseResponse(license),
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to generate license");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ── GET /admin/licenses — Listar todas las licencias ────────────────────────
-router.get("/admin/licenses", requireAuth, requireSuperAdmin, async (req, res) => {
-  try {
-    const licenses = await db.select()
-      .from(licensesTable)
-      .orderBy(desc(licensesTable.createdAt))
-      .limit(200);
+router.get(
+  "/admin/licenses",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const licenses = await db
+        .select()
+        .from(licensesTable)
+        .orderBy(desc(licensesTable.createdAt))
+        .limit(200);
 
-    return res.json({
-      licenses: licenses.map(l => formatLicenseResponse(l)),
-      total: licenses.length,
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to list licenses");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+      return res.json({
+        licenses: licenses.map((l) => formatLicenseResponse(l)),
+        total: licenses.length,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to list licenses");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ── POST /admin/licenses/:id/revoke — Revocar licencia ─────────────────────
-router.post("/admin/licenses/:id/revoke", requireAuth, requireSuperAdmin, async (req, res) => {
-  try {
-    const licenseId = parseInt(req.params.id as string);
-    const [license] = await db.select()
-      .from(licensesTable)
-      .where(eq(licensesTable.id, licenseId))
-      .limit(1);
+router.post(
+  "/admin/licenses/:id/revoke",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const licenseId = parseInt(req.params.id as string);
+      const [license] = await db
+        .select()
+        .from(licensesTable)
+        .where(eq(licensesTable.id, licenseId))
+        .limit(1);
 
-    if (!license) return res.status(404).json({ error: "Licencia no encontrada." });
+      if (!license)
+        return res.status(404).json({ error: "Licencia no encontrada." });
 
-    const [updated] = await db.update(licensesTable)
-      .set({ isActive: false, expiresAt: new Date() })
-      .where(eq(licensesTable.id, licenseId))
-      .returning();
+      const [updated] = await db
+        .update(licensesTable)
+        .set({ isActive: false, expiresAt: new Date() })
+        .where(eq(licensesTable.id, licenseId))
+        .returning();
 
-    return res.json({
-      success: true,
-      message: `Licencia de ${license.districtName} revocada.`,
-      license: formatLicenseResponse(updated),
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to revoke license");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+      return res.json({
+        success: true,
+        message: `Licencia de ${license.districtName} revocada.`,
+        license: formatLicenseResponse(updated),
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to revoke license");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // USUARIOS MUNICIPALES
@@ -160,118 +193,149 @@ const createMunicipalSchema = z.object({
   generateLicense: z.boolean().default(true),
 });
 
-router.post("/admin/municipal-users", requireAuth, requireSuperAdmin, async (req, res) => {
-  const parsed = createMunicipalSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") });
-  }
-
-  const data = parsed.data;
-  const user = (req as any).jwtUser;
-
-  try {
-    // 1. Verificar que el email no exista
-    const existing = await db.select({ id: usersTable.id })
-      .from(usersTable)
-      .where(eq(usersTable.email, data.email.toLowerCase().trim()))
-      .limit(1);
-    if (existing.length > 0) {
-      return res.status(409).json({ error: "Ya existe un usuario con ese correo." });
+router.post(
+  "/admin/municipal-users",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    const parsed = createMunicipalSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
     }
 
-    // 2. Buscar distrito
-    const [district] = await db.select()
-      .from(districtsTable)
-      .where(eq(districtsTable.name, data.districtName.trim()))
-      .limit(1);
+    const data = parsed.data;
+    const user = (req as any).jwtUser;
 
-    if (!district) {
-      return res.status(400).json({ error: "Distrito no encontrado. Verifica el nombre e intenta de nuevo." });
+    try {
+      // 1. Verificar que el email no exista
+      const existing = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.email, data.email.toLowerCase().trim()))
+        .limit(1);
+      if (existing.length > 0) {
+        return res
+          .status(409)
+          .json({ error: "Ya existe un usuario con ese correo." });
+      }
+
+      // 2. Buscar distrito
+      const [district] = await db
+        .select()
+        .from(districtsTable)
+        .where(eq(districtsTable.name, data.districtName.trim()))
+        .limit(1);
+
+      if (!district) {
+        return res.status(400).json({
+          error:
+            "Distrito no encontrado. Verifica el nombre e intenta de nuevo.",
+        });
+      }
+
+      // 3. Crear usuario municipal
+      const passwordHash = await bcrypt.hash(data.password, 10);
+      const [municipalUser] = await db
+        .insert(usersTable)
+        .values({
+          name: data.name.trim(),
+          email: data.email.toLowerCase().trim(),
+          passwordHash,
+          role: "municipal" as any,
+          sector: `${data.districtName} - Municipalidad`,
+          districtId: district.id,
+          district: district.name,
+          province: district.province,
+          department: district.department,
+          displayName: data.displayName.trim(),
+          isActive: true,
+          reportsCount: 0,
+        })
+        .returning();
+
+      // 4. Generar y asignar licencia
+      let license = null;
+      if (data.generateLicense) {
+        const code = generateLicenseCode(
+          data.siglas,
+          data.districtName,
+          data.province,
+          data.department,
+        );
+
+        [license] = await db
+          .insert(licensesTable)
+          .values({
+            code,
+            siglas: data.siglas.toUpperCase().trim(),
+            districtName: data.districtName.trim(),
+            province: data.province.trim(),
+            department: data.department.trim(),
+            districtId: district.id,
+            municipalUserId: municipalUser.id,
+            createdBy: Number(user.sub),
+            isActive: false,
+            maxViewers: data.maxViewers,
+          })
+          .returning();
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: `Usuario municipal ${data.email} creado.`,
+        user: {
+          id: String(municipalUser.id),
+          name: municipalUser.name,
+          email: municipalUser.email,
+          role: municipalUser.role,
+          district: municipalUser.district,
+          displayName: municipalUser.displayName,
+        },
+        license: license ? formatLicenseResponse(license) : null,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to create municipal user");
+      return res.status(500).json({ error: "Error interno del servidor." });
     }
-
-    // 3. Crear usuario municipal
-    const passwordHash = await bcrypt.hash(data.password, 10);
-    const [municipalUser] = await db.insert(usersTable).values({
-      name: data.name.trim(),
-      email: data.email.toLowerCase().trim(),
-      passwordHash,
-      role: "municipal" as any,
-      sector: `${data.districtName} - Municipalidad`,
-      districtId: district.id,
-      district: district.name,
-      province: district.province,
-      department: district.department,
-      displayName: data.displayName.trim(),
-      isActive: true,
-      reportsCount: 0,
-    }).returning();
-
-    // 4. Generar y asignar licencia
-    let license = null;
-    if (data.generateLicense) {
-      const code = generateLicenseCode(data.siglas, data.districtName, data.province, data.department);
-
-      [license] = await db.insert(licensesTable).values({
-        code,
-        siglas: data.siglas.toUpperCase().trim(),
-        districtName: data.districtName.trim(),
-        province: data.province.trim(),
-        department: data.department.trim(),
-        districtId: district.id,
-        municipalUserId: municipalUser.id,
-        createdBy: Number(user.sub),
-        isActive: false,
-        maxViewers: data.maxViewers,
-      }).returning();
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: `Usuario municipal ${data.email} creado.`,
-      user: {
-        id: String(municipalUser.id),
-        name: municipalUser.name,
-        email: municipalUser.email,
-        role: municipalUser.role,
-        district: municipalUser.district,
-        displayName: municipalUser.displayName,
-      },
-      license: license ? formatLicenseResponse(license) : null,
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to create municipal user");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+  },
+);
 
 // ── GET /admin/municipal-users — Listar usuarios municipales ────────────────
-router.get("/admin/municipal-users", requireAuth, requireSuperAdmin, async (req, res) => {
-  try {
-    const municipals = await db.select()
-      .from(usersTable)
-      .where(sql`${usersTable.role} IN ('municipal', 'viewer')`)
-      .orderBy(desc(usersTable.createdAt))
-      .limit(200);
+router.get(
+  "/admin/municipal-users",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const municipals = await db
+        .select()
+        .from(usersTable)
+        .where(sql`${usersTable.role} IN ('municipal', 'viewer')`)
+        .orderBy(desc(usersTable.createdAt))
+        .limit(200);
 
-    return res.json({
-      users: municipals.map(u => ({
-        id: String(u.id),
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        district: u.district,
-        districtId: u.districtId,
-        displayName: u.displayName,
-        isActive: u.isActive,
-        reportsCount: u.reportsCount,
-        createdAt: u.createdAt.toISOString(),
-      })),
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to list municipal users");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+      return res.json({
+        users: municipals.map((u) => ({
+          id: String(u.id),
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          district: u.district,
+          districtId: u.districtId,
+          displayName: u.displayName,
+          isActive: u.isActive,
+          reportsCount: u.reportsCount,
+          createdAt: u.createdAt.toISOString(),
+        })),
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to list municipal users");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // DASHBOARD STATS
@@ -280,26 +344,32 @@ router.get("/admin/municipal-users", requireAuth, requireSuperAdmin, async (req,
 // ── GET /admin/stats — Dashboard de estadísticas ────────────────────────────
 router.get("/admin/stats", requireAuth, requireSuperAdmin, async (req, res) => {
   try {
-    const [{ municipalCount }] = await db.select({ municipalCount: sql<number>`count(*)` })
+    const [{ municipalCount }] = await db
+      .select({ municipalCount: sql<number>`count(*)` })
       .from(usersTable)
       .where(eq(usersTable.role, "municipal"));
 
-    const [{ viewerCount }] = await db.select({ viewerCount: sql<number>`count(*)` })
+    const [{ viewerCount }] = await db
+      .select({ viewerCount: sql<number>`count(*)` })
       .from(usersTable)
       .where(eq(usersTable.role, "viewer"));
 
-    const [{ activeLicenses }] = await db.select({ activeLicenses: sql<number>`count(*)` })
+    const [{ activeLicenses }] = await db
+      .select({ activeLicenses: sql<number>`count(*)` })
       .from(licensesTable)
       .where(eq(licensesTable.isActive, true));
 
-    const [{ pendingLicenses }] = await db.select({ pendingLicenses: sql<number>`count(*)` })
+    const [{ pendingLicenses }] = await db
+      .select({ pendingLicenses: sql<number>`count(*)` })
       .from(licensesTable)
       .where(eq(licensesTable.isActive, false));
 
-    const [{ totalUsers }] = await db.select({ totalUsers: sql<number>`count(*)` })
+    const [{ totalUsers }] = await db
+      .select({ totalUsers: sql<number>`count(*)` })
       .from(usersTable);
 
-    const [{ totalReports }] = await db.select({ totalReports: sql<number>`count(*)` })
+    const [{ totalReports }] = await db
+      .select({ totalReports: sql<number>`count(*)` })
       .from(reportsTable);
 
     return res.json({

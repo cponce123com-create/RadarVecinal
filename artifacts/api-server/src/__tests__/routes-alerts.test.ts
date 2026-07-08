@@ -142,7 +142,9 @@ describe("Alerts Routes Logic", () => {
 
     const returningFn = vi
       .fn()
-      .mockResolvedValue([{ id: 1, ...alertData, isActive: true, createdAt: new Date() }]);
+      .mockResolvedValue([
+        { id: 1, ...alertData, isActive: true, createdAt: new Date() },
+      ]);
     const valuesFn = vi.fn().mockReturnValue({ returning: returningFn });
     insertFn.mockReturnValue({ values: valuesFn });
 
@@ -276,7 +278,9 @@ describe("Alerts Routes Logic", () => {
 
     const returningFn = vi
       .fn()
-      .mockResolvedValue([{ id: 2, ...alertData, isActive: true, createdAt: new Date() }]);
+      .mockResolvedValue([
+        { id: 2, ...alertData, isActive: true, createdAt: new Date() },
+      ]);
     const valuesFn = vi.fn().mockReturnValue({ returning: returningFn });
     insertFn.mockReturnValue({ values: valuesFn });
 

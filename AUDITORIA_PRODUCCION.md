@@ -22,10 +22,11 @@ Por tanto, esta auditoría se centró en encontrar **deuda real remanente** y ap
 
 **Estado de build (verificado en esta sesión):**
 
-- ✅ Frontend `vite build`: **OK** (7 s)
-- ✅ API server `esbuild`: **OK** (0.4 s)
-- ⚠️ `tsc --build` (typecheck estricto): falla por deuda de tipos (ver §7). **No bloquea producción** porque el build real usa esbuild/vite, no `tsc`.
-- ⚠️ Tests frontend: 3 fallos **pre-existentes** en `DistrictContext.test.tsx` (tests obsoletos, ver §7).
+- ✅ Frontend `vite build`: **OK** (~8 s)
+- ✅ API server `esbuild`: **OK** (0.5 s)
+- ✅ `tsc --build` (libs) + typecheck de **frontend** y **api-server**: **VERDE en los 3 paquetes** tras la 2ª iteración (ver §"Segunda iteración"). El gate de tipos quedó recuperado.
+- ✅ Tests api-server: **94 pasan, 21 skipped** (integración, requieren `DATABASE_URL`), 0 fallos.
+- ✅ Tests frontend: **9 pasan, 0 fallos**. Los 3 tests obsoletos de `DistrictContext` se **reescribieron** para reflejar la resolución dinámica de distrito (catálogo + GPS + selección manual, con mocks).
 
 ---
 
@@ -176,15 +177,54 @@ Todos aplicados y **verificados con `vite build` + `esbuild` en verde**, sin rom
 
 ---
 
+## Segunda iteración — Recuperación del gate de tipos y bugs latentes
+
+Al reactivar `tsc` en todo el monorepo (paso 1 de las recomendaciones) se descubrió que **el typecheck estaba enmascarado**: el lockfile commiteado estaba desactualizado (no resolvía `bullmq`/`ioredis`, declarados en `api-server`), por lo que el `api-server` nunca se comprobaba de verdad. Al sincronizar dependencias afloraron errores reales — varios eran **bugs latentes de runtime**, no solo de tipos. Todos corregidos y verificados:
+
+### Bugs latentes de runtime corregidos
+
+| # | Archivo | Bug | Consecuencia real |
+|---|---|---|---|
+| B1 | `admin/SuperAdminTab.tsx` (×4 fetch) | Trataba el retorno de `customFetch` como un `Response` (`res.json()`, `res.ok`), pero `customFetch` ya devuelve el body parseado y lanza en error. | Las 4 funciones de Super Admin (generar/listar/revocar licencia, crear municipal, stats) **crasheaban al invocarse** (`res.json is not a function`). |
+| B2 | `routes/reports.ts` | `reportMessagesTable` usado en el endpoint de apelación de strike pero **nunca importado**. | `ReferenceError` en runtime al apelar un strike. |
+| B3 | `routes/reniec.ts` | `ipKeyGenerator` usado en el `keyGenerator` del rate-limiter pero **no importado**. | `ReferenceError` al consultar RENIEC sin sesión (rama anónima del rate-limit). |
+| B4 | `routes/alerts.ts` | `const [x] = await db.insert(...).returning().catch(() => null)` — desestructurar `null` si el insert falla. | `TypeError: null is not iterable` al fallar la creación del reporte-espejo de una alerta de pánico. |
+| B5 | `lib/db/schema/reports.ts` | La migración `0023_panic_alert_lifecycle` añadió a `panic_alerts` las columnas `status`, `resolved_at`, `resolved_by_id`, `resolution_note`, `expires_at`, `linked_report_id` (y `reports.panic_alert_id`), pero **el esquema Drizzle nunca se actualizó**. | El **ciclo de vida de alertas de pánico** (estado, expiración, resolución, reporte enlazado) estaba roto a nivel ORM: 29 errores de tipo y campos que el ORM no conocía. Se alinearon las columnas (la BD ya las tenía, cambio seguro). |
+
+### Deuda de tipos / contrato corregida
+
+- **Contrato**: `authorName` era `required` en `CreateReportInput` del OpenAPI, pero el servidor lo trata como opcional (lo deriva). Se corrigió en `openapi.yaml` (fuente) y se regeneró el cliente; el schema Zod se ajustó a `optional()`.
+- **`Tab` union**: faltaba `"alerts"` aunque la pestaña existe y se renderiza (`AdminPanel`).
+- **`UsersTab`**: se le pasaban props que ya no acepta (obtiene sus datos internamente).
+- **`getContactInfo`**: faltaban `district` y `contactEmail` requeridos por `ReportInfo`.
+- **Auto-referencia Drizzle** (`users.banReportedById`) y **colisión de export** `SeedDataBody` en `api-zod`: anotadas con `AnyPgColumn` y re-export explícito (§7 C4/C5, ya resueltos).
+- **Dedupe `ioredis`**: override a `5.10.1` para que `bullmq` y `api-server` compartan una única versión (evita conflicto de tipos y comparte el cliente Redis).
+
+> **Nota:** la corrección de `missing_persons` (`isAuthor`) quedó explícita como `false` con comentario, **preservando el comportamiento actual** (la comparación `Number(user.sub) === reportedBy` siempre era `false` porque `reportedBy` guarda un nombre, no un id). Habilitar el chequeo real de autoría exige una decisión de esquema (añadir `reportedById`) — ver Pendientes.
+
+---
+
+## Tercera iteración — Pulido ("pule todo")
+
+Lote de mejoras seguras y verificadas (build + tests en verde):
+
+| # | Área | Cambio |
+|---|---|---|
+| T1 | Producción | `esbuild.pure` elimina `console.log/info/debug` del bundle de producción (conserva `warn`/`error`). Verificado: **0 `console.log`** en el bundle final. |
+| T2 | UX/Multi-tenant | Subtítulo del topbar **dinámico por distrito** (`Layout`): "GEOLOCALIZACIÓN · DISTRITO" y "ANALÍTICA · DISTRITO" ahora muestran el distrito activo en vez del fijo "SAN RAMÓN" (UX5 ✔). |
+| T3 | Accesibilidad | Enlace **"Saltar al contenido"** (visible al enfocar con teclado) + `id`/`tabIndex` en la región principal (WCAG 2.4.1, AC4 ✔). |
+| T4 | UX | `main.tsx`: el aviso de nueva versión del SW usa un **toast con acción "Actualizar"** en vez de `confirm()` nativo. También `onOfflineReady` usa toast (elimina un `console.log`). |
+| T5 | UX | `SuperAdminTab`: la revocación de licencia usa un **modal de confirmación** con estilo de la app (con estado de carga y ARIA) en vez de `confirm()` nativo (UX3 ✔). |
+| T6 | Funcionalidad/BD | **Autoría de personas extraviadas** completada: nueva columna `reported_by_id` (migración `0024`), el `POST` la guarda desde el usuario autenticado y el `PATCH` identifica al autor de forma fiable (`isAuthor`). Filas previas sin dato → solo admin/super_admin, sin cambio de comportamiento para datos antiguos. |
+
+---
+
 ## Cambios pendientes (requieren decisión funcional o validación en dispositivo)
 
-1. **Reemplazar `confirm()` nativos** (SuperAdminTab, main.tsx) por el modal propio de la app — requiere definir copy/estética (UX3).
-2. **Reescribir `DistrictContext.test.tsx`** con mocks del API que reflejen la resolución dinámica de distrito (C6). No debe "arreglarse" ocultando el fallo.
-3. **Corregir generación de `lib/api-zod`** para evitar la colisión `SeedDataBody` (C4) — tocar el generador, no el código generado.
-4. **Modularizar `reports.ts`** (1.496 líneas) por sub-dominio (A3).
-5. **Subtítulo del topbar dinámico por distrito** en vez de "SAN RAMÓN" fijo (UX5).
-6. **Auto-hospedar fuentes** para offline-first real (UI3).
-7. **Validación en dispositivo** de tablas admin y contraste de micro-labels (M5, AC5).
+1. **Regenerar `api-zod` con la versión de orval fijada**: la versión actual de orval emite `zod.url()` (estilo v4) incompatible con zod v3 instalado; por eso la regeneración de esta sesión se acotó al cambio de `authorName` y se revirtió el resto. Alinear orval/zod antes de una regeneración completa.
+2. **Modularizar `reports.ts`** (1.496 líneas) por sub-dominio (A3) — refactor grande, mejor con cobertura de tests dedicada.
+3. **Auto-hospedar fuentes** para offline-first real (UI3) — requiere añadir paquetes `@fontsource` o alojar los archivos.
+4. **Validación en dispositivo** de tablas admin y contraste de micro-labels (M5, AC5) — requiere hardware real / Lighthouse.
 
 ---
 

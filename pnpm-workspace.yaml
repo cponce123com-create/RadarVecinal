@@ -29,6 +29,9 @@ catalog:
 minimumReleaseAge: 0
 
 overrides:
+  # Dedupe ioredis: bullmq y el api-server deben compartir una única versión
+  # (evita conflicto de tipos entre 5.10.x/5.11.x y comparte el cliente Redis).
+  ioredis: 5.10.1
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
@@ -110,3 +113,12 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
+
+# Aprobar scripts de build de dependencias. En CI, pnpm 11 falla (exit 1) si
+# hay scripts de build sin aprobar; esbuild y otros los necesitan de verdad.
+allowBuilds:
+  '@firebase/util': true
+  '@scarf/scarf': true
+  esbuild: true
+  msgpackr-extract: true
+  protobufjs: true

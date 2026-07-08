@@ -1,8 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { RequestUploadUrlBody } from "@workspace/api-zod";
 import {
-  RequestUploadUrlBody,
-} from "@workspace/api-zod";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+  ObjectStorageService,
+  ObjectNotFoundError,
+} from "../lib/objectStorage";
 import { requireAuth } from "./auth";
 
 const router: IRouter = Router();
@@ -42,53 +43,57 @@ function getFormatFromContentType(contentType: string): string | null {
  *   signature: signature
  *   folder: "radarvecinal"
  */
-router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
-  const parsed = RequestUploadUrlBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Missing or invalid required fields" });
-    return;
-  }
+router.post(
+  "/storage/uploads/request-url",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const parsed = RequestUploadUrlBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Missing or invalid required fields" });
+      return;
+    }
 
-  const { name, size, contentType } = parsed.data;
+    const { name, size, contentType } = parsed.data;
 
-  // Validar tipo de contenido
-  if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
-    res.status(400).json({
-      error: `Tipo de archivo no permitido: "${contentType}". Solo se aceptan imágenes: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
-    });
-    return;
-  }
+    // Validar tipo de contenido
+    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+      res.status(400).json({
+        error: `Tipo de archivo no permitido: "${contentType}". Solo se aceptan imágenes: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
+      });
+      return;
+    }
 
-  // Validar tamaño
-  if (size > MAX_FILE_SIZE_BYTES) {
-    res.status(400).json({
-      error: `Archivo demasiado grande (${(size / 1024 / 1024).toFixed(1)}MB). Máximo permitido: 10MB.`,
-    });
-    return;
-  }
+    // Validar tamaño
+    if (size > MAX_FILE_SIZE_BYTES) {
+      res.status(400).json({
+        error: `Archivo demasiado grande (${(size / 1024 / 1024).toFixed(1)}MB). Máximo permitido: 10MB.`,
+      });
+      return;
+    }
 
-  try {
-    const format = getFormatFromContentType(contentType);
-    const uploadResult = await objectStorageService.getObjectEntityUploadURL({
-      allowedFormats: format ? [format] : ALLOWED_FORMATS,
-      maxSizeBytes: MAX_FILE_SIZE_BYTES,
-    });
+    try {
+      const format = getFormatFromContentType(contentType);
+      const uploadResult = await objectStorageService.getObjectEntityUploadURL({
+        allowedFormats: format ? [format] : ALLOWED_FORMATS,
+        maxSizeBytes: MAX_FILE_SIZE_BYTES,
+      });
 
-    res.json({
-      uploadURL: uploadResult.uploadURL,
-      signature: uploadResult.signature,
-      timestamp: uploadResult.timestamp,
-      apiKey: uploadResult.apiKey,
-      cloudName: uploadResult.cloudName,
-      folder: "radarvecinal",
-      objectPath: `/pending/${Date.now()}-${name}`,
-      metadata: { name, size, contentType },
-    });
-  } catch (error) {
-    req.log.error({ err: error }, "Error generating Cloudinary upload URL");
-    res.status(500).json({ error: "Failed to generate upload URL" });
-  }
-});
+      res.json({
+        uploadURL: uploadResult.uploadURL,
+        signature: uploadResult.signature,
+        timestamp: uploadResult.timestamp,
+        apiKey: uploadResult.apiKey,
+        cloudName: uploadResult.cloudName,
+        folder: "radarvecinal",
+        objectPath: `/pending/${Date.now()}-${name}`,
+        metadata: { name, size, contentType },
+      });
+    } catch (error) {
+      req.log.error({ err: error }, "Error generating Cloudinary upload URL");
+      res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  },
+);
 
 /**
  * GET /storage/public-objects/*
@@ -97,25 +102,28 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
  * These are unconditionally public — no authentication or ACL checks.
  * IMPORTANT: Always provide this endpoint when object storage is set up.
  */
-router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
-  try {
-    const raw = req.params.filePath;
-    const filePath = Array.isArray(raw) ? raw.join("/") : raw;
-    const file = await objectStorageService.searchPublicObject(filePath);
-    if (!file) {
-      res.status(404).json({ error: "File not found" });
-      return;
-    }
+router.get(
+  "/storage/public-objects/*filePath",
+  async (req: Request, res: Response) => {
+    try {
+      const raw = req.params.filePath;
+      const filePath = Array.isArray(raw) ? raw.join("/") : raw;
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        res.status(404).json({ error: "File not found" });
+        return;
+      }
 
-    // Redirigir al CDN de Cloudinary
-    const cloudinaryCN = process.env.CLOUDINARY_CLOUD_NAME || "";
-    const publicUrl = `https://res.cloudinary.com/${cloudinaryCN}/image/upload/${filePath}`;
-    res.redirect(301, publicUrl);
-  } catch (error) {
-    req.log.error({ err: error }, "Error serving public object");
-    res.status(500).json({ error: "Failed to serve public object" });
-  }
-});
+      // Redirigir al CDN de Cloudinary
+      const cloudinaryCN = process.env.CLOUDINARY_CLOUD_NAME || "";
+      const publicUrl = `https://res.cloudinary.com/${cloudinaryCN}/image/upload/${filePath}`;
+      res.redirect(301, publicUrl);
+    } catch (error) {
+      req.log.error({ err: error }, "Error serving public object");
+      res.status(500).json({ error: "Failed to serve public object" });
+    }
+  },
+);
 
 /**
  * GET /storage/objects/*
@@ -129,7 +137,8 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const objectFile =
+      await objectStorageService.getObjectEntityFile(objectPath);
 
     // Redirigir al CDN de Cloudinary (302 para no cachear la redirección)
     const cloudinaryCN = process.env.CLOUDINARY_CLOUD_NAME || "";

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from "vitest";
 
 // No vi.mock for @workspace/db — it causes ESM directory import issues.
 // Instead we test the query/insert logic inline.
 
-describe('Reports Routes Logic', () => {
+describe("Reports Routes Logic", () => {
   // Mock DB: simulates the drizzle query interface
   function createMockDb() {
     const selectFn = vi.fn();
@@ -59,15 +59,24 @@ describe('Reports Routes Logic', () => {
     return result;
   }
 
-  it('should build correct select query for GET /reports', async () => {
+  it("should build correct select query for GET /reports", async () => {
     const { db, selectFn } = createMockDb();
     const mockReports = [
-      { id: 1, title: 'Test Report', category: 'robbery', status: 'active', latitude: -11.12, longitude: -75.35 },
+      {
+        id: 1,
+        title: "Test Report",
+        category: "robbery",
+        status: "active",
+        latitude: -11.12,
+        longitude: -75.35,
+      },
     ];
 
     const orderByFn = vi.fn().mockResolvedValue(mockReports);
     const whereFn = vi.fn().mockReturnValue({ orderBy: orderByFn });
-    const fromFn = vi.fn().mockReturnValue({ where: whereFn, orderBy: orderByFn });
+    const fromFn = vi
+      .fn()
+      .mockReturnValue({ where: whereFn, orderBy: orderByFn });
     selectFn.mockReturnValue({ from: fromFn });
 
     const result = await getReports(db);
@@ -77,16 +86,16 @@ describe('Reports Routes Logic', () => {
     expect(fromFn).toHaveBeenCalled();
   });
 
-  it('should handle insert report correctly', async () => {
+  it("should handle insert report correctly", async () => {
     const { db, insertFn } = createMockDb();
     const newReport = {
-      title: 'New Report',
-      description: 'Description of the report',
-      category: 'robbery',
+      title: "New Report",
+      description: "Description of the report",
+      category: "robbery",
       latitude: -11.1282,
       longitude: -75.3554,
-      sector: 'Centro',
-      district: 'San Ramón',
+      sector: "Centro",
+      district: "San Ramón",
     };
 
     const returningFn = vi.fn().mockResolvedValue([{ id: 1, ...newReport }]);
@@ -95,12 +104,12 @@ describe('Reports Routes Logic', () => {
 
     const result = await createReport(db, newReport);
 
-    expect(result[0].title).toBe('New Report');
+    expect(result[0].title).toBe("New Report");
     expect(result[0].id).toBe(1);
     expect(valuesFn).toHaveBeenCalledWith(newReport);
   });
 
-  it('should handle report not found', async () => {
+  it("should handle report not found", async () => {
     const { db, selectFn } = createMockDb();
 
     const whereFn = vi.fn().mockResolvedValue([]);

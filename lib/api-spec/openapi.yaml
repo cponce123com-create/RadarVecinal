@@ -1036,7 +1036,6 @@ components:
         - latitude
         - longitude
         - sector
-        - authorName
 
     UpdateReportInput:
       type: object

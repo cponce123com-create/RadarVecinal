@@ -32,11 +32,7 @@ describe("Users Routes Logic", () => {
     return { users: result };
   }
 
-  async function updateUser(
-    db: any,
-    id: number,
-    updates: Record<string, any>,
-  ) {
+  async function updateUser(db: any, id: number, updates: Record<string, any>) {
     const result = await db.update().set(updates).where().returning();
     return result[0] ?? null;
   }
@@ -118,11 +114,19 @@ describe("Users Routes Logic", () => {
     const userId = 1;
     const updates = { name: "Updated Name", sector: "Bajo Kimiri" };
 
-    const returningFn = vi
-      .fn()
-      .mockResolvedValue([
-        { id: userId, name: "Updated Name", sector: "Bajo Kimiri", email: "u@t.com", role: "user", district: "San Ramón", isActive: true, reportsCount: 0, createdAt: new Date() },
-      ]);
+    const returningFn = vi.fn().mockResolvedValue([
+      {
+        id: userId,
+        name: "Updated Name",
+        sector: "Bajo Kimiri",
+        email: "u@t.com",
+        role: "user",
+        district: "San Ramón",
+        isActive: true,
+        reportsCount: 0,
+        createdAt: new Date(),
+      },
+    ]);
     const whereFn = vi.fn().mockReturnValue({ returning: returningFn });
     const setFn = vi.fn().mockReturnValue({ where: whereFn });
     updateFn.mockReturnValue({ set: setFn });
@@ -167,9 +171,30 @@ describe("Users Routes Logic", () => {
   it("should fetch notifications with unread count", async () => {
     const { db, selectFn } = createMockDb();
     const mockNotifs = [
-      { id: 1, type: "panic_alert", title: "Alerta", body: "test", isRead: false, createdAt: new Date("2024-06-01") },
-      { id: 2, type: "panic_alert", title: "Vieja",  body: "test", isRead: true,  createdAt: new Date("2024-05-01") },
-      { id: 3, type: "warning",     title: "Nueva",  body: "test", isRead: false, createdAt: new Date("2024-06-02") },
+      {
+        id: 1,
+        type: "panic_alert",
+        title: "Alerta",
+        body: "test",
+        isRead: false,
+        createdAt: new Date("2024-06-01"),
+      },
+      {
+        id: 2,
+        type: "panic_alert",
+        title: "Vieja",
+        body: "test",
+        isRead: true,
+        createdAt: new Date("2024-05-01"),
+      },
+      {
+        id: 3,
+        type: "warning",
+        title: "Nueva",
+        body: "test",
+        isRead: false,
+        createdAt: new Date("2024-06-02"),
+      },
     ];
 
     const orderByFn = vi.fn().mockResolvedValue(mockNotifs);
@@ -217,7 +242,14 @@ describe("Users Routes Logic", () => {
   it("should fetch ad slots", async () => {
     const { db, selectFn } = createMockDb();
     const mockAds = [
-      { id: 1, businessName: "Botica San Ramón", tagline: "Medicamentos", targetUrl: "https://example.com", isActive: true, sector: null },
+      {
+        id: 1,
+        businessName: "Botica San Ramón",
+        tagline: "Medicamentos",
+        targetUrl: "https://example.com",
+        isActive: true,
+        sector: null,
+      },
     ];
 
     const fromFn = vi.fn().mockResolvedValue(mockAds);

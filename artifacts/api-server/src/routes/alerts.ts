@@ -680,6 +680,7 @@ router.post("/missing-persons", optionalAuth, async (req, res) => {
       lastSeenAt: new Date(data.lastSeenAt),
       contactInfo: data.contactInfo,
       reportedBy: data.reportedBy,
+      reportedById: user?.sub ? Number(user.sub) : null,
     }).returning();
 
     return res.status(201).json({
@@ -708,12 +709,9 @@ router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
     if (!person) return res.status(404).json({ error: "Persona no encontrada." });
 
     // Permisos: solo autor, admin del distrito, o super_admin.
-    // DEUDA: `missing_persons.reportedBy` guarda el NOMBRE del reportante, no un
-    // user id, así que no permite identificar al autor de forma fiable
-    // (`Number(user.sub) === "<nombre>"` siempre es false). Se explicita ese
-    // comportamiento actual; para habilitar el chequeo real hace falta añadir una
-    // columna `reportedById` a la tabla (ver AUDITORIA_PRODUCCION.md).
-    const isAuthor = false;
+    // Migración 0024: la autoría se determina por `reportedById` (user id).
+    // Filas previas sin ese dato → isAuthor false (solo admin/super_admin).
+    const isAuthor = !!user.sub && person.reportedById != null && Number(user.sub) === person.reportedById;
     const isAdmin = ["admin", "moderator", "super_admin"].includes(user.role);
     const isSameDistrict = user.role === "super_admin" || Number(user.districtId) === Number(person.districtId);
 

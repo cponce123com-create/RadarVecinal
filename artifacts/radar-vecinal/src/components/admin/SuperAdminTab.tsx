@@ -142,6 +142,8 @@ function GenerateLicenseForm({ onGenerated }: { onGenerated: () => void }) {
 function LicenseList() {
   const [licenses, setLicenses] = useState<License[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   const fetch = async () => {
     setLoading(true);
@@ -153,17 +155,20 @@ function LicenseList() {
 
   useEffect(() => { fetch(); }, []);
 
-  const handleRevoke = async (id: string) => {
-    if (!confirm("¿Revocar esta licencia? El municipal perderá acceso.")) return;
+  const confirmRevoke = async () => {
+    if (!revokeId) return;
+    setRevoking(true);
     try {
-      await customFetch(`/api/admin/licenses/${id}/revoke`, { method: "POST" });
+      await customFetch(`/api/admin/licenses/${revokeId}/revoke`, { method: "POST" });
+      setRevokeId(null);
       fetch();
-    } catch {}
+    } catch {} finally { setRevoking(false); }
   };
 
   if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
+    <>
     <div className="rounded-2xl bg-card border border-white/8 p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -191,7 +196,7 @@ function LicenseList() {
               <p className="text-[11px] text-muted-foreground truncate">{l.districtName} - {l.province}, {l.department}</p>
             </div>
             {l.isActive && (
-              <button onClick={() => handleRevoke(l.id)}
+              <button onClick={() => setRevokeId(l.id)} aria-label={`Revocar licencia ${l.siglas}`}
                 className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                 <XCircle className="w-3.5 h-3.5 text-red-400" />
               </button>
@@ -201,6 +206,51 @@ function LicenseList() {
         {licenses.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Sin licencias aún</p>}
       </div>
     </div>
+
+    {/* Confirmación de revocación (reemplaza al confirm() nativo) */}
+    <AnimatePresence>
+      {revokeId && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => !revoking && setRevokeId(null)}
+          role="dialog" aria-modal="true" aria-label="Confirmar revocación de licencia"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 16 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-[#0f1219] border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                <XCircle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white">Revocar licencia</h3>
+                <p className="text-xs text-muted-foreground">El municipal perderá acceso.</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              ¿Seguro que deseas revocar esta licencia? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setRevokeId(null)} disabled={revoking}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-muted-foreground hover:text-white hover:border-white/20 transition-all disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={confirmRevoke} disabled={revoking}
+                className="flex-1 py-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-sm font-bold text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50">
+                {revoking
+                  ? <span className="flex items-center justify-center gap-1.5"><div className="w-3.5 h-3.5 rounded-full border-2 border-red-400/30 border-t-red-400 animate-spin" /> Revocando...</span>
+                  : "Sí, revocar"
+                }
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 

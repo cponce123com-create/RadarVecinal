@@ -204,15 +204,27 @@ Al reactivar `tsc` en todo el monorepo (paso 1 de las recomendaciones) se descub
 
 ---
 
+## Tercera iteración — Pulido ("pule todo")
+
+Lote de mejoras seguras y verificadas (build + tests en verde):
+
+| # | Área | Cambio |
+|---|---|---|
+| T1 | Producción | `esbuild.pure` elimina `console.log/info/debug` del bundle de producción (conserva `warn`/`error`). Verificado: **0 `console.log`** en el bundle final. |
+| T2 | UX/Multi-tenant | Subtítulo del topbar **dinámico por distrito** (`Layout`): "GEOLOCALIZACIÓN · DISTRITO" y "ANALÍTICA · DISTRITO" ahora muestran el distrito activo en vez del fijo "SAN RAMÓN" (UX5 ✔). |
+| T3 | Accesibilidad | Enlace **"Saltar al contenido"** (visible al enfocar con teclado) + `id`/`tabIndex` en la región principal (WCAG 2.4.1, AC4 ✔). |
+| T4 | UX | `main.tsx`: el aviso de nueva versión del SW usa un **toast con acción "Actualizar"** en vez de `confirm()` nativo. También `onOfflineReady` usa toast (elimina un `console.log`). |
+| T5 | UX | `SuperAdminTab`: la revocación de licencia usa un **modal de confirmación** con estilo de la app (con estado de carga y ARIA) en vez de `confirm()` nativo (UX3 ✔). |
+| T6 | Funcionalidad/BD | **Autoría de personas extraviadas** completada: nueva columna `reported_by_id` (migración `0024`), el `POST` la guarda desde el usuario autenticado y el `PATCH` identifica al autor de forma fiable (`isAuthor`). Filas previas sin dato → solo admin/super_admin, sin cambio de comportamiento para datos antiguos. |
+
+---
+
 ## Cambios pendientes (requieren decisión funcional o validación en dispositivo)
 
-1. **Autoría de `missing_persons`** (B5/§2ª iteración): habilitar `isAuthor` requiere añadir una columna `reportedById` (user id) a la tabla; hoy `reportedBy` solo guarda el nombre. Decisión de esquema + migración.
-2. **Reemplazar `confirm()` nativos** (SuperAdminTab, main.tsx) por el modal propio de la app — requiere definir copy/estética (UX3).
-3. **Regenerar `api-zod` con la versión de orval fijada**: la versión actual de orval emite `zod.url()` (estilo v4) incompatible con zod v3 instalado; por eso la regeneración de esta sesión se acotó al cambio de `authorName` y se revirtió el resto. Alinear orval/zod antes de una regeneración completa.
-4. **Modularizar `reports.ts`** (1.496 líneas) por sub-dominio (A3).
-5. **Subtítulo del topbar dinámico por distrito** en vez de "SAN RAMÓN" fijo (UX5).
-6. **Auto-hospedar fuentes** para offline-first real (UI3).
-7. **Validación en dispositivo** de tablas admin y contraste de micro-labels (M5, AC5).
+1. **Regenerar `api-zod` con la versión de orval fijada**: la versión actual de orval emite `zod.url()` (estilo v4) incompatible con zod v3 instalado; por eso la regeneración de esta sesión se acotó al cambio de `authorName` y se revirtió el resto. Alinear orval/zod antes de una regeneración completa.
+2. **Modularizar `reports.ts`** (1.496 líneas) por sub-dominio (A3) — refactor grande, mejor con cobertura de tests dedicada.
+3. **Auto-hospedar fuentes** para offline-first real (UI3) — requiere añadir paquetes `@fontsource` o alojar los archivos.
+4. **Validación en dispositivo** de tablas admin y contraste de micro-labels (M5, AC5) — requiere hardware real / Lighthouse.
 
 ---
 

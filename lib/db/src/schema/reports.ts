@@ -174,6 +174,9 @@ export const missingPersonsTable = pgTable("missing_persons", {
   contactInfo: text("contact_info").notNull(),
   status: missingPersonStatusEnum("status").notNull().default("active"),
   reportedBy: text("reported_by").notNull(),
+  // Migración 0024: user id del reportante (para identificar al autor de forma
+  // fiable; `reportedBy` solo guarda el nombre). Nullable: filas previas sin dato.
+  reportedById: integer("reported_by_id").references((): AnyPgColumn => usersTable.id),
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -43,7 +43,7 @@ const SIDE_NAV = [
 
 // Título dinámico del topbar según la ruta
 const TITLES: { match: (l: string) => boolean; title: string; sub: string }[] = [
-  { match: l => l.startsWith("/mapa"),          title: "Mapa de Incidentes",  sub: "GEOLOCALIZACIÓN · SAN RAMÓN" },
+  { match: l => l.startsWith("/mapa"),          title: "Mapa de Incidentes",  sub: "GEOLOCALIZACIÓN · DISTRITO" },
   { match: l => l.startsWith("/alertas"),       title: "Alertas de Pánico",   sub: "MONITOREO · EMERGENCIAS" },
   { match: l => l.startsWith("/reportar"),      title: "Reportar Incidente",  sub: "NUEVO REPORTE" },
   { match: l => l.startsWith("/emergencias"),   title: "Emergencias",         sub: "LÍNEAS DIRECTAS" },
@@ -163,12 +163,24 @@ export function Layout({ children }: LayoutProps) {
   }, [location]);
 
   const { user, logout } = useAuth();
+  const { currentDistrict } = useDistrict();
   const isActive = (href: string) =>
     href === "/home" ? location === href || location === "/" : location.startsWith(href);
-  const head = TITLES.find(t => t.match(location)) ?? { title: "Panel de Inicio", sub: "DASHBOARD · TIEMPO REAL" };
+  const baseHead = TITLES.find(t => t.match(location)) ?? { title: "Panel de Inicio", sub: "DASHBOARD · TIEMPO REAL" };
+  // UX5: el subtítulo refleja el distrito activo (multi-tenant) en vez de un valor fijo.
+  const head = currentDistrict
+    ? { ...baseHead, sub: baseHead.sub.replace(/·\s*DISTRITO\b/i, `· ${currentDistrict.toUpperCase()}`) }
+    : baseHead;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row relative">
+      {/* A11y: saltar al contenido (visible solo al enfocar con teclado) */}
+      <a
+        href="#contenido-principal"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-white focus:font-semibold focus:shadow-lg"
+      >
+        Saltar al contenido
+      </a>
       {/* textura de grid global */}
       <div className="rv-grid pointer-events-none fixed inset-0 opacity-50 z-0" />
 
@@ -355,7 +367,7 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         <OfflineBanner />
-        <div className="w-full max-w-[1180px] mx-auto px-4 md:px-7 py-5 md:py-6 flex-1">
+        <div id="contenido-principal" tabIndex={-1} className="w-full max-w-[1180px] mx-auto px-4 md:px-7 py-5 md:py-6 flex-1 focus:outline-none">
           {children}
         </div>
       </main>

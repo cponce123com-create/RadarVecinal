@@ -9,6 +9,11 @@ const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base: basePath,
+  // Elimina console.log/info/debug del bundle de producción (al minificar),
+  // conservando console.warn/error para diagnóstico. En dev no afecta.
+  esbuild: {
+    pure: ["console.log", "console.info", "console.debug"],
+  },
   plugins: [
     react(),
     tailwindcss(),

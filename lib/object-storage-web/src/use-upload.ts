@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import type { UppyFile } from "@uppy/core";
 
 interface UploadMetadata {
   name: string;
@@ -8,50 +7,42 @@ interface UploadMetadata {
 }
 
 interface UploadResponse {
-  uploadURL: string;
+  /** URL pública final de la imagen (Cloudinary secure_url). */
   objectPath: string;
+  /** Alias explícito de la URL pública. */
+  secureUrl: string;
+  publicId?: string;
+  metadata: UploadMetadata;
+}
+
+/** Parámetros firmados que devuelve el backend para el upload a Cloudinary. */
+interface SignedUpload {
+  uploadURL: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  cloudName: string;
+  folder: string;
   metadata: UploadMetadata;
 }
 
 interface UseUploadOptions {
-  /** Base path where object storage routes are mounted (default: "/api/storage") */
+  /** Base path donde están montadas las rutas de storage (default "/api/storage"). */
   basePath?: string;
+  /**
+   * Devuelve el token JWT actual para autenticar la petición de subida.
+   * El endpoint `/uploads/request-url` requiere autenticación.
+   */
+  getAuthToken?: () => string | null | undefined;
   onSuccess?: (response: UploadResponse) => void;
   onError?: (error: Error) => void;
 }
 
 /**
- * React hook for handling file uploads with presigned URLs.
- *
- * This hook implements the two-step presigned URL upload flow:
- * 1. Request a presigned URL from your backend (sends JSON metadata, NOT the file)
- * 2. Upload the file directly to the presigned URL
- *
- * @example
- * ```tsx
- * function FileUploader() {
- *   const { uploadFile, isUploading, error } = useUpload({
- *     onSuccess: (response) => {
- *       console.log("Uploaded to:", response.objectPath);
- *     },
- *   });
- *
- *   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
- *     const file = e.target.files?.[0];
- *     if (file) {
- *       await uploadFile(file);
- *     }
- *   };
- *
- *   return (
- *     <div>
- *       <input type="file" onChange={handleFileChange} disabled={isUploading} />
- *       {isUploading && <p>Uploading...</p>}
- *       {error && <p>Error: {error.message}</p>}
- *     </div>
- *   );
- * }
- * ```
+ * Hook de subida de imágenes con Cloudinary (upload firmado):
+ *   1. Pide al backend los parámetros firmados (JSON, con Authorization).
+ *   2. Sube el archivo directamente a Cloudinary vía multipart POST firmado.
+ *   3. Devuelve la `secure_url` real de la imagen.
  */
 export function useUpload(options: UseUploadOptions = {}) {
   const basePath = options.basePath ?? "/api/storage";
@@ -59,13 +50,17 @@ export function useUpload(options: UseUploadOptions = {}) {
   const [error, setError] = useState<Error | null>(null);
   const [progress, setProgress] = useState(0);
 
-  const requestUploadUrl = useCallback(
-    async (file: File): Promise<UploadResponse> => {
+  const requestSignedUpload = useCallback(
+    async (file: File): Promise<SignedUpload> => {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      const token = options.getAuthToken?.();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const response = await fetch(`${basePath}/uploads/request-url`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           name: file.name,
           size: file.size,
@@ -74,28 +69,51 @@ export function useUpload(options: UseUploadOptions = {}) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to get upload URL");
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error("Debes iniciar sesión para subir fotos.");
+        }
+        throw new Error(
+          data.error || "No se pudo iniciar la subida de la imagen.",
+        );
       }
 
       return response.json();
     },
-    [],
+    [basePath, options],
   );
 
-  const uploadToPresignedUrl = useCallback(
-    async (file: File, uploadURL: string): Promise<void> => {
-      const response = await fetch(uploadURL, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
+  const uploadToCloudinary = useCallback(
+    async (
+      file: File,
+      signed: SignedUpload,
+    ): Promise<{ secureUrl: string; publicId?: string }> => {
+      // Cloudinary exige un multipart POST con los parámetros firmados
+      // (file + api_key + timestamp + signature + folder), que deben coincidir
+      // exactamente con lo firmado en el servidor.
+      const form = new FormData();
+      form.append("file", file);
+      form.append("api_key", signed.apiKey);
+      form.append("timestamp", String(signed.timestamp));
+      form.append("signature", signed.signature);
+      form.append("folder", signed.folder);
+
+      const response = await fetch(signed.uploadURL, {
+        method: "POST",
+        body: form,
       });
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error("Failed to upload file to storage");
+        throw new Error(
+          data?.error?.message || "Error al subir la imagen al almacenamiento.",
+        );
       }
+
+      return {
+        secureUrl: data.secure_url as string,
+        publicId: data.public_id as string | undefined,
+      };
     },
     [],
   );
@@ -108,65 +126,39 @@ export function useUpload(options: UseUploadOptions = {}) {
 
       try {
         setProgress(10);
-        const uploadResponse = await requestUploadUrl(file);
+        const signed = await requestSignedUpload(file);
 
-        setProgress(30);
-        await uploadToPresignedUrl(file, uploadResponse.uploadURL);
+        setProgress(35);
+        const { secureUrl, publicId } = await uploadToCloudinary(file, signed);
 
         setProgress(100);
-        options.onSuccess?.(uploadResponse);
-        return uploadResponse;
+        const response: UploadResponse = {
+          objectPath: secureUrl,
+          secureUrl,
+          publicId,
+          metadata: signed.metadata,
+        };
+        options.onSuccess?.(response);
+        return response;
       } catch (err) {
-        const error = err instanceof Error ? err : new Error("Upload failed");
-        setError(error);
-        options.onError?.(error);
+        const uploadErr =
+          err instanceof Error ? err : new Error("Upload failed");
+        setError(uploadErr);
+        options.onError?.(uploadErr);
         return null;
       } finally {
         setIsUploading(false);
       }
     },
-    [requestUploadUrl, uploadToPresignedUrl, options],
-  );
-
-  const getUploadParameters = useCallback(
-    async (
-      file: UppyFile<Record<string, unknown>, Record<string, unknown>>,
-    ): Promise<{
-      method: "PUT";
-      url: string;
-      headers?: Record<string, string>;
-    }> => {
-      const response = await fetch(`${basePath}/uploads/request-url`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          contentType: file.type || "application/octet-stream",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get upload URL");
-      }
-
-      const data = await response.json();
-      return {
-        method: "PUT",
-        url: data.uploadURL,
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-      };
-    },
-    [],
+    [requestSignedUpload, uploadToCloudinary, options],
   );
 
   return {
     uploadFile,
-    getUploadParameters,
     isUploading,
     error,
     progress,
   };
 }
+
+export type { UploadResponse };

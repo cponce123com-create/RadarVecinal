@@ -60,36 +60,23 @@ export class ObjectStorageService {
    * Genera los parámetros para un upload firmado a Cloudinary.
    * Devuelve la URL de upload + los campos que el cliente debe enviar.
    */
-  async getObjectEntityUploadURL(options?: {
-    allowedFormats?: string[];
-    maxSizeBytes?: number;
-  }): Promise<{
+  async getObjectEntityUploadURL(): Promise<{
     uploadURL: string;
     signature: string;
     timestamp: number;
     apiKey: string;
     cloudName: string;
+    folder: string;
   }> {
     const { cloudName, apiKey, apiSecret } = getConfig();
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = "radarvecinal";
 
-    const params: Record<string, string | number> = {
-      timestamp,
-      folder,
-      resource_type: "image",
-    };
-
-    // Restricciones: solo imágenes, formatos específicos
-    const formats = options?.allowedFormats ?? ["jpg", "png", "webp"];
-    params.allowed_formats = formats.join(",");
-
-    // Límite de tamaño (default 10MB)
-    if (options?.maxSizeBytes) {
-      params.max_file_size = options.maxSizeBytes;
-    }
-
-    const signature = generateSignature(params, apiSecret);
+    // Cloudinary firma SOLO los parámetros que el cliente enviará, excluyendo
+    // file, api_key, cloud_name y resource_type. Firmamos el mínimo canónico
+    // (folder + timestamp) para que la firma valide de forma fiable; el tipo y
+    // tamaño ya se validan en el servidor antes de emitir la firma.
+    const signature = generateSignature({ folder, timestamp }, apiSecret);
 
     return {
       uploadURL: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -97,6 +84,7 @@ export class ObjectStorageService {
       timestamp,
       apiKey,
       cloudName,
+      folder,
     };
   }
 

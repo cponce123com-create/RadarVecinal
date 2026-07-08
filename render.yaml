@@ -24,10 +24,15 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
-      - key: GCS_BUCKET_NAME
-        value: ""
-      - key: GCS_PROJECT_ID
-        value: ""
+      # Cloudinary — necesario para subir fotos (personas extraviadas, reportes).
+      # Sin estas variables, la carga de imágenes devuelve 503 con aviso claro.
+      # Obtén los valores en https://cloudinary.com/console
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       - key: SEED_KEY
         value: ""
       - key: PUBLIC_OBJECT_SEARCH_PATHS

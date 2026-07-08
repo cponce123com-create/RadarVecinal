@@ -113,3 +113,12 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
+
+# Aprobar scripts de build de dependencias. En CI, pnpm 11 falla (exit 1) si
+# hay scripts de build sin aprobar; esbuild y otros los necesitan de verdad.
+allowBuilds:
+  '@firebase/util': true
+  '@scarf/scarf': true
+  esbuild: true
+  msgpackr-extract: true
+  protobufjs: true

@@ -72,11 +72,8 @@ router.post(
     }
 
     try {
-      const format = getFormatFromContentType(contentType);
-      const uploadResult = await objectStorageService.getObjectEntityUploadURL({
-        allowedFormats: format ? [format] : ALLOWED_FORMATS,
-        maxSizeBytes: MAX_FILE_SIZE_BYTES,
-      });
+      const uploadResult =
+        await objectStorageService.getObjectEntityUploadURL();
 
       res.json({
         uploadURL: uploadResult.uploadURL,
@@ -84,13 +81,17 @@ router.post(
         timestamp: uploadResult.timestamp,
         apiKey: uploadResult.apiKey,
         cloudName: uploadResult.cloudName,
-        folder: "radarvecinal",
-        objectPath: `/pending/${Date.now()}-${name}`,
+        folder: uploadResult.folder,
         metadata: { name, size, contentType },
       });
     } catch (error) {
+      // Falta configuración de Cloudinary → 503 claro para informar al usuario.
+      const message =
+        error instanceof Error && /CLOUDINARY/i.test(error.message)
+          ? "La carga de fotos no está disponible: falta configurar el almacenamiento (Cloudinary)."
+          : "No se pudo iniciar la subida de la imagen.";
       req.log.error({ err: error }, "Error generating Cloudinary upload URL");
-      res.status(500).json({ error: "Failed to generate upload URL" });
+      res.status(503).json({ error: message });
     }
   },
 );

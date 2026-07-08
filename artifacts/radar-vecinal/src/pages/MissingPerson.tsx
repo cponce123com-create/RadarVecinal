@@ -26,12 +26,12 @@ export default function MissingPerson() {
   const { data, isLoading, refetch } = useGetMissingPersons({ active: true });
   const createMissing = useCreateMissingPerson();
   const { toast } = useToast();
-  const { isAdmin, isModerator } = useAuth();
+  const { isAdmin, isModerator, token } = useAuth();
 
   // ── Gestión (moderador+: editar/marcar; municipalidad+: eliminar) ──────────
   const [editing, setEditing] = useState<MissingRow | null>(null);
   const [editForm, setEditForm] = useState({
-    name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", status: "active",
+    name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", status: "active", photoUrl: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -45,6 +45,7 @@ export default function MissingPerson() {
       lastSeenAddress: p.lastSeenAddress ?? "",
       contactInfo: p.contactInfo ?? "",
       status: p.status ?? "active",
+      photoUrl: p.photoUrl ?? "",
     });
     setEditing(p);
   };
@@ -63,6 +64,7 @@ export default function MissingPerson() {
           lastSeenAddress: editForm.lastSeenAddress,
           contactInfo: editForm.contactInfo,
           status: editForm.status,
+          photoUrl: editForm.photoUrl || null,
         }),
       });
       toast({ title: "✓ Cambios guardados" });
@@ -91,9 +93,23 @@ export default function MissingPerson() {
   };
   const { uploadFile, isUploading: isUploadingPhoto, error: uploadError } = useUpload({
     basePath: "/api/storage",
+    getAuthToken: () => token,
     onSuccess: (response) => {
       set("imageUrl", response.objectPath);
       toast({ title: "✅ Foto subida correctamente", description: "La imagen se adjuntará al reporte." });
+    },
+    onError: (err) => {
+      toast({ title: "Error al subir foto", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Subida de foto para el modal de edición (destino distinto: editForm.photoUrl)
+  const { uploadFile: uploadEditPhoto, isUploading: isUploadingEditPhoto } = useUpload({
+    basePath: "/api/storage",
+    getAuthToken: () => token,
+    onSuccess: (response) => {
+      setEditForm((f) => ({ ...f, photoUrl: response.objectPath }));
+      toast({ title: "✅ Foto actualizada" });
     },
     onError: (err) => {
       toast({ title: "Error al subir foto", description: err.message, variant: "destructive" });
@@ -430,6 +446,37 @@ export default function MissingPerson() {
                       <option value="found">Encontrado(a)</option>
                       <option value="archived">Archivado</option>
                     </select>
+                  </div>
+                  {/* Foto: subir / cambiar / quitar */}
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1.5">Foto</label>
+                    <div className="flex items-center gap-3">
+                      <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-sm font-semibold hover:bg-amber-500/25 transition-all cursor-pointer ${isUploadingEditPhoto ? "opacity-50 pointer-events-none" : ""}`}>
+                        <Camera className="w-4 h-4" />
+                        {isUploadingEditPhoto ? "Subiendo..." : editForm.photoUrl ? "Cambiar foto" : "Subir foto"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={isUploadingEditPhoto}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) await uploadEditPhoto(file);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {editForm.photoUrl && (
+                        <>
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-white/5 border border-white/10 flex-shrink-0">
+                            <img src={editForm.photoUrl} alt="Foto" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          </div>
+                          <button type="button" onClick={() => setEditForm(f => ({ ...f, photoUrl: "" }))} className="text-xs text-muted-foreground hover:text-white transition-colors">
+                            Quitar
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-3 pt-2 border-t border-white/5">
                     <button type="button" onClick={() => setEditing(null)} disabled={savingEdit} className="px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/6 rounded-xl transition-all disabled:opacity-50">

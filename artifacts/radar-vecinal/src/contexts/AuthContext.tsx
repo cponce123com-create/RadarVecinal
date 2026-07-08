@@ -23,7 +23,10 @@ interface AuthContextValue {
   token:      string | null;
   login:      (token: string, user: AuthUser) => void;
   logout:     () => void;
+  /** Nivel municipalidad o superior: gestiona y ELIMINA su distrito. */
   isAdmin:    boolean;
+  /** Nivel moderador o superior: ve y edita/modera (sin eliminar). */
+  isModerator: boolean;
   isSuperAdmin: boolean;
 }
 
@@ -72,11 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const isAdmin = !!(user && ["admin", "moderator", "super_admin"].includes(user.role));
+  // Jerarquía de 4 niveles: super_admin > admin/municipal (municipalidad) >
+  // moderator/viewer (moderador) > user. admin≡municipal; moderator≡viewer.
+  const MUNICIPALITY_ROLES = ["super_admin", "admin", "municipal"];
+  const MODERATOR_ROLES = [...MUNICIPALITY_ROLES, "moderator", "viewer"];
+  const isAdmin = !!(user && MUNICIPALITY_ROLES.includes(user.role));
+  const isModerator = !!(user && MODERATOR_ROLES.includes(user.role));
   const isSuperAdmin = !!(user && user.role === "super_admin");
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAdmin, isSuperAdmin }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, isAdmin, isModerator, isSuperAdmin }}
+    >
       {children}
     </AuthContext.Provider>
   );

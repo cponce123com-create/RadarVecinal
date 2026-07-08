@@ -17,6 +17,11 @@ import { eq, and, sql, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import {
+  isSuperAdmin,
+  isMunicipalityLevel,
+  isModeratorLevel,
+} from "../lib/roles";
 
 const router: IRouter = Router();
 
@@ -547,10 +552,12 @@ export async function requireAuth(
   }
 }
 
-// ── Middleware: require admin/moderator/super_admin role ──────────────────────
+// ── Middleware: nivel MUNICIPALIDAD o superior (gestionar y eliminar) ─────────
+// super_admin, admin y municipal. Antes excluía a `municipal` (bug: las
+// municipalidades no podían administrar su distrito) e incluía a `moderator`.
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).jwtUser;
-  if (!user || !["admin", "moderator", "super_admin"].includes(user.role)) {
+  if (!isMunicipalityLevel(user?.role)) {
     return res
       .status(403)
       .json({ error: "Acceso denegado. Se requiere rol de administrador." });
@@ -558,57 +565,64 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
-// ── Middleware: require backoffice role (admin/moderator/super_admin/municipal/viewer) ─
-// Para endpoints que cualquier usuario del backoffice puede usar (ver reportes, mensajear)
+// ── Middleware: cualquier rol de backoffice (ver reportes, mensajear) ─────────
+// Nivel moderador o superior (viewer/moderator/municipal/admin/super_admin).
 export function requireBackoffice(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   const user = (req as any).jwtUser;
-  if (
-    !user ||
-    !["admin", "moderator", "super_admin", "municipal", "viewer"].includes(
-      user.role,
-    )
-  ) {
+  if (!isModeratorLevel(user?.role)) {
     return res
       .status(403)
-      .json({ error: "Acceso denegado. Se requiere rol municipal." });
+      .json({ error: "Acceso denegado. Se requiere rol de backoffice." });
   }
   return next();
 }
 
-// ── Middleware: require municipal or super_admin (crear viewers, gestionar licencias) ─
+// ── Middleware: nivel municipalidad (crear viewers, gestionar su distrito) ────
+// Incluye `admin` (equivalente a `municipal`) y super_admin.
 export function requireMunicipal(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   const user = (req as any).jwtUser;
-  if (!user || !["municipal", "super_admin"].includes(user.role)) {
+  if (!isMunicipalityLevel(user?.role)) {
     return res
       .status(403)
-      .json({ error: "Acceso denegado. Solo usuarios municipales." });
+      .json({ error: "Acceso denegado. Solo municipalidades." });
   }
   return next();
 }
 
-// ── Middleware: require viewer role or above (resolve reports, send messages) ─
-// Los viewers pueden resolver reportes y enviar mensajes, pero NO crear usuarios
+// ── Middleware: nivel MODERADOR o superior (ver + editar/moderar, sin eliminar) ─
+// viewer/moderator y todos los superiores. Los moderadores editan/moderan
+// contenido de su distrito pero NO pueden eliminar (eso es requireAdmin).
 export function requireViewerOrAbove(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   const user = (req as any).jwtUser;
-  if (
-    !user ||
-    !["viewer", "municipal", "admin", "moderator", "super_admin"].includes(
-      user.role,
-    )
-  ) {
+  if (!isModeratorLevel(user?.role)) {
     return res.status(403).json({ error: "Acceso denegado." });
+  }
+  return next();
+}
+
+// ── Middleware: solo super_admin ─────────────────────────────────────────────
+export function requireSuperAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const user = (req as any).jwtUser;
+  if (!isSuperAdmin(user?.role)) {
+    return res
+      .status(403)
+      .json({ error: "Acceso denegado. Solo super administradores." });
   }
   return next();
 }

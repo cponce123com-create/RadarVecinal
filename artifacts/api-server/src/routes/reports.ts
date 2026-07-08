@@ -17,7 +17,12 @@ import {
   reportMessagesTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, sql, isNull, gte, lte } from "drizzle-orm";
-import { requireAuth, requireAdmin, optionalAuth } from "./auth";
+import {
+  requireAuth,
+  requireAdmin,
+  requireViewerOrAbove,
+  optionalAuth,
+} from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { sendStatusChangeEmail } from "../lib/email";
 import bcrypt from "bcryptjs";
@@ -516,77 +521,84 @@ router.get("/reports/:id", optionalAuth, async (req, res) => {
 });
 
 // ── PATCH /reports/:id — M-04: con chequeo de tenant ────────────────────────
-router.patch("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
-  const parsed = updateReportSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res
-      .status(400)
-      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
-  }
-
-  try {
-    const [report] = await db
-      .select({ id: reportsTable.id, districtId: reportsTable.districtId })
-      .from(reportsTable)
-      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
-      .limit(1);
-
-    if (!report)
-      return res.status(404).json({ error: "Reporte no encontrado." });
-
-    // M-04: Chequeo de tenant
-    if (!checkTenant(req, report.districtId)) {
+// Moderar/editar (estado, título, descripción): nivel moderador+ del distrito.
+// Eliminar sigue siendo requireAdmin (municipalidad+). Chequeo de tenant abajo.
+router.patch(
+  "/reports/:id",
+  requireAuth,
+  requireViewerOrAbove,
+  async (req, res) => {
+    const parsed = updateReportSchema.safeParse(req.body);
+    if (!parsed.success) {
       return res
-        .status(403)
-        .json({ error: "No puedes modificar reportes de otro distrito." });
+        .status(400)
+        .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
     }
 
-    const [updated] = await db
-      .update(reportsTable)
-      .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(reportsTable.id, parseInt(req.params.id as string)))
-      .returning();
+    try {
+      const [report] = await db
+        .select({ id: reportsTable.id, districtId: reportsTable.districtId })
+        .from(reportsTable)
+        .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+        .limit(1);
 
-    // Audit log para cambios de estado
-    const user = (req as any).jwtUser;
-    if (parsed.data.status) {
-      await db
-        .insert(auditLogTable)
-        .values({
-          districtId: updated.districtId,
-          entityType: "report",
-          entityId: updated.id,
-          action: "status_changed",
-          previousValue: report.districtId ? "active" : undefined,
-          newValue: parsed.data.status,
-          changedBy: user?.email ?? "unknown",
-          changedById: user ? Number(user.sub) : undefined,
-        })
-        .catch(() => {}); // non-critical
+      if (!report)
+        return res.status(404).json({ error: "Reporte no encontrado." });
 
-      // Email notification al autor si tiene email de contacto
-      if (updated.contactEmail) {
-        sendStatusChangeEmail({
-          to: updated.contactEmail,
-          reportTitle: updated.title,
-          reportId: updated.id,
-          newStatus: parsed.data.status,
-          districtName: updated.district,
-        }).catch(() => {});
+      // M-04: Chequeo de tenant
+      if (!checkTenant(req, report.districtId)) {
+        return res
+          .status(403)
+          .json({ error: "No puedes modificar reportes de otro distrito." });
       }
-    }
 
-    return res.json({
-      ...updated,
-      id: String(updated.id),
-      createdAt: updated.createdAt.toISOString(),
-      updatedAt: updated.updatedAt.toISOString(),
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to update report");
-    return res.status(500).json({ error: "Error interno del servidor." });
-  }
-});
+      const [updated] = await db
+        .update(reportsTable)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(reportsTable.id, parseInt(req.params.id as string)))
+        .returning();
+
+      // Audit log para cambios de estado
+      const user = (req as any).jwtUser;
+      if (parsed.data.status) {
+        await db
+          .insert(auditLogTable)
+          .values({
+            districtId: updated.districtId,
+            entityType: "report",
+            entityId: updated.id,
+            action: "status_changed",
+            previousValue: report.districtId ? "active" : undefined,
+            newValue: parsed.data.status,
+            changedBy: user?.email ?? "unknown",
+            changedById: user ? Number(user.sub) : undefined,
+          })
+          .catch(() => {}); // non-critical
+
+        // Email notification al autor si tiene email de contacto
+        if (updated.contactEmail) {
+          sendStatusChangeEmail({
+            to: updated.contactEmail,
+            reportTitle: updated.title,
+            reportId: updated.id,
+            newStatus: parsed.data.status,
+            districtName: updated.district,
+          }).catch(() => {});
+        }
+      }
+
+      return res.json({
+        ...updated,
+        id: String(updated.id),
+        createdAt: updated.createdAt.toISOString(),
+        updatedAt: updated.updatedAt.toISOString(),
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to update report");
+      return res.status(500).json({ error: "Error interno del servidor." });
+    }
+  },
+);
 
 // ── DELETE /reports/:id — M-04: con chequeo de tenant ───────────────────────
 router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {

@@ -26,7 +26,7 @@ Por tanto, esta auditoría se centró en encontrar **deuda real remanente** y ap
 - ✅ API server `esbuild`: **OK** (0.5 s)
 - ✅ `tsc --build` (libs) + typecheck de **frontend** y **api-server**: **VERDE en los 3 paquetes** tras la 2ª iteración (ver §"Segunda iteración"). El gate de tipos quedó recuperado.
 - ✅ Tests api-server: **94 pasan, 21 skipped** (integración, requieren `DATABASE_URL`), 0 fallos.
-- ⚠️ Tests frontend: 3 fallos **pre-existentes** en `DistrictContext.test.tsx` (tests obsoletos, ver §7).
+- ✅ Tests frontend: **9 pasan, 0 fallos**. Los 3 tests obsoletos de `DistrictContext` se **reescribieron** para reflejar la resolución dinámica de distrito (catálogo + GPS + selección manual, con mocks).
 
 ---
 
@@ -208,12 +208,11 @@ Al reactivar `tsc` en todo el monorepo (paso 1 de las recomendaciones) se descub
 
 1. **Autoría de `missing_persons`** (B5/§2ª iteración): habilitar `isAuthor` requiere añadir una columna `reportedById` (user id) a la tabla; hoy `reportedBy` solo guarda el nombre. Decisión de esquema + migración.
 2. **Reemplazar `confirm()` nativos** (SuperAdminTab, main.tsx) por el modal propio de la app — requiere definir copy/estética (UX3).
-3. **Reescribir `DistrictContext.test.tsx`** con mocks del API que reflejen la resolución dinámica de distrito (C6). No debe "arreglarse" ocultando el fallo.
-4. **Regenerar `api-zod` con la versión de orval fijada**: la versión actual de orval emite `zod.url()` (estilo v4) incompatible con zod v3 instalado; por eso la regeneración de esta sesión se acotó al cambio de `authorName` y se revirtió el resto. Alinear orval/zod antes de una regeneración completa.
-5. **Modularizar `reports.ts`** (1.496 líneas) por sub-dominio (A3).
-6. **Subtítulo del topbar dinámico por distrito** en vez de "SAN RAMÓN" fijo (UX5).
-7. **Auto-hospedar fuentes** para offline-first real (UI3).
-8. **Validación en dispositivo** de tablas admin y contraste de micro-labels (M5, AC5).
+3. **Regenerar `api-zod` con la versión de orval fijada**: la versión actual de orval emite `zod.url()` (estilo v4) incompatible con zod v3 instalado; por eso la regeneración de esta sesión se acotó al cambio de `authorName` y se revirtió el resto. Alinear orval/zod antes de una regeneración completa.
+4. **Modularizar `reports.ts`** (1.496 líneas) por sub-dominio (A3).
+5. **Subtítulo del topbar dinámico por distrito** en vez de "SAN RAMÓN" fijo (UX5).
+6. **Auto-hospedar fuentes** para offline-first real (UI3).
+7. **Validación en dispositivo** de tablas admin y contraste de micro-labels (M5, AC5).
 
 ---
 

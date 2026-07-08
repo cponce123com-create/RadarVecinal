@@ -4,7 +4,7 @@ import { requireAuth, requireBackoffice } from "./auth";
 import { MemoryCache } from "../lib/memoryCache";
 import { db } from "@workspace/db";
 import { auditLogTable } from "@workspace/db/schema";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 const router: IRouter = Router();
 
@@ -83,7 +83,14 @@ router.get("/reniec/lookup/:dni", requireAuth, requireBackoffice, reniecLimiter,
       },
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      document_number: string;
+      first_name: string;
+      first_last_name: string;
+      second_last_name: string;
+      full_name: string;
+      error?: string;
+    };
 
     if (!response.ok) {
       return res.status(response.status).json({

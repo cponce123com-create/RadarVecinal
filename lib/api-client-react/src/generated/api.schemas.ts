@@ -157,7 +157,7 @@ export interface CreateReportInput {
   district?: string;
   districtId?: number;
   imageUrl?: string | null;
-  authorName: string;
+  authorName?: string;
   contactPhone?: string | null;
 }
 

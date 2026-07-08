@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, real, timestamp, integer, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, real, timestamp, integer, jsonb, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -41,6 +41,9 @@ export const panicAlertTypeEnum = pgEnum("panic_alert_type", [
 
 export const missingPersonStatusEnum = pgEnum("missing_person_status", ["active", "found", "archived"]);
 
+// Migración 0023: ciclo de vida de las alertas de pánico.
+export const panicAlertStatusEnum = pgEnum("panic_alert_status", ["active", "attending", "resolved", "false_alarm", "expired"]);
+
 // ── M-05: Catálogo oficial de distritos (multi-tenant) ───────────────────────
 export const districtsTable = pgTable("districts", {
   id: serial("id").primaryKey(),
@@ -69,7 +72,9 @@ export const usersTable = pgTable("users", {
   lastName: text("last_name").notNull().default(""),
   bannedAt: timestamp("banned_at", { mode: "string" }),
   banReason: text("ban_reason"),
-  banReportedById: integer("ban_reported_by_id").references(() => usersTable.id),
+  // Auto-referencia: se anota el tipo de retorno (AnyPgColumn) para romper la
+  // inferencia circular y satisfacer noImplicitAny (patrón oficial de Drizzle).
+  banReportedById: integer("ban_reported_by_id").references((): AnyPgColumn => usersTable.id),
   helpfulReports: integer("helpful_reports").notNull().default(0),
   role: userRoleEnum("role").notNull().default("user"),
   sector: text("sector").notNull().default(""),
@@ -125,6 +130,8 @@ export const reportsTable = pgTable("reports", {
   // Al llegar a 10 el reporte pasa a "archived" y desaparece del mapa/radar.
   resolutionConfirmedCount: integer("resolution_confirmed_count").notNull().default(0),
   assignedTo: integer("assigned_to").references(() => departmentsTable.id),
+  // Migración 0023: reporte generado a partir de una alerta de pánico.
+  panicAlertId: integer("panic_alert_id").references((): AnyPgColumn => panicAlertsTable.id),
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -142,6 +149,13 @@ export const panicAlertsTable = pgTable("panic_alerts", {
   authorName: text("author_name").notNull(),
   sector: text("sector").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  // Migración 0023: ciclo de vida (estado, resolución, expiración, reporte enlazado).
+  status: panicAlertStatusEnum("status").default("active"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedById: integer("resolved_by_id").references((): AnyPgColumn => usersTable.id),
+  resolutionNote: text("resolution_note"),
+  expiresAt: timestamp("expires_at"),
+  linkedReportId: integer("linked_report_id").references((): AnyPgColumn => reportsTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

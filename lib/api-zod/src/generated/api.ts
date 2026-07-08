@@ -162,7 +162,7 @@ export const CreateReportBody = zod.object({
   "district": zod.string().optional(),
   "districtId": zod.number().optional(),
   "imageUrl": zod.string().nullish(),
-  "authorName": zod.string(),
+  "authorName": zod.string().optional(),
   "contactPhone": zod.string().nullish()
 })
 

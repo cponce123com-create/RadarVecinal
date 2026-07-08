@@ -102,7 +102,7 @@ export default function AdminPanel() {
       {tab === "reports" && <ReportsTab reports={reportsData?.reports ?? []} search={search} onRefetch={refetch} />}
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "alerts" && <AlertsTab />}
-      {tab === "users" && <UsersTab users={usersData?.users ?? []} search={search} />}
+      {tab === "users" && <UsersTab />}
       {tab === "ads" && <AdSlotsTab />}
       {tab === "superadmin" && <SuperAdminTab />}
     </div>

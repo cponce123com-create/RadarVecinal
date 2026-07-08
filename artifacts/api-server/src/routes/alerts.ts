@@ -312,7 +312,9 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
       .where(eq(districtsTable.id, districtId))
       .limit(1);
 
-    const [mirrorReport] = await db.insert(reportsTable).values({
+    // Nota: .catch() puede devolver null; se evita desestructurar null
+    // directamente (lanzaría "null is not iterable" en runtime si falla el insert).
+    const mirrorRows = await db.insert(reportsTable).values({
       title: PANIC_TITLE_MAP[data.type] ?? "🚨 Alerta de Pánico",
       description: `Alerta de pánico generada automáticamente. Tipo: ${data.type}.${data.address ? ` Ubicación: ${data.address}` : ""}`,
       category: (PANIC_CATEGORY_MAP[data.type] ?? "other") as any,
@@ -332,6 +334,7 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
       req.log.error({ err: err2 }, "Failed to create report from panic alert");
       return null;
     });
+    const mirrorReport = mirrorRows?.[0] ?? null;
 
     // ── Sync bidireccional linkedReportId / panicAlertId ──────────
     if (mirrorReport) {
@@ -704,8 +707,13 @@ router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
 
     if (!person) return res.status(404).json({ error: "Persona no encontrada." });
 
-    // Permisos: solo autor, admin del distrito, o super_admin
-    const isAuthor = user.sub && Number(user.sub) === person.reportedBy;
+    // Permisos: solo autor, admin del distrito, o super_admin.
+    // DEUDA: `missing_persons.reportedBy` guarda el NOMBRE del reportante, no un
+    // user id, así que no permite identificar al autor de forma fiable
+    // (`Number(user.sub) === "<nombre>"` siempre es false). Se explicita ese
+    // comportamiento actual; para habilitar el chequeo real hace falta añadir una
+    // columna `reportedById` a la tabla (ver AUDITORIA_PRODUCCION.md).
+    const isAuthor = false;
     const isAdmin = ["admin", "moderator", "super_admin"].includes(user.role);
     const isSameDistrict = user.role === "super_admin" || Number(user.districtId) === Number(person.districtId);
 

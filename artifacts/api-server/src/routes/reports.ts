@@ -14,6 +14,7 @@ import {
   resolutionConfirmationsTable,
   userStrikesTable,
   communityFlagsTable,
+  reportMessagesTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, sql, isNull, gte, lte } from "drizzle-orm";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";

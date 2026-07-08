@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { db } from "@workspace/db";
-import { auditLogs } from "@workspace/db/schema/auditLogs";
+import { auditLogs } from "@workspace/db/schema";
 
 interface AuditEntry {
   userId: string;

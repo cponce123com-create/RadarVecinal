@@ -174,8 +174,10 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
     title: r.title,
     category: r.category,
     sector: r.sector,
+    district: r.district,
     authorName: r.authorName ?? "",
     contactPhone: r.contactPhone ?? null,
+    contactEmail: r.contactEmail ?? null,
     isAnonymous: r.isAnonymous ?? false,
     status: r.status,
   });

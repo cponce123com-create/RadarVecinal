@@ -66,13 +66,12 @@ function GenerateLicenseForm({ onGenerated }: { onGenerated: () => void }) {
     setError("");
     setResult(null);
     try {
-      const res = await customFetch("/api/admin/licenses/generate", {
+      // customFetch devuelve el body ya parseado y lanza ApiError si !ok.
+      const data = await customFetch<{ license: { code: string; siglas: string } }>("/api/admin/licenses/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ siglas, distrito, provincia, departamento }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al generar código");
       setResult({ code: data.license.code, siglas: data.license.siglas });
       setSiglas(""); setDistrito(""); setProvincia(""); setDepartamento("");
       onGenerated();
@@ -147,8 +146,7 @@ function LicenseList() {
   const fetch = async () => {
     setLoading(true);
     try {
-      const res = await customFetch("/api/admin/licenses");
-      const data = await res.json();
+      const data = await customFetch<{ licenses: License[] }>("/api/admin/licenses");
       setLicenses(data.licenses ?? []);
     } catch {} finally { setLoading(false); }
   };
@@ -224,13 +222,12 @@ function CreateMunicipalForm({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     setLoading(true); setError(""); setResult(null);
     try {
-      const res = await customFetch("/api/admin/municipal-users", {
+      // customFetch devuelve el body ya parseado y lanza ApiError si !ok.
+      const data = await customFetch<{ user: { name: string; email: string }; license?: { code: string } }>("/api/admin/municipal-users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, generateLicense: true }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al crear");
       setResult(data);
       setForm({ name: "", email: "", password: "", siglas: "", districtName: "", province: "", department: "", displayName: "" });
       onCreated();
@@ -296,7 +293,7 @@ function StatsCards() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    customFetch("/api/admin/stats").then(r => r.json()).then(d => {
+    customFetch<{ stats: AdminStats }>("/api/admin/stats").then(d => {
       setStats(d.stats);
       setLoading(false);
     }).catch(() => setLoading(false));

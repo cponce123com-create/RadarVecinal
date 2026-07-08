@@ -41,8 +41,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - name: Build shared libs (db, api-zod)
-        run: pnpm --filter "@workspace/db" --filter "@workspace/api-zod" run build 2>/dev/null || true
+      - name: Build shared libs (project references)
+        run: pnpm exec tsc --build
       - name: TypeCheck api-server
         run: pnpm --filter "@workspace/api-server" run typecheck
 

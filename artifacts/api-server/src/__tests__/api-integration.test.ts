@@ -25,9 +25,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
     let pool: any;
     let usersTable: any;
     let reportsTable: any;
+    let districtsTable: any;
     let sql: any;
     let jwt: any;
     let bcrypt: any;
+    // districtId es NOT NULL (multi-tenant, migración 0003): se siembra un
+    // distrito de prueba y se referencia en los inserts de users/reports.
+    let testDistrictId: number;
 
     beforeAll(async () => {
       const dbMod = await import("@workspace/db");
@@ -35,6 +39,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       pool = dbMod.pool;
       usersTable = (await import("@workspace/db/schema")).usersTable;
       reportsTable = (await import("@workspace/db/schema")).reportsTable;
+      districtsTable = (await import("@workspace/db/schema")).districtsTable;
       sql = (await import("drizzle-orm")).sql;
       jwt = (await import("jsonwebtoken")).default;
       bcrypt = (await import("bcryptjs")).default;
@@ -42,6 +47,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
       // Verify DB connectivity
       const result = await db.execute(sql`SELECT 1 AS ok`);
       expect(result.rows[0]).toEqual({ ok: 1 });
+
+      // Sembrar un distrito de prueba para satisfacer el FK districtId.
+      const [district] = await db
+        .insert(districtsTable)
+        .values({
+          slug: `e2e-${Date.now()}`,
+          name: "San Ramón",
+          province: "Chanchamayo",
+          department: "Junín",
+        })
+        .returning();
+      testDistrictId = district.id;
     });
 
     // ── Helper: seed a test user ───────────────────────────────────────────────
@@ -56,6 +73,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           role: "user",
           sector: "E2E Test",
           district: "San Ramón",
+          districtId: testDistrictId,
           isActive: true,
           reportsCount: 0,
         })
@@ -108,6 +126,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           role: "user",
           sector: "Test",
           district: "San Ramón",
+          districtId: testDistrictId,
           isActive: true,
           reportsCount: 0,
         });
@@ -120,6 +139,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
             role: "user",
             sector: "Test",
             district: "San Ramón",
+            districtId: testDistrictId,
             isActive: true,
             reportsCount: 0,
           }),
@@ -186,6 +206,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
             address: "Jr. Tarma cdra. 3, San Ramón",
             sector: "San Ramón Centro",
             district: "San Ramón",
+            districtId: testDistrictId,
             isAnonymous: false,
             authorName: "E2E Test User",
             status: "active",
@@ -217,6 +238,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
             address: "Jr. Tarma cdra. 3",
             sector: "San Ramón Centro",
             district: "San Ramón",
+            districtId: testDistrictId,
             isAnonymous: true,
             authorName: "Anónimo",
             status: "active",
@@ -259,6 +281,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
               address: "Test addr",
               sector: "Test",
               district: "San Ramón",
+              districtId: testDistrictId,
               isAnonymous: true,
               authorName: "E2E Test",
               status: "active",

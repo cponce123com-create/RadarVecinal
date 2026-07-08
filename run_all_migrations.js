@@ -8,9 +8,13 @@ const migrationFiles = fs.readdirSync(migrationsDir)
   .sort();
 
 async function run() {
+  // SSL condicional: los Postgres locales/CI no soportan SSL; los gestionados
+  // (Neon, RDS…) sí. Se desactiva para localhost/127.0.0.1 o sslmode=disable.
+  const url = process.env.DATABASE_URL || "";
+  const disableSsl = /localhost|127\.0\.0\.1/.test(url) || /sslmode=disable/.test(url);
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    connectionString: url,
+    ssl: disableSsl ? false : { rejectUnauthorized: false },
   });
 
   for (const file of migrationFiles) {

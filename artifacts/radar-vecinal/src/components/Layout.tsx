@@ -197,7 +197,7 @@ export function Layout({ children }: LayoutProps) {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (
-              <Link key={item.href} href={item.href}>
+              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
                 <div className={`flex items-center gap-3 px-3 py-2.5 rounded-[11px] transition-all duration-150 cursor-pointer ${
                   active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white/80"
                 }`}>
@@ -253,11 +253,11 @@ export function Layout({ children }: LayoutProps) {
               </div>
             </Link>
           ) : (
-            <button onClick={() => setAuthOpen(true)} className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
+            <button onClick={() => setAuthOpen(true)} aria-label="Iniciar sesión" className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
               <LogIn className="w-[18px] h-[18px]" />
             </button>
           )}
-          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
+          <button onClick={() => setMobileOpen(true)} aria-label="Abrir menú de navegación" aria-expanded={mobileOpen} className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
             <Menu className="w-5 h-5" />
           </button>
         </div>
@@ -280,7 +280,7 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                   <span className="font-display font-bold text-white">Radar Vecinal</span>
                 </div>
-                <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-white">
+                <button onClick={() => setMobileOpen(false)} aria-label="Cerrar menú" className="p-1.5 rounded-lg text-muted-foreground hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -289,7 +289,7 @@ export function Layout({ children }: LayoutProps) {
                   const Icon = item.icon;
                   const active = isActive(item.href);
                   return (
-                    <Link key={item.href} href={item.href}>
+                    <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
                       <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer min-h-[44px] ${
                         active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white"
                       }`} onClick={() => setMobileOpen(false)}>
@@ -345,9 +345,9 @@ export function Layout({ children }: LayoutProps) {
               <span className="w-[7px] h-[7px] rounded-full bg-success status-blink shadow-[0_0_8px_hsl(142_71%_55%)]" />
               <span className="text-[11px] text-success font-medium label-mono">RED ACTIVA</span>
             </div>
-            <Link href="/notificaciones">
+            <Link href="/notificaciones" aria-label="Notificaciones">
               <div className="w-[38px] h-[38px] rounded-[11px] bg-white/4 border border-white/7 flex items-center justify-center relative cursor-pointer hover:bg-white/8 transition-colors">
-                <Bell className="w-[17px] h-[17px] text-[#c3c9d6]" />
+                <Bell className="w-[17px] h-[17px] text-[#c3c9d6]" aria-hidden="true" />
                 <span className="absolute top-2 right-[9px] w-1.5 h-1.5 rounded-full bg-destructive shadow-[0_0_6px_hsl(0_84%_60%)]" />
               </div>
             </Link>
@@ -378,7 +378,7 @@ export function Layout({ children }: LayoutProps) {
             );
           }
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
               <div className={`flex-1 flex flex-col items-center justify-center py-2.5 px-3 cursor-pointer transition-colors min-h-[44px] ${
                 active ? "text-primary" : "text-muted-foreground/70 hover:text-white"
               }`}>

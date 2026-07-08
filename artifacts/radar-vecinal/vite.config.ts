@@ -55,6 +55,24 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Vendor code-splitting: separa librerías pesadas en chunks cacheables
+    // de forma independiente al código de la app (mejor caché entre despliegues
+    // y descarga en paralelo). No cambia CUÁNDO se cargan, solo el empaquetado.
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("/leaflet") || id.includes("react-leaflet")) return "vendor-maps";
+          if (id.includes("recharts") || id.includes("/d3-") || id.includes("victory-vendor")) return "vendor-charts";
+          if (id.includes("framer-motion") || id.includes("/motion-")) return "vendor-motion";
+          if (id.includes("@radix-ui")) return "vendor-radix";
+          if (id.includes("/node_modules/react-dom/") || id.includes("/node_modules/react/") || id.includes("/scheduler/")) return "vendor-react";
+          if (id.includes("@tanstack")) return "vendor-query";
+          if (id.includes("lucide-react") || id.includes("react-icons")) return "vendor-icons";
+        },
+      },
+    },
   },
   server: {
     port,

@@ -92,6 +92,20 @@ describe.skipIf(!process.env.DATABASE_URL)("Missing Persons RBAC", () => {
     await db.execute(sql`DELETE FROM "districts" WHERE "slug" LIKE 'rbac-%'`);
   });
 
+  it("F2: el público ve el teléfono de contacto pero NO el nombre del reportante", async () => {
+    // Sin token (público): contactInfo visible, reportedBy oculto.
+    const res = await request(app).get(
+      `/api/missing-persons?districtId=${districtId}`,
+    );
+    expect(res.status).toBe(200);
+    const person = (res.body.alerts ?? []).find(
+      (a: any) => String(a.id) === String(personId),
+    );
+    expect(person).toBeTruthy();
+    expect(person.contactInfo).toBe("999");
+    expect(person.reportedBy).toBeUndefined();
+  });
+
   it("viewer (moderador) NO puede eliminar", async () => {
     const res = await request(app)
       .delete(`/api/missing-persons/${personId}`)

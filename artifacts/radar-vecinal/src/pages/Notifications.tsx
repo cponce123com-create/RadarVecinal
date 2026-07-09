@@ -71,7 +71,7 @@ export default function Notifications() {
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const { data: apiNotifs } = useGetNotifications();
+  const { data: apiNotifs, isLoading, isError, refetch } = useGetNotifications();
 
   // B-16: Merge API system notifications into local state
   useEffect(() => {
@@ -228,7 +228,23 @@ export default function Notifications() {
       </div>
 
       {/* Notification list */}
-      {groups.length === 0 ? (
+      {isLoading && notifs.length === 0 ? (
+        <div className="flex flex-col gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-20 rounded-xl bg-card border border-white/5 animate-pulse" />
+          ))}
+        </div>
+      ) : isError && notifs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-red-400/70" />
+          </div>
+          <p className="text-sm font-medium text-white">No se pudieron cargar las notificaciones</p>
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white/80 hover:bg-white/10 transition-all min-h-[44px]">
+            <RefreshCw className="w-4 h-4" /> Reintentar
+          </button>
+        </div>
+      ) : groups.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}

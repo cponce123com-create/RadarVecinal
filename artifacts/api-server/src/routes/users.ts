@@ -13,6 +13,7 @@ import {
 } from "@workspace/db/schema";
 import { desc, eq, and, sql, count } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
+import { isMunicipalityLevel } from "../lib/roles";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -317,9 +318,7 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado." });
 
     const isSelf = authUser.sub === String(targetId);
-    const isAdmin = ["admin", "moderator", "super_admin"].includes(
-      authUser.role,
-    );
+    const isAdmin = isMunicipalityLevel(authUser.role);
 
     if (!isSelf && !isAdmin) {
       return res

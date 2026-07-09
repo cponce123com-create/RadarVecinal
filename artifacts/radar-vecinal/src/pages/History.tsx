@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Clock, MapPin, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { CATEGORY_CONFIG } from "@/lib/constants";
@@ -36,7 +36,7 @@ export default function History() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useGetReports();
+  const { data, isLoading, isError, refetch } = useGetReports();
 
   const filtered = (data?.reports ?? []).filter(r => {
     const term = search.toLowerCase();
@@ -108,6 +108,19 @@ export default function History() {
           {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="h-20 rounded-xl bg-card animate-pulse border border-white/5" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="py-16 flex flex-col items-center text-center gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+            <AlertTriangle className="w-7 h-7 text-red-400/70" />
+          </div>
+          <p className="text-white font-semibold">No se pudo cargar el historial</p>
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white/80 hover:bg-white/10 transition-all min-h-[44px]"
+          >
+            <RefreshCw className="w-4 h-4" /> Reintentar
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-16 flex flex-col items-center text-center">

@@ -6,7 +6,9 @@ import { es } from "date-fns/locale";
 import { useGetMissingPersons, useCreateMissingPerson, customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { useUpload } from "@workspace/object-storage-web";
+import LocationPicker from "@/components/LocationPicker";
 
 interface MissingRow {
   id: string;
@@ -26,7 +28,8 @@ export default function MissingPerson() {
   const { data, isLoading, refetch } = useGetMissingPersons({ active: true });
   const createMissing = useCreateMissingPerson();
   const { toast } = useToast();
-  const { isAdmin, isModerator, token } = useAuth();
+  const { isAdmin, isModerator, token, user } = useAuth();
+  const { districtInfo } = useDistrict();
 
   // ── Gestión (moderador+: editar/marcar; municipalidad+: eliminar) ──────────
   const [editing, setEditing] = useState<MissingRow | null>(null);
@@ -115,13 +118,25 @@ export default function MissingPerson() {
       toast({ title: "Error al subir foto", description: err.message, variant: "destructive" });
     },
   });
+  // Centro por defecto: centro del distrito activo (o fallback razonable).
+  const defaultLat = districtInfo?.centerLat ?? -12.0464;
+  const defaultLng = districtInfo?.centerLng ?? -77.0428;
+
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
+  const emptyForm = {
     name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", imageUrl: "",
-  });
+    lastSeenLat: defaultLat, lastSeenLng: defaultLng,
+  };
+  const [formData, setFormData] = useState(emptyForm);
 
   const set = (field: string, value: string) =>
     setFormData(prev => ({ ...prev, [field]: value }));
+
+  const openForm = () => {
+    // Sembrar la ubicación con el centro del distrito al abrir el formulario.
+    setFormData(f => ({ ...f, lastSeenLat: defaultLat, lastSeenLng: defaultLng }));
+    setShowForm(true);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,16 +148,16 @@ export default function MissingPerson() {
         lastSeenAddress: formData.lastSeenAddress,
         contactInfo: formData.contactInfo,
         photoUrl: formData.imageUrl || null,
-        lastSeenLatitude: -11.1272,
-        lastSeenLongitude: -75.3548,
+        lastSeenLatitude: formData.lastSeenLat,
+        lastSeenLongitude: formData.lastSeenLng,
         lastSeenAt: new Date().toISOString(),
-        reportedBy: "Usuario Local",
+        reportedBy: user?.name || "Vecino",
       }
     }, {
       onSuccess: () => {
         toast({ title: "Alerta publicada", description: "La red vecinal ha sido notificada." });
         setShowForm(false);
-        setFormData({ name: "", age: "", clothing: "", lastSeenAddress: "", contactInfo: "", imageUrl: "" });
+        setFormData(emptyForm);
       },
       onError: () => {
         toast({ title: "Error al publicar", variant: "destructive" });
@@ -165,7 +180,7 @@ export default function MissingPerson() {
         </div>
         {!showForm && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openForm}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-amber-950 font-bold text-sm hover:bg-amber-400 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)]"
           >
             <Plus className="w-4 h-4" />
@@ -213,6 +228,21 @@ export default function MissingPerson() {
                     <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground" />
                     <input required type="text" value={formData.lastSeenAddress} onChange={e => set("lastSeenAddress", e.target.value)} placeholder="Av. La Marina cdra 5, frente al colegio..." className={`${INPUT_CLASS} pl-10`} />
                   </div>
+                  {/* F1: ubicación real en el mapa (antes se guardaba un punto fijo). */}
+                  <p className="text-[11px] text-muted-foreground/70 mt-2 mb-1.5">Ajusta el punto en el mapa o busca la dirección — así aparece en el lugar correcto.</p>
+                  <LocationPicker
+                    lat={formData.lastSeenLat}
+                    lng={formData.lastSeenLng}
+                    height={200}
+                    onChange={(la, ln, address) =>
+                      setFormData(prev => ({
+                        ...prev,
+                        lastSeenLat: la,
+                        lastSeenLng: ln,
+                        lastSeenAddress: address ?? prev.lastSeenAddress,
+                      }))
+                    }
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-white/80 mb-1.5">Teléfono de contacto <span className="text-amber-400">*</span></label>
@@ -367,12 +397,14 @@ export default function MissingPerson() {
                     <MapPin className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
                     <span className="line-clamp-2">{person.lastSeenAddress}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                    <a href={`tel:${person.contactInfo}`} className="text-amber-300 hover:text-amber-200 transition-colors">
-                      {person.contactInfo}
-                    </a>
-                  </div>
+                  {person.contactInfo && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                      <a href={`tel:${person.contactInfo}`} className="text-amber-300 hover:text-amber-200 transition-colors">
+                        {person.contactInfo}
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-auto pt-3 border-t border-white/5 flex items-center justify-between">
@@ -380,13 +412,17 @@ export default function MissingPerson() {
                     <Clock className="w-3 h-3" />
                     {formatDistanceToNow(new Date(person.createdAt), { addSuffix: true, locale: es })}
                   </div>
-                  <a
-                    href={`tel:${person.contactInfo}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-semibold hover:bg-amber-500/25 transition-colors"
-                  >
-                    <Phone className="w-3 h-3" />
-                    Contactar
-                  </a>
+                  {person.contactInfo ? (
+                    <a
+                      href={`tel:${person.contactInfo}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-semibold hover:bg-amber-500/25 transition-colors min-h-[44px]"
+                    >
+                      <Phone className="w-3 h-3" />
+                      Contactar
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground/50">Contacto no disponible</span>
+                  )}
                 </div>
               </div>
             </motion.div>

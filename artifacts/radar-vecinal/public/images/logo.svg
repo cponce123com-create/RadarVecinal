@@ -1,0 +1,46 @@
+<svg width="560" height="160" viewBox="0 0 560 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lbg" x1="8" y1="16" x2="136" y2="144" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3C7BFF"/>
+      <stop offset="1" stop-color="#1740C4"/>
+    </linearGradient>
+    <radialGradient id="lglow" cx="0.3" cy="0.24" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lsweep" x1="399" y1="156" x2="196" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="ltext" x1="176" y1="60" x2="176" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6f9bff"/>
+      <stop offset="1" stop-color="#2f6bff"/>
+    </linearGradient>
+    <clipPath id="lbadge"><rect width="512" height="512" rx="116"/></clipPath>
+  </defs>
+
+  <!-- Marca -->
+  <g transform="translate(8,16)">
+    <rect width="128" height="128" rx="34" fill="url(#lbg)"/>
+    <rect width="128" height="128" rx="34" fill="url(#lglow)"/>
+    <g transform="scale(0.25)" clip-path="url(#lbadge)" stroke-linecap="round">
+      <g stroke="#ffffff" stroke-opacity="0.14" stroke-width="8">
+        <line x1="256" y1="60" x2="256" y2="452"/>
+        <line x1="60" y1="256" x2="452" y2="256"/>
+      </g>
+      <circle cx="256" cy="256" r="168" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="12"/>
+      <circle cx="256" cy="256" r="102" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="12"/>
+      <path d="M256 256 L399.3 155.6 A175 175 0 0 0 196.1 91.6 Z" fill="url(#lsweep)"/>
+      <line x1="256" y1="256" x2="399.3" y2="155.6" stroke="#ffffff" stroke-opacity="0.95" stroke-width="11"/>
+      <circle cx="372" cy="224" r="30" fill="#ffffff" fill-opacity="0.18"/>
+      <circle cx="372" cy="224" r="16" fill="#ffffff"/>
+      <circle cx="256" cy="256" r="15" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <g font-family="'Space Grotesk','Inter',system-ui,sans-serif" font-weight="700">
+    <text x="164" y="86" font-size="46" letter-spacing="-1" fill="#ffffff">Radar<tspan fill="url(#ltext)"> Vecinal</tspan></text>
+    <text x="166" y="116" font-family="'JetBrains Mono','Space Grotesk',monospace" font-size="14" font-weight="600" letter-spacing="3.5" fill="#8a93a6">SEGURIDAD  CIUDADANA</text>
+  </g>
+</svg>

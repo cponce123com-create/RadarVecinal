@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { DISTRICT } from "@/lib/constants";
 
 /**
  * DistrictContext v2 — Gestión de distritos con detección por ubicación.
@@ -56,6 +57,12 @@ interface DistrictContextValue {
   needsSelection: boolean;
   /** FASE-2: true si el distrito detectado por GPS es aproximado (haversine) vs exacto (polígono) */
   isLocationApproximate: boolean;
+  /**
+   * Centro del mapa del distrito activo (con zoom). ÚNICA fuente para
+   * centrar mapas/fallbacks — nada de coordenadas hardcodeadas en páginas.
+   * Si aún no hay distrito, cae al centro del piloto (constants.DISTRICT).
+   */
+  districtCenter: { lat: number; lng: number; zoom: number };
 }
 
 const DistrictContext = createContext<DistrictContextValue | null>(null);
@@ -76,10 +83,15 @@ function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number)
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-// Precisión (en metros) a partir de la cual un fix se considera bueno para
-// resolver el distrito. Los límites distritales son de escala kilométrica, así
-// que ~200 m sobra; al alcanzarla dejamos de perseguir mejoras de precisión.
-const GOOD_ACCURACY_M = 200;
+// ── Umbrales de precisión del GPS ─────────────────────────────────────────
+// El primer fix del navegador suele venir de red/wifi con error de 1-3 km:
+// suficiente para caer en un distrito vecino (p. ej. Ate en vez de Santa
+// Anita). Por eso NO se resuelve el distrito hasta tener un fix con precisión
+// aceptable; si en el plazo de gracia no llega ninguno bueno, se usa el mejor
+// disponible (peor es no mostrar nada).
+const ACCEPT_ACCURACY_M = 800; // precisión mínima para resolver de inmediato
+const GOOD_ACCURACY_M = 200; // con esto dejamos de perseguir mejoras
+const FIRST_FIX_GRACE_MS = 8000; // plazo máx. esperando un fix aceptable
 
 export function DistrictProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -94,6 +106,11 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(LS_MANUAL) ?? localStorage.getItem(LS_LEGACY);
   });
   const [activeSlug, setActiveSlug] = useState<string | null>(() => localStorage.getItem(LS_ACTIVE));
+  // ¿El usuario eligió distrito EN ESTA sesión? Solo entonces su selección
+  // supera al GPS. La preferencia persistida de sesiones anteriores NO debe
+  // ganarle a la ubicación real de hoy (era parte del bug del "distrito
+  // equivocado pegado" en el encabezado).
+  const [sessionChosen, setSessionChosen] = useState(false);
 
   // ── 1. Cargar catálogo completo de distritos ────────────────────────────
   useEffect(() => {
@@ -111,14 +128,17 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
 
   // ── 2. Detectar distrito por ubicación (GPS → /districts/locate) ────────
   //
-  // Usamos watchPosition (no getCurrentPosition) porque el PRIMER fix del GPS
-  // suele ser impreciso (~1-3 km, basado en red/wifi) y resuelve un distrito
-  // equivocado; segundos después llega el fix fino. Antes ese primer valor
-  // quedaba "pegado" en el encabezado. Ahora re-resolvemos el distrito cuando:
-  //   · llega un fix bastante más preciso  → corrige el arranque impreciso, o
-  //   · el usuario se desplaza de zona     → sigue mostrando el distrito real.
-  // Al alcanzar buena precisión dejamos de perseguir mejoras (ahorro de datos);
-  // el watch permanece activo para detectar desplazamientos.
+  // Estrategia en dos fases con watchPosition:
+  //
+  //  FASE A (primer distrito): NO se resuelve con el primer fix — se espera
+  //  uno con precisión aceptable (≤ ACCEPT_ACCURACY_M). Así se OBVIA el fix
+  //  impreciso de red que antes pintaba un distrito vecino equivocado. Si en
+  //  FIRST_FIX_GRACE_MS no llega ninguno bueno, se usa el mejor disponible.
+  //
+  //  FASE B (seguimiento): ya resuelto, se re-resuelve solo cuando
+  //   · llega un fix bastante más preciso que el usado (caso plazo agotado), o
+  //   · el usuario se desplaza de zona (>300 m), máx. una vez cada 5 s.
+  //  Con buena precisión (≤ GOOD_ACCURACY_M) se deja de perseguir mejoras.
   useEffect(() => {
     if (!loaded) return;
     if (!("geolocation" in navigator)) {
@@ -128,60 +148,87 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     let reqSeq = 0; // descarta respuestas fuera de orden (la última manda)
-    let bestAccuracy = Infinity;
-    let haveGoodFix = false;
-    let lastLat: number | null = null;
-    let lastLng: number | null = null;
+    let located = false; // ¿ya se resolvió el distrito al menos una vez?
+    let locatedAccuracy = Infinity; // precisión del fix usado en el último locate
+    let bestFix: { lat: number; lng: number; accuracy: number } | null = null;
+    let lastLat = 0;
+    let lastLng = 0;
     let lastLocateAt = 0;
+    let graceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const locate = (lat: number, lng: number) => {
+    const clearGrace = () => {
+      if (graceTimer) {
+        clearTimeout(graceTimer);
+        graceTimer = null;
+      }
+    };
+
+    const locate = (lat: number, lng: number, accuracy: number) => {
+      located = true;
+      locatedAccuracy = accuracy;
       lastLat = lat;
       lastLng = lng;
       lastLocateAt = Date.now();
+      clearGrace();
       const seq = ++reqSeq;
       fetch(`/api/districts/locate?lat=${lat}&lng=${lng}`)
         .then(res => res.json())
         .then(data => {
           if (cancelled || seq !== reqSeq) return; // ya hay una petición más nueva
-          const located: DistrictInfo | undefined = data.district;
-          if (located) setLocatedDistrict(located);
+          const found: DistrictInfo | undefined = data.district;
+          if (found) setLocatedDistrict(found);
           setIsLocationApproximate(data.method === "approximate");
           setDetectingLocation(false);
         })
         .catch(() => { if (!cancelled) setDetectingLocation(false); });
     };
 
+    // Plazo de gracia: si no llegó ningún fix aceptable, usar el mejor visto.
+    graceTimer = setTimeout(() => {
+      graceTimer = null;
+      if (cancelled || located) return;
+      if (bestFix) locate(bestFix.lat, bestFix.lng, bestFix.accuracy);
+      // sin ningún fix aún: seguimos esperando al watch (o a su error)
+    }, FIRST_FIX_GRACE_MS);
+
     const onPosition = (pos: GeolocationPosition) => {
       if (cancelled) return;
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-      const firstFix = lastLat === null;
-      const movedM = firstFix ? Infinity : haversineMeters(lastLat!, lastLng!, lat, lng);
-      // "mejoró bastante": el nuevo fix es ≥40% más preciso que el mejor visto
-      const muchMoreAccurate = accuracy <= bestAccuracy * 0.6;
-      // se desplazó de zona (con margen sobre la propia imprecisión del fix)
-      const movedFar = movedM > Math.max(300, accuracy);
+      if (!bestFix || accuracy < bestFix.accuracy) bestFix = { lat, lng, accuracy };
 
-      if (accuracy < bestAccuracy) bestAccuracy = accuracy;
-
-      if (firstFix) {
-        locate(lat, lng); // pinta algo cuanto antes
-      } else if (!haveGoodFix && muchMoreAccurate) {
-        locate(lat, lng); // corrige el arranque impreciso
-      } else if (movedFar && Date.now() - lastLocateAt > 5000) {
-        locate(lat, lng); // cambió de sitio (como máx. una vez cada 5 s)
+      if (!located) {
+        // FASE A: solo resolver con un fix aceptable (el timer cubre el resto)
+        if (accuracy <= ACCEPT_ACCURACY_M) locate(lat, lng, accuracy);
+        return;
       }
 
-      if (accuracy <= GOOD_ACCURACY_M) haveGoodFix = true;
+      // FASE B: refinar el arranque de plazo agotado o seguir desplazamientos
+      const stillCoarse = locatedAccuracy > GOOD_ACCURACY_M;
+      const muchMoreAccurate = accuracy <= locatedAccuracy * 0.6;
+      const movedM = haversineMeters(lastLat, lastLng, lat, lng);
+      const movedFar = movedM > Math.max(300, accuracy);
+
+      if (stillCoarse && muchMoreAccurate) {
+        locate(lat, lng, accuracy);
+      } else if (movedFar && Date.now() - lastLocateAt > 5000) {
+        locate(lat, lng, accuracy);
+      }
     };
 
     const watchId = navigator.geolocation.watchPosition(
       onPosition,
-      () => { if (!cancelled) setDetectingLocation(false); },
+      () => {
+        if (cancelled || located) return;
+        // GPS falló: si algo se alcanzó a recibir, mejor eso que nada
+        if (bestFix) locate(bestFix.lat, bestFix.lng, bestFix.accuracy);
+        else setDetectingLocation(false);
+      },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
 
     return () => {
       cancelled = true;
+      clearGrace();
       navigator.geolocation.clearWatch(watchId);
     };
   }, [loaded]);
@@ -208,18 +255,31 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
   }, [lockedDistrict, locatedDistrict, manualDistrict]);
 
   // ── 5. Distrito activo ───────────────────────────────────────────────────
+  // Prioridad: rol bloqueado > elección de ESTA sesión > GPS (donde estás
+  // parado) > distrito manual > lo último mostrado en una sesión anterior.
   const districtInfo = useMemo(() => {
     if (lockedDistrict) return lockedDistrict;
-    // Preferir la selección explícita del usuario si sigue disponible
-    if (activeSlug) {
+    if (sessionChosen && activeSlug) {
       const found = availableDistricts.find(d => d.slug === activeSlug);
       if (found) return found;
     }
-    // Prioridad: donde estás parado > el manual
-    return locatedDistrict ?? manualDistrict ?? null;
-  }, [lockedDistrict, activeSlug, availableDistricts, locatedDistrict, manualDistrict]);
+    if (locatedDistrict) return locatedDistrict;
+    if (manualDistrict) return manualDistrict;
+    // Último recurso (GPS apagado/denegado): el distrito de la sesión anterior
+    if (activeSlug) return districts.find(d => d.slug === activeSlug) ?? null;
+    return null;
+  }, [lockedDistrict, sessionChosen, activeSlug, availableDistricts, locatedDistrict, manualDistrict, districts]);
 
   const needsSelection = loaded && !detectingLocation && !districtInfo;
+
+  const districtCenter = useMemo(
+    () => ({
+      lat: districtInfo?.centerLat ?? DISTRICT.center.lat,
+      lng: districtInfo?.centerLng ?? DISTRICT.center.lng,
+      zoom: districtInfo?.defaultZoom ?? DISTRICT.zoom,
+    }),
+    [districtInfo],
+  );
 
   // ── 6. Acciones ──────────────────────────────────────────────────────────
   const setManualDistrict = (slug: string) => {
@@ -231,6 +291,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(LS_LEGACY);
     // Al elegir manualmente, ese distrito pasa a ser el activo
     setActiveSlug(slug);
+    setSessionChosen(true);
     localStorage.setItem(LS_ACTIVE, slug);
   };
 
@@ -244,6 +305,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
     const isAvailable = availableDistricts.some(d => d.slug === slug);
     if (isAvailable) {
       setActiveSlug(slug);
+      setSessionChosen(true);
       localStorage.setItem(LS_ACTIVE, slug);
     } else {
       setManualDistrict(slug);
@@ -268,6 +330,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
         isLocked,
         needsSelection,
         isLocationApproximate,
+        districtCenter,
       }}
     >
       {children}

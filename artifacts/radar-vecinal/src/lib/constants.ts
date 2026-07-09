@@ -6,7 +6,10 @@ import {
 } from "lucide-react";
 import { ReportCategory, ReportStatus, ReportUrgency, PanicAlertType } from "@workspace/api-client-react";
 
-// ── Pilot district: San Ramón, Chanchamayo, Junín ──
+// ── Fallback de ÚLTIMO recurso: distrito piloto (San Ramón, Chanchamayo) ──
+// NO consumir directamente para centrar mapas: usar `districtCenter` de
+// DistrictContext, que deriva del distrito ACTIVO (Santa Anita o San Ramón)
+// y solo cae aquí si el catálogo aún no cargó.
 export const DISTRICT = {
   name: "San Ramón",
   province: "Chanchamayo",

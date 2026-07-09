@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Report, ReportCategory } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -562,12 +563,15 @@ export default function RadarHero({
     [],
   );
 
+  // Sin GPS ni distrito aún: centro del distrito activo (única fuente, sin
+  // coordenadas hardcodeadas de un distrito en particular)
+  const { districtCenter } = useDistrict();
   const center = userPosition ?? {
-    lat: districtInfo?.centerLat ?? -11.1282,
-    lng: districtInfo?.centerLng ?? -75.3554,
+    lat: districtInfo?.centerLat ?? districtCenter.lat,
+    lng: districtInfo?.centerLng ?? districtCenter.lng,
   };
   const hasGps = !!userPosition;
-  const districtName = districtInfo?.name ?? "San Ramón";
+  const districtName = districtInfo?.name ?? "tu distrito";
 
   const handleBlipClick = useCallback(
     (report: Report, pos: { x: number; y: number }) => {

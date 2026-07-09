@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings, LogIn, UserCheck, Edit3, X, Gavel, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDistrict } from "@/contexts/DistrictContext";
 import { useToast } from "@/hooks/use-toast";
 
 const SECTORS = [
@@ -22,7 +23,7 @@ const MENU_ITEMS = [
     href: "/mapa",
     icon: Map,
     label: "Mapa del Distrito",
-    sub: "Incidentes en San Ramón",
+    sub: "Incidentes en tu distrito",
     accent: "text-green-400",
     accentBg: "bg-green-500/12",
   },
@@ -62,6 +63,8 @@ const cardVariants = {
 export default function Profile() {
   const { user: authUser, logout } = useAuth();
   const { toast } = useToast();
+  const { currentDistrict, province } = useDistrict();
+  const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "tu distrito";
 
   // Si no hay usuario autenticado, mostrar pantalla de inicio de sesión
   if (!authUser) {
@@ -218,7 +221,7 @@ export default function Profile() {
         <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2">
           <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 flex-shrink-0" />
           <span className="text-xs text-muted-foreground">
-            Contribuyente activo de San Ramón, Chanchamayo. Tus reportes ayudan a mantener la seguridad del distrito.
+            Contribuyente activo de {districtDisplay}. Tus reportes ayudan a mantener la seguridad del distrito.
           </span>
         </div>
       </motion.div>

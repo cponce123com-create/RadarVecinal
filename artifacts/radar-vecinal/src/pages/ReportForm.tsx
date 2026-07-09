@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ReportCategory, ReportUrgency, useCreateReport } from "@workspace/api-client-react";
-import { CATEGORY_CONFIG, SENSITIVE_CATEGORIES, DISTRICT } from "@/lib/constants";
+import { CATEGORY_CONFIG, SENSITIVE_CATEGORIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
@@ -91,7 +91,7 @@ export default function ReportForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { currentDistrict, currentDistrictId } = useDistrict();
+  const { currentDistrict, currentDistrictId, districtCenter } = useDistrict();
   const createReport = useCreateReport();
 
   const [step, setStep] = useState(1);
@@ -112,8 +112,9 @@ export default function ReportForm() {
     sector: "",
     address: "",
     contactPhone: "",
-    latitude: fromMap?.lat ?? DISTRICT.center.lat,
-    longitude: fromMap?.lng ?? DISTRICT.center.lng,
+    // Fallback provisional: centro del distrito activo (el GPS lo sobreescribe)
+    latitude: fromMap?.lat ?? districtCenter.lat,
+    longitude: fromMap?.lng ?? districtCenter.lng,
   });
 
   // ── GPS + Reverse Geocode: detectar ubicación real del vecino ───────────

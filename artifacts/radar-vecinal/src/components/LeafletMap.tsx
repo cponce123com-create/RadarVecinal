@@ -3,11 +3,12 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Report, ReportCategory } from "@workspace/api-client-react";
-import { CAT_HEX, DISTRICT, CATEGORY_CONFIG } from "@/lib/constants";
+import { CAT_HEX, CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { Locate, Loader2, MapPin, Plus, Minus } from "lucide-react";
 import { useGeolocation } from "@/lib/useGeolocation";
+import { useDistrict } from "@/contexts/DistrictContext";
 
 // ── Categories shown in the insecurity heatmap ────────────────────────────────
 const HEAT_CATEGORIES = new Set<ReportCategory>([
@@ -440,6 +441,26 @@ function ClickToReport({ onSelectPoint }: { onSelectPoint: (lat: number, lng: nu
   return null;
 }
 
+// ── Recentrado por distrito ───────────────────────────────────────────────────
+// MapContainer solo aplica `center` al montar; si el distrito activo se
+// resuelve DESPUÉS (detección GPS en curso) y el usuario aún no tiene posición
+// propia, recentramos al distrito correcto.
+function DistrictRecenter({ center, hasUserPos }: {
+  center: { lat: number; lng: number; zoom: number };
+  hasUserPos: boolean;
+}) {
+  const map = useMap();
+  const prevRef = useRef(center);
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (prev.lat === center.lat && prev.lng === center.lng) return;
+    prevRef.current = center;
+    if (hasUserPos) return; // la posición real del vecino manda
+    map.setView([center.lat, center.lng], center.zoom);
+  }, [map, center, hasUserPos]);
+  return null;
+}
+
 // ── User location marker ──────────────────────────────────────────────────────
 function UserMarker({ position, simulated }: { position: { lat: number; lng: number } | null; simulated: boolean }) {
   const map = useMap();
@@ -455,7 +476,7 @@ function UserMarker({ position, simulated }: { position: { lat: number; lng: num
     }).addTo(map);
     const dot = L.circleMarker([position.lat, position.lng], {
       radius: 7, fillColor: color, fillOpacity: 1, color: "#fff", weight: 2,
-    }).addTo(map).bindTooltip(simulated ? "📍 San Ramón (ubicación aproximada)" : "📍 Tu ubicación", { direction: "top" });
+    }).addTo(map).bindTooltip(simulated ? "📍 Centro del distrito (sin GPS)" : "📍 Tu ubicación", { direction: "top" });
     dotRef.current  = dot;
     ringRef.current = ring;
     return () => { dot.remove(); ring.remove(); };
@@ -568,6 +589,8 @@ export function LeafletMap({
   children,
 }: LeafletMapProps) {
   const geo = useGeolocation();
+  // Centro/zoom del distrito activo — reemplaza el DISTRICT.center hardcodeado
+  const { districtCenter } = useDistrict();
   const [userPos,   setUserPos]   = useState<{ lat: number; lng: number } | null>(null);
   const [simulated, setSimulated] = useState(true);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -629,13 +652,13 @@ export function LeafletMap({
 
   const heatData = heatReports ?? reports;
 
-  const displayPos = userPos ?? DISTRICT.center;
+  const displayPos = userPos ?? { lat: districtCenter.lat, lng: districtCenter.lng };
 
   return (
     <div className={`relative w-full h-full ${className}`}>
       <MapContainer
-        center={[DISTRICT.center.lat, DISTRICT.center.lng]}
-        zoom={DISTRICT.zoom}
+        center={[districtCenter.lat, districtCenter.lng]}
+        zoom={districtCenter.zoom}
         zoomControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117" }}
       >
@@ -644,6 +667,8 @@ export function LeafletMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           maxZoom={19}
         />
+
+        <DistrictRecenter center={districtCenter} hasUserPos={!!userPos} />
 
         {/* F-10: Custom zoom + locate controls grouped at top-right */}
         <MapControls

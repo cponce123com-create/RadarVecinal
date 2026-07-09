@@ -120,7 +120,7 @@ describe('DistrictProvider v2', () => {
     expect(screen.getByTestId('district')).toHaveTextContent('');
   });
 
-  it('corrige el distrito cuando llega un fix GPS más preciso (no se queda en el primero)', async () => {
+  it('OBVIA el fix impreciso: resuelve el distrito con el fix preciso, en una sola consulta', async () => {
     // /locate resuelve por longitud: oeste (~-75.5) = San Ramón, este (~-77.0) = La Merced (simulado)
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -139,7 +139,8 @@ describe('DistrictProvider v2', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    // watchPosition emite primero un fix impreciso (distrito equivocado) y luego uno fino.
+    // watchPosition emite primero un fix impreciso (de red, distrito equivocado)
+    // y luego el fino. El impreciso NO debe generar consulta ni pintarse.
     const watchPosition = vi.fn((success: PositionCallback) => {
       success({ coords: { latitude: -11.1, longitude: -75.5, accuracy: 3000 } } as GeolocationPosition);
       success({ coords: { latitude: -11.1, longitude: -77.0, accuracy: 20 } } as GeolocationPosition);
@@ -151,10 +152,40 @@ describe('DistrictProvider v2', () => {
     });
 
     renderWithProviders();
-    // Debe terminar en el distrito del fix preciso, no en el del primero.
+    // Termina en el distrito del fix preciso…
     await waitFor(() => {
       expect(screen.getByTestId('district')).toHaveTextContent('La Merced');
     });
+    // …y el fix impreciso nunca llegó a consultarse (una sola llamada a /locate)
+    const locateCalls = fetchMock.mock.calls
+      .map(c => (typeof c[0] === 'string' ? c[0] : String(c[0])))
+      .filter(u => u.startsWith('/api/districts/locate'));
+    expect(locateCalls).toHaveLength(1);
+    expect(locateCalls[0]).toContain('lng=-77');
+  });
+
+  it('el GPS de hoy gana a la selección persistida de una sesión anterior', async () => {
+    // Sesión anterior dejó activo/manual = La Merced, pero hoy el GPS
+    // resuelve San Ramón → el encabezado debe mostrar San Ramón.
+    localStorage.setItem('radarvecinal_manual_district_slug', 'la-merced');
+    localStorage.setItem('radarvecinal_active_district_slug', 'la-merced');
+    mockFetch(CATALOG[0]); // /locate → San Ramón
+    mockGeolocation(true);
+    renderWithProviders();
+    await waitFor(() => {
+      expect(screen.getByTestId('district')).toHaveTextContent('San Ramón');
+    });
+  });
+
+  it('sin GPS, mantiene el último distrito mostrado (persistido) en vez de quedar vacío', async () => {
+    localStorage.setItem('radarvecinal_active_district_slug', 'la-merced');
+    mockFetch(null);
+    mockGeolocation(false); // GPS denegado
+    renderWithProviders();
+    await waitFor(() => {
+      expect(screen.getByTestId('district')).toHaveTextContent('La Merced');
+    });
+    expect(screen.getByTestId('needs')).toHaveTextContent('false');
   });
 
   it('permite elegir un distrito manualmente y lo activa', async () => {

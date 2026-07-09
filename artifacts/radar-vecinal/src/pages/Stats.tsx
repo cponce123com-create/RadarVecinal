@@ -99,7 +99,7 @@ export default function Stats() {
           { label: "Reportes en período", value: periodStats.total, color: "#3b82f6", icon: Activity },
           { label: "Alertas Activas", value: periodStats.active, color: "#ef4444", icon: AlertTriangle },
           { label: "Resueltos", value: periodStats.resolved, color: "#22c55e", icon: CheckCircle },
-          { label: "Zona Crítica", value: stats?.criticalZone ?? "—", color: "#f59e0b", icon: MapPin, isText: true },
+          { label: "Zona Crítica", value: periodStats.total > 0 ? (stats?.criticalZone ?? "—") : "—", color: "#f59e0b", icon: MapPin, isText: true },
         ].map((kpi, i) => {
           const Icon = kpi.icon;
           return (
@@ -156,39 +156,46 @@ export default function Stats() {
         </div>
       </div>
 
-      {/* Top sectors */}
-      {(periodStats.topSectors.length > 0 || (stats.topSectors && stats.topSectors.length > 0)) && (
-        <div className="p-5 rounded-2xl bg-gradient-to-b from-card to-sidebar border border-white/6">
-          <div className="flex items-center gap-2 mb-4">
-            <MapPin className="w-4 h-4 text-destructive" />
-            <h3 className="font-bold text-white text-sm">Sectores con más incidentes</h3>
-          </div>
+      {/* Sectores principales — SOLO usa periodStats para evitar datos residuales del API */}
+      <div className="p-5 rounded-2xl bg-gradient-to-b from-card to-sidebar border border-white/6">
+        <div className="flex items-center gap-2 mb-4">
+          <MapPin className="w-4 h-4 text-destructive" />
+          <h3 className="font-bold text-white text-sm">Sectores con más incidentes</h3>
+        </div>
+        {periodStats.topSectors.length > 0 ? (
           <div className="space-y-3">
-            {(periodStats.topSectors.length > 0 ? periodStats.topSectors : (stats.topSectors ?? []).map((s: any) => ({ sector: s.sector, count: s.count }))
-            ).map((s: { sector: string; count: number }, i: number) => {
-              const maxCount = periodStats.topSectors[0]?.count ?? (stats.topSectors?.[0]?.count ?? 1);
-              const pct = maxCount > 0 ? Math.round((s.count / maxCount) * 100) : 0;
+            {(() => {
+              const maxCount = periodStats.topSectors[0].count;
               const colors = ["#ef4444", "#f97316", "#eab308", "#3b82f6", "#6b7280"];
-              const color = colors[i] ?? "#6b7280";
-              return (
-                <div key={s.sector} className="flex items-center gap-3">
-                  <span className="label-mono text-[10px] font-bold text-muted-foreground/60 w-4">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold text-white truncate">{s.sector}</span>
-                      <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">{s.count} reportes</span>
-                    </div>
-                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div className="h-full rounded-full" style={{ background: color }}
-                        initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.6, delay: i * 0.1 }} />
+              return periodStats.topSectors.map((s, i) => {
+                const pct = maxCount > 0 ? Math.round((s.count / maxCount) * 100) : 0;
+                const color = colors[i] ?? "#6b7280";
+                return (
+                  <div key={s.sector} className="flex items-center gap-3">
+                    <span className="label-mono text-[10px] font-bold text-muted-foreground/60 w-4">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-white truncate">{s.sector}</span>
+                        <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">{s.count} reportes</span>
+                      </div>
+                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div className="h-full rounded-full" style={{ background: color }}
+                          initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.6, delay: i * 0.1 }} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <MapPin className="w-8 h-8 text-muted-foreground/30 mb-2" />
+            <p className="text-sm text-muted-foreground">No hay reportes en este período</p>
+            <p className="text-xs text-muted-foreground/50 mt-1">Los sectores aparecerán cuando haya incidentes reportados</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

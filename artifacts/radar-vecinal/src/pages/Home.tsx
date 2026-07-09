@@ -259,7 +259,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col gap-3.5">
-          {stats && (
+          {stats && stats.totalReports > 0 && (
             <div className="p-4 rounded-2xl bg-gradient-to-b from-card to-sidebar border border-white/6">
               <div className="flex items-center gap-2 mb-3.5">
                 <TrendingUp className="w-4 h-4 text-primary" />
@@ -267,7 +267,7 @@ export default function Home() {
               </div>
               <div className="flex justify-between items-center pb-3 mb-3 border-b border-white/6">
                 <span className="text-xs text-muted-foreground">Zona más crítica</span>
-                <span className="text-[12.5px] font-semibold text-red-400">{stats.criticalZone ?? "—"}</span>
+                <span className="text-[12.5px] font-semibold text-red-400">{stats.criticalZone === "Ninguna" ? "—" : stats.criticalZone}</span>
               </div>
               <div className="flex flex-col gap-3">
                 {stats.topSectors?.slice(0, 4).map(s => (

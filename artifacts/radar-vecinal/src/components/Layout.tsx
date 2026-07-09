@@ -373,28 +373,27 @@ export function Layout({ children }: LayoutProps) {
       </main>
 
       {/* ── Bottom nav móvil ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-evenly bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border pb-[env(safe-area-inset-bottom,0px)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border pb-[env(safe-area-inset-bottom,0px)]">
         {MAIN_NAV.map(item => {
           const Icon = item.icon;
           const active = isActive(item.href);
           if (item.isPrimary) {
             return (
-              <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
-                <div className="flex flex-col items-center cursor-pointer mt-[-12px]">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#1e52d6] flex items-center justify-center border-[3px] border-background shadow-[0_0_20px_hsl(221_100%_59%_/_0.45)]">
-                    <Icon className="w-5.5 h-5.5 text-white" />
-                  </div>
-                  <span className="text-[9px] font-medium text-primary mt-[3px]">Reportar</span>
+              <Link key={item.href} href={item.href}
+                className="flex flex-col items-center justify-center cursor-pointer pt-0 min-h-[44px]">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#1e52d6] flex items-center justify-center border-[3px] border-background shadow-[0_0_20px_hsl(221_100%_59%_/_0.45)] mb-[2px]">
+                  <Icon className="w-5.5 h-5.5 text-white" />
                 </div>
+                <span className="text-[9px] font-medium text-primary">Reportar</span>
               </Link>
             );
           }
           return (
             <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
-              className={`flex-1 flex flex-col items-center justify-center py-2 cursor-pointer transition-colors min-h-[44px] ${
+              className={`flex flex-col items-center justify-center py-1 cursor-pointer transition-colors min-h-[44px] ${
                 active ? "text-primary" : "text-muted-foreground/70 hover:text-white"
               }`}>
-              <Icon className="w-5 h-5 mb-[3px]" />
+              <Icon className="w-5 h-5 mb-[2px]" />
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );

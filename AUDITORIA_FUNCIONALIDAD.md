@@ -15,8 +15,14 @@ Severidad: 🔴 Alta (rompe o degrada una función) · 🟠 Media · 🟡 Baja/m
 > - **F3** — `users.ts` usa `isMunicipalityLevel` (las municipalidades ya no
 >   quedan bloqueadas).
 >
-> Pendientes (media/baja): CQ1 (modularizar rutas), CQ2 (tipar `req.jwtUser`),
-> UX2 (estados de carga/error), L3 (audit log en borrado), UX4/UX5.
+> **Segunda tanda:** UX2 y L3 también corregidos.
+> - **UX2** — `Notificaciones` (skeleton + estado de error/reintento) e
+>   `Historial` (estado de error/reintento). *Emergencias* usa datos estáticos,
+>   no necesita estados de carga.
+> - **L3** — el borrado de personas extraviadas ahora registra en `audit_log`.
+>
+> Pendientes (media/baja): CQ1 (modularizar rutas), CQ2 (tipar `req.jwtUser` —
+> refactor deliberado por el volumen de guards), UX4 (pestaña admin), UX5 (contraste).
 
 ---
 

@@ -944,6 +944,15 @@ router.delete("/missing-persons/:id", requireAuth, async (req, res) => {
       .set({ deletedAt: new Date().toISOString() })
       .where(eq(missingPersonsTable.id, personId));
 
+    // L3: registrar en el audit log (trazabilidad, como en reportes).
+    await db.insert(auditLogTable).values({
+      districtId: person.districtId,
+      entityType: "missing_person",
+      entityId: personId,
+      action: "deleted",
+      changedById: user.sub ? Number(user.sub) : null,
+    });
+
     return res.json({ success: true, id: String(personId) });
   } catch (err) {
     req.log.error({ err }, "Failed to delete missing person");

@@ -40,17 +40,20 @@ function mockFetch(locateDistrict: (typeof CATALOG)[number] | null) {
   return fetchMock;
 }
 
-/** Mockea navigator.geolocation. `granted=false` simula GPS denegado/no disponible. */
+/** Mockea navigator.geolocation. `granted=false` simula GPS denegado/no disponible.
+ *  DistrictContext usa watchPosition (refina el distrito según mejora la precisión). */
 function mockGeolocation(granted: boolean) {
-  const getCurrentPosition = vi.fn(
+  const watchPosition = vi.fn(
     (success: PositionCallback, error?: PositionErrorCallback) => {
-      if (granted) success({ coords: COORDS } as GeolocationPosition);
+      if (granted) success({ coords: { ...COORDS, accuracy: 20 } } as GeolocationPosition);
       else error?.({ code: 1, message: 'denied' } as GeolocationPositionError);
+      return 1;
     },
   );
+  const clearWatch = vi.fn();
   Object.defineProperty(navigator, 'geolocation', {
     configurable: true,
-    value: { getCurrentPosition },
+    value: { watchPosition, clearWatch },
   });
 }
 
@@ -115,6 +118,43 @@ describe('DistrictProvider v2', () => {
       expect(screen.getByTestId('needs')).toHaveTextContent('true');
     });
     expect(screen.getByTestId('district')).toHaveTextContent('');
+  });
+
+  it('corrige el distrito cuando llega un fix GPS más preciso (no se queda en el primero)', async () => {
+    // /locate resuelve por longitud: oeste (~-75.5) = San Ramón, este (~-77.0) = La Merced (simulado)
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.startsWith('/api/districts/locate')) {
+        const lng = Number(new URLSearchParams(url.split('?')[1]).get('lng'));
+        const district = lng < -76 ? CATALOG[1] : CATALOG[0];
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ district, method: 'exact' }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ districts: CATALOG }),
+      } as Response);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // watchPosition emite primero un fix impreciso (distrito equivocado) y luego uno fino.
+    const watchPosition = vi.fn((success: PositionCallback) => {
+      success({ coords: { latitude: -11.1, longitude: -75.5, accuracy: 3000 } } as GeolocationPosition);
+      success({ coords: { latitude: -11.1, longitude: -77.0, accuracy: 20 } } as GeolocationPosition);
+      return 1;
+    });
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { watchPosition, clearWatch: vi.fn() },
+    });
+
+    renderWithProviders();
+    // Debe terminar en el distrito del fix preciso, no en el del primero.
+    await waitFor(() => {
+      expect(screen.getByTestId('district')).toHaveTextContent('La Merced');
+    });
   });
 
   it('permite elegir un distrito manualmente y lo activa', async () => {

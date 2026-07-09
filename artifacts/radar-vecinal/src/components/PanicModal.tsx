@@ -23,10 +23,6 @@ const PANIC_OPTIONS: { type: PanicAlertType; icon: any; label: string; sub: stri
   { type: PanicAlertType.other, icon: Zap, label: "Otra emergencia", sub: "Describir luego", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
 ];
 
-// Fallback absoluto solo si no hay distrito cargado (nunca debería pasar en producción)
-const FALLBACK_LAT = -11.1213;
-const FALLBACK_LNG = -75.3498;
-
 type Phase = "select" | "countdown" | "sending" | "sent";
 
 // ── Marcador de pánico (divIcon — los íconos default de Leaflet se rompen con Vite)
@@ -75,12 +71,12 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
   const createAlert = useCreatePanicAlert();
 
   const { user } = useAuth();
-  const { currentDistrictId, currentDistrict, districtInfo } = useDistrict();
+  const { currentDistrictId, currentDistrict, districtCenter } = useDistrict();
 
   // ── Ubicación ──────────────────────────────────────────────────────────────
   // Prioridad: 1) marcador ajustado por el usuario  2) GPS  3) centro del distrito
-  const districtLat = districtInfo?.centerLat ?? FALLBACK_LAT;
-  const districtLng = districtInfo?.centerLng ?? FALLBACK_LNG;
+  const districtLat = districtCenter.lat;
+  const districtLng = districtCenter.lng;
 
   const [gps, setGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"searching" | "ok" | "error">("searching");

@@ -7,7 +7,7 @@ import {
   Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { DISTRICT } from "@/lib/constants";
+import { useDistrict } from "@/contexts/DistrictContext";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
@@ -96,6 +96,7 @@ function applyTheme(dark: boolean) {
 
 export default function Settings() {
   const { toast } = useToast();
+  const { districtInfo } = useDistrict();
 
   // Theme
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -365,24 +366,24 @@ export default function Settings() {
       <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible">
         <SettingSection title="Distrito y territorio" icon={Globe} iconColor="text-yellow-400">
           <SettingRow
-            label="Distrito piloto"
+            label="Distrito activo"
             sub="Todos los reportes y alertas corresponden a esta zona"
           >
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className="text-white font-medium">{DISTRICT.displayName}</span>
+              <span className="text-white font-medium">{districtInfo?.name ?? "Sin seleccionar"}</span>
             </div>
           </SettingRow>
           <SettingRow
             label="Provincia"
             sub=""
           >
-            <span className="text-sm text-white font-medium">{DISTRICT.province}</span>
+            <span className="text-sm text-white font-medium">{districtInfo?.province ?? "—"}</span>
           </SettingRow>
           <SettingRow
             label="Región"
             sub=""
           >
-            <span className="text-sm text-white font-medium">{DISTRICT.region}</span>
+            <span className="text-sm text-white font-medium">{districtInfo?.department ?? "—"}</span>
           </SettingRow>
           <SettingRow
             label="Expandir a otros distritos"

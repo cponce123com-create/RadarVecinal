@@ -8,7 +8,7 @@ import { LeafletMap, MapMode } from "@/components/LeafletMap";
 import PanicAlertsLayer from "@/components/PanicAlertsLayer";
 import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
-import { CAT_HEX, CATEGORY_CONFIG, DISTRICT, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
+import { CAT_HEX, CATEGORY_CONFIG, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -69,8 +69,15 @@ function StaticDots({ reports }: { reports: Report[] }) {
 // Vista fija, sin arrastre ni zoom, centrada en la ubicación real del vecino
 // (o en el centro del distrito si el GPS no está disponible).
 function StaticMiniMap({ reports }: { reports: Report[] }) {
-  const [center, setCenter] = useState<{ lat: number; lng: number }>(DISTRICT.center);
+  const { districtCenter } = useDistrict();
+  const [center, setCenter] = useState<{ lat: number; lng: number }>(districtCenter);
   const [located, setLocated] = useState(false);
+
+  // Mientras no haya GPS, seguir al centro del distrito activo (puede
+  // resolverse después del primer render)
+  useEffect(() => {
+    if (!located) setCenter({ lat: districtCenter.lat, lng: districtCenter.lng });
+  }, [districtCenter.lat, districtCenter.lng, located]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;

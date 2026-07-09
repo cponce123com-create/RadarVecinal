@@ -30,9 +30,11 @@ const cardVariants = {
 
 export default function Stats() {
   const [period, setPeriod] = useState<Period>("30d");
-  const { data: stats, isLoading } = useGetStats();
-  const { currentDistrictId } = useDistrict();
+  const { currentDistrictId, currentDistrict, province } = useDistrict();
+  // Igual que en Home: sin districtId el backend devuelve stats GLOBALES
+  const { data: stats, isLoading } = useGetStats(currentDistrictId ? { districtId: currentDistrictId } : undefined);
   const { data: allReports } = useGetReports({ districtId: currentDistrictId ?? undefined });
+  const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "tu distrito";
 
   const periodDays = PERIODS.find(p => p.id === period)?.days ?? 30;
   const cutoff = useMemo(() => {
@@ -78,7 +80,7 @@ export default function Stats() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-[22px] font-bold text-white tracking-tight mb-1">Métricas de Seguridad</h2>
-          <p className="text-[13px] text-muted-foreground">Análisis de incidentes — San Ramón, Chanchamayo.</p>
+          <p className="text-[13px] text-muted-foreground">Análisis de incidentes — {districtDisplay}.</p>
         </div>
         <div className="flex items-center gap-1.5 p-1 bg-card border border-white/8 rounded-[10px] w-fit">
           <Calendar className="w-3.5 h-3.5 text-muted-foreground ml-2 flex-shrink-0" />

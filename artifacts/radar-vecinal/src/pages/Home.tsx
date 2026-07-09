@@ -32,7 +32,7 @@ const cardVariants = {
 };
 
 export default function Home() {
-  const { currentDistrict, currentDistrictId, province, districtInfo, setDistrict, districts, isLocationApproximate } = useDistrict();
+  const { currentDistrict, currentDistrictId, province, districtInfo, isLocationApproximate } = useDistrict();
   const districtDisplay = [currentDistrict, province].filter(Boolean).join(", ") || "Selecciona tu distrito";
   const districtDisplaySuffix = currentDistrict && isLocationApproximate ? " (aprox.)" : "";
   // FIX: antes estas queries iban SIN districtId — para usuarios anónimos el
@@ -44,31 +44,19 @@ export default function Home() {
   const { data: alertsData } = useGetPanicAlerts({ active: true, ...(dq ?? {}) });
   const { data: missingData } = useGetMissingPersons({ active: true, ...(dq ?? {}) });
   const { data: adsData } = useGetAdSlots();
-  const geofence = useGeofenceWatcher({ radius: 1000 });
+  // El geofence consulta alertas cercanas DEL distrito activo; arranca cuando
+  // el distrito está resuelto y se reinicia si cambia.
+  // NOTA: la detección de distrito por GPS vive SOLO en DistrictContext. Aquí
+  // había una segunda detección legacy que, con el primer fix impreciso,
+  // persistía un distrito vecino equivocado como selección manual — esa era
+  // la causa de que el encabezado quedara "pegado" en otro distrito.
+  const geofence = useGeofenceWatcher({ radius: 1000, districtId: currentDistrictId ?? undefined });
 
-  useEffect(() => { geofence.start(); return () => geofence.stop(); }, []);
-
-  // Auto-detectar distrito por GPS cuando se obtiene ubicación
   useEffect(() => {
-    if (geofence.currentPosition) {
-      const { lat, lng } = geofence.currentPosition;
-      // Solo si el distrito actual es el default (San Ramón) o no se ha cambiado manualmente
-      const manualSelection = localStorage.getItem("radarvecinal_district_slug");
-      if (!manualSelection || manualSelection === "san-ramon") {
-        fetch(`/api/districts/nearby?lat=${lat}&lng=${lng}&limit=1`)
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data?.districts?.length > 0) {
-              const nearest = data.districts[0];
-              if (nearest.distance < 30000 && nearest.slug !== "san-ramon") {
-                setDistrict(nearest.slug);
-              }
-            }
-          })
-          .catch(() => {});
-      }
-    }
-  }, [geofence.currentPosition]);
+    if (!currentDistrictId) return;
+    geofence.start();
+    return () => geofence.stop();
+  }, [currentDistrictId]);
 
   const reports = reportsData?.reports ?? [];
   const activeAlerts = alertsData?.alerts?.filter(a => a.isActive) ?? [];

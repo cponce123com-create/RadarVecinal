@@ -34,7 +34,8 @@ const DEFAULT_CONFIG: GeofenceConfig = {
   maximumAge: 10000,
   distanceFilter: 50,
   radius: 1000,
-  districtId: 1, // default: San Ramón
+  // districtId NO tiene default: debe venir del distrito activo (DistrictContext).
+  // Antes estaba hardcodeado a 1 (San Ramón) y consultaba el distrito equivocado.
 };
 
 export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherState {
@@ -51,7 +52,8 @@ export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherStat
   const fetchNearby = useCallback(async (lat: number, lng: number) => {
     try {
       const radius = cfg.radius ?? 1000;
-      const districtId = cfg.districtId ?? 1;
+      const districtId = cfg.districtId;
+      if (!districtId) return; // sin distrito resuelto no hay nada que consultar
       const res = await fetch(`/api/reports/nearby?lat=${lat}&lng=${lng}&radius=${radius}&districtId=${districtId}`);
       if (!res.ok) {
         console.warn('[Geofence] nearby fetch failed:', res.status, res.statusText);

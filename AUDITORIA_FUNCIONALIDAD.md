@@ -5,6 +5,19 @@
 
 Severidad: 🔴 Alta (rompe o degrada una función) · 🟠 Media · 🟡 Baja/mejora.
 
+> **Actualización (implementado en esta iteración):** F1, F2, F3, UX1 y UX3 ya
+> están corregidos y verificados (121 tests OK, typecheck/prettier/builds verdes):
+> - **F1/UX1** — nuevo `LocationPicker` (mapa + geocoder + "mi ubicación")
+>   reutilizable; "reportar extravío" ahora guarda coordenadas reales.
+> - **F2/UX3** — el teléfono de contacto de extraviados es público (búsqueda
+>   comunitaria); el nombre del reportante queda en backoffice; el botón
+>   "Contactar" solo se muestra si hay teléfono.
+> - **F3** — `users.ts` usa `isMunicipalityLevel` (las municipalidades ya no
+>   quedan bloqueadas).
+>
+> Pendientes (media/baja): CQ1 (modularizar rutas), CQ2 (tipar `req.jwtUser`),
+> UX2 (estados de carga/error), L3 (audit log en borrado), UX4/UX5.
+
 ---
 
 ## 1. Funcionalidad

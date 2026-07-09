@@ -770,11 +770,12 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
         lastSeenAt: missingPersonsTable.lastSeenAt,
         status: missingPersonsTable.status,
         districtId: missingPersonsTable.districtId,
+        // F2: el teléfono de contacto es PÚBLICO (una alerta "se busca" necesita
+        // que cualquiera pueda avisar). El NOMBRE del reportante queda reservado
+        // al backoffice del distrito por privacidad.
+        contactInfo: missingPersonsTable.contactInfo,
         ...(isBackofficeSameDistrict
-          ? {
-              contactInfo: missingPersonsTable.contactInfo,
-              reportedBy: missingPersonsTable.reportedBy,
-            }
+          ? { reportedBy: missingPersonsTable.reportedBy }
           : {}),
         createdAt: missingPersonsTable.createdAt,
       })

@@ -1,0 +1,59 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="obg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a0f1e"/>
+      <stop offset="1" stop-color="#060810"/>
+    </linearGradient>
+    <radialGradient id="oglow" cx="0.26" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#3C7BFF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#3C7BFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="obadge" x1="120" y1="215" x2="320" y2="415" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3C7BFF"/>
+      <stop offset="1" stop-color="#1740C4"/>
+    </linearGradient>
+    <radialGradient id="omk" cx="0.3" cy="0.24" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="osweep" x1="399" y1="156" x2="196" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="otext" x1="0" y1="300" x2="0" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6f9bff"/>
+      <stop offset="1" stop-color="#2f6bff"/>
+    </linearGradient>
+    <clipPath id="obc"><rect width="512" height="512" rx="116"/></clipPath>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#obg)"/>
+  <rect width="1200" height="630" fill="url(#oglow)"/>
+
+  <!-- Marca -->
+  <g transform="translate(120,215)">
+    <rect width="200" height="200" rx="53" fill="url(#obadge)"/>
+    <rect width="200" height="200" rx="53" fill="url(#omk)"/>
+    <g transform="scale(0.390625)" clip-path="url(#obc)" stroke-linecap="round">
+      <g stroke="#ffffff" stroke-opacity="0.14" stroke-width="8">
+        <line x1="256" y1="60" x2="256" y2="452"/>
+        <line x1="60" y1="256" x2="452" y2="256"/>
+      </g>
+      <circle cx="256" cy="256" r="168" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="12"/>
+      <circle cx="256" cy="256" r="102" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="12"/>
+      <path d="M256 256 L399.3 155.6 A175 175 0 0 0 196.1 91.6 Z" fill="url(#osweep)"/>
+      <line x1="256" y1="256" x2="399.3" y2="155.6" stroke="#ffffff" stroke-opacity="0.95" stroke-width="11"/>
+      <circle cx="372" cy="224" r="30" fill="#ffffff" fill-opacity="0.18"/>
+      <circle cx="372" cy="224" r="16" fill="#ffffff"/>
+      <circle cx="256" cy="256" r="15" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <!-- Texto -->
+  <g font-family="'Space Grotesk','Inter',system-ui,sans-serif">
+    <text x="368" y="300" font-size="82" font-weight="700" letter-spacing="-2" fill="#ffffff">Radar<tspan fill="url(#otext)"> Vecinal</tspan></text>
+    <text x="372" y="352" font-family="'JetBrains Mono',monospace" font-size="23" font-weight="600" letter-spacing="6" fill="#8a93a6">SEGURIDAD  CIUDADANA</text>
+    <text x="372" y="410" font-size="30" font-weight="500" fill="#c3ccdb">Reporta incidentes, activa alertas de p&#225;nico</text>
+    <text x="372" y="450" font-size="30" font-weight="500" fill="#c3ccdb">y coordina con tu municipalidad en tiempo real.</text>
+  </g>
+</svg>

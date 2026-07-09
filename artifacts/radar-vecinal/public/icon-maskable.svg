@@ -1,0 +1,31 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mbg" x1="40" y1="20" x2="480" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3C7BFF"/>
+      <stop offset="1" stop-color="#1740C4"/>
+    </linearGradient>
+    <radialGradient id="mglow" cx="0.32" cy="0.26" r="0.95">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="msweep" x1="399" y1="156" x2="196" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed: los sistemas aplican su propia máscara (círculo/squircle) -->
+  <rect width="512" height="512" fill="url(#mbg)"/>
+  <rect width="512" height="512" fill="url(#mglow)"/>
+
+  <!-- Marca dentro de la zona segura (central 80%) -->
+  <g transform="translate(51.2,51.2) scale(0.8)" stroke-linecap="round">
+    <circle cx="256" cy="256" r="168" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="13"/>
+    <circle cx="256" cy="256" r="102" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="13"/>
+    <path d="M256 256 L399.3 155.6 A175 175 0 0 0 196.1 91.6 Z" fill="url(#msweep)"/>
+    <line x1="256" y1="256" x2="399.3" y2="155.6" stroke="#ffffff" stroke-opacity="0.95" stroke-width="12"/>
+    <circle cx="372" cy="224" r="31" fill="#ffffff" fill-opacity="0.18"/>
+    <circle cx="372" cy="224" r="17" fill="#ffffff"/>
+    <circle cx="256" cy="256" r="16" fill="#ffffff"/>
+  </g>
+</svg>

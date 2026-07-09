@@ -19,7 +19,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "images/*"],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "images/*"],
       manifest: {
         name: "Radar Vecinal",
         short_name: "RadarV",
@@ -33,12 +33,17 @@ export default defineConfig({
         lang: "es-PE",
         categories: ["security", "utilities", "social"],
         icons: [
-          { src: "/favicon.svg", sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
-          { src: "/favicon.svg", sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" },
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,jpg,webp,ico}"],
+        // La imagen social (og-image) solo la consumen los crawlers; no precachearla.
+        globIgnores: ["**/og-image.png"],
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/.*\/api\/.*/i,

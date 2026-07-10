@@ -11,15 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import GeocoderInput from "@/components/GeocoderInput";
+import { pinIcon } from "@/lib/mapMarker";
 import { REPORT_TEMPLATES, type ReportTemplate } from "@/lib/reportTemplates";
 
-// Fix leaflet icons
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
 
 const URGENCY_CFG: Record<ReportUrgency, { label: string; color: string; dot: string }> = {
   [ReportUrgency.low]:      { label: "Baja",    color: "border-green-500/50 text-green-400 bg-green-500/10",    dot: "bg-green-400" },
@@ -57,7 +51,7 @@ function DraggableMarker({ position, onDrag }: {
   const markerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
-    const marker = L.marker([position.lat, position.lng], { draggable: true }).addTo(map);
+    const marker = L.marker([position.lat, position.lng], { draggable: true, icon: pinIcon }).addTo(map);
     marker.bindTooltip("Arrastra para ubicar el lugar exacto", { direction: "top" });
     marker.on("dragend", () => {
       const ll = marker.getLatLng();

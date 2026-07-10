@@ -89,7 +89,7 @@ function DistrictSelector({ compact = false }: { compact?: boolean }) {
         } ${compact ? "text-xs py-1 px-2 rounded-lg hover:bg-white/8" : "text-[11px] py-1 mt-0.5"}`}
       >
         <MapPin className={`w-3 h-3 flex-shrink-0 ${needsSelection ? "text-amber-300" : "text-primary"}`} />
-        <span className="font-medium truncate max-w-[130px]">{label}</span>
+        <span className={`font-medium truncate ${compact ? "max-w-[96px]" : "max-w-[130px]"}`}>{label}</span>
         <ChevronDown className={`w-3 h-3 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} />
       </button>
       <AnimatePresence>
@@ -248,28 +248,29 @@ export function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* ── Header móvil ── */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-sidebar/95 backdrop-blur-xl border-b border-sidebar-border sticky top-0 z-40">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#1b4fd8] flex items-center justify-center">
+      {/* El logo no debe partirse: min-w-0 + whitespace-nowrap. El toggle de
+          tema se movió a Ajustes para liberar espacio en la barra. */}
+      <header className="md:hidden flex items-center justify-between gap-2 px-4 py-3 bg-sidebar/95 backdrop-blur-xl border-b border-sidebar-border sticky top-0 z-40">
+        <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#1b4fd8] flex items-center justify-center flex-shrink-0">
             <Radar className="w-[18px] h-[18px] text-white" />
           </div>
-          <span className="font-display font-bold text-base text-white">Radar Vecinal</span>
+          <span className="font-display font-bold text-base text-white whitespace-nowrap">Radar Vecinal</span>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle compact />
-          <DistrictSelector compact />
+        <div className="flex items-center gap-1 min-w-0">
+          <div className="min-w-0"><DistrictSelector compact /></div>
           {user ? (
             <Link href="/perfil">
-              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-[#5b8dff] cursor-pointer">
+              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-[#5b8dff] cursor-pointer flex-shrink-0">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             </Link>
           ) : (
-            <button onClick={() => setAuthOpen(true)} aria-label="Iniciar sesión" className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
+            <button onClick={() => setAuthOpen(true)} aria-label="Iniciar sesión" className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all flex-shrink-0">
               <LogIn className="w-[18px] h-[18px]" />
             </button>
           )}
-          <button onClick={() => setMobileOpen(true)} aria-label="Abrir menú de navegación" aria-expanded={mobileOpen} className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
+          <button onClick={() => setMobileOpen(true)} aria-label="Abrir menú de navegación" aria-expanded={mobileOpen} className="p-2 rounded-lg text-muted-foreground hover:text-white hover:bg-white/8 transition-all flex-shrink-0">
             <Menu className="w-5 h-5" />
           </button>
         </div>
@@ -345,7 +346,7 @@ export function Layout({ children }: LayoutProps) {
       </AnimatePresence>
 
       {/* ── Contenido principal ── */}
-      <main className="flex-1 flex flex-col min-h-screen md:max-h-screen md:overflow-y-auto hide-scrollbar pb-20 md:pb-0 pt-[env(safe-area-inset-top,0px)] relative z-10">
+      <main className="flex-1 flex flex-col min-h-screen md:max-h-screen md:overflow-y-auto hide-scrollbar pb-24 md:pb-0 pt-[env(safe-area-inset-top,0px)] relative z-10">
         {/* Topbar desktop */}
         <div className="hidden md:flex items-center justify-between px-7 py-4 sticky top-0 z-20 bg-background/70 backdrop-blur-xl border-b border-white/5">
           <div>
@@ -401,8 +402,11 @@ export function Layout({ children }: LayoutProps) {
       </nav>
 
       {/* ── Botón de pánico ── */}
+      {/* En móvil se ancla justo encima de la barra inferior (no flotando sobre
+          las tarjetas). El contenido reserva espacio con pb para no quedar
+          oculto detrás. */}
       <button onClick={() => setPanicOpen(true)}
-        className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] md:bottom-[calc(2rem+env(safe-area-inset-bottom,0px))] right-4 md:right-8 w-14 h-14 md:w-[62px] md:h-[62px] rounded-full bg-gradient-to-br from-destructive to-red-600 flex items-center justify-center z-50 panic-glow border-2 border-red-400/40 hover:scale-105 active:scale-95 transition-transform min-h-[44px] min-w-[44px]"
+        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-[calc(2rem+env(safe-area-inset-bottom,0px))] right-4 md:right-8 w-14 h-14 md:w-[62px] md:h-[62px] rounded-full bg-gradient-to-br from-destructive to-red-600 flex items-center justify-center z-50 panic-glow border-2 border-red-400/40 hover:scale-105 active:scale-95 transition-transform min-h-[44px] min-w-[44px]"
         aria-label="Botón de pánico">
         <ShieldAlert className="w-7 h-7 md:w-8 md:h-8 text-white" />
       </button>

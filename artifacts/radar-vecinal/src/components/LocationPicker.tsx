@@ -4,15 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed } from "lucide-react";
 import GeocoderInput from "@/components/GeocoderInput";
-
-// Fix de iconos de Leaflet (mismo patrón que ReportForm).
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
+import { pinIcon } from "@/lib/mapMarker";
 
 function DraggableMarker({
   position,
@@ -27,6 +19,7 @@ function DraggableMarker({
   useEffect(() => {
     const marker = L.marker([position.lat, position.lng], {
       draggable: true,
+      icon: pinIcon,
     }).addTo(map);
     marker.bindTooltip("Arrastra para ubicar el lugar exacto", {
       direction: "top",

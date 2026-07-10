@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDistrict } from "@/contexts/DistrictContext";
+import { playAlertSound } from "@/lib/alertSound";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
@@ -189,7 +190,17 @@ export default function Settings() {
             label="Alertas sonoras"
             sub="Sonido de alerta según tipo de incidente y distancia"
           >
-            <Toggle checked={soundEnabled} onChange={setSoundEnabled} />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => playAlertSound("robbery", true)}
+                aria-label="Probar sonido de alerta"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/6 border border-white/10 text-[11px] font-medium text-white/80 hover:bg-white/10 hover:text-white transition-all"
+              >
+                <Volume2 className="w-3.5 h-3.5" /> Probar
+              </button>
+              <Toggle checked={soundEnabled} onChange={setSoundEnabled} />
+            </div>
           </SettingRow>
           <SettingRow
             label="Alertas de pánico"

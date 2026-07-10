@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Mail, Lock, Phone, MapPin, ChevronRight, Eye, EyeOff, Loader2, Search, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { SECTORS, DISTRICT } from "@/lib/constants";
+import { SECTORS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props { open: boolean; onClose: () => void; }
@@ -23,7 +23,7 @@ export default function AuthModal({ open, onClose }: Props) {
   // Lista real de distritos activos (cargada desde /api/districts por el
   // contexto). Permite registrarse desde CUALQUIER distrito habilitado, no
   // solo San Ramón. Si aún no carga, se usa el default como fallback.
-  const { districts } = useDistrict();
+  const { districts, currentDistrict } = useDistrict();
   const [mode, setMode] = useState<Mode>("login");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -35,9 +35,21 @@ export default function AuthModal({ open, onClose }: Props) {
   const [showFullConsent, setShowFullConsent] = useState(false);
 
   const [form, setForm] = useState({
-    name: "", email: "", password: "", sector: SECTORS[0], district: DISTRICT.name,
+    name: "", email: "", password: "", sector: SECTORS[0], district: "",
     dni: "", phone: "", firstName: "", lastName: "",
   });
+  const [districtTouched, setDistrictTouched] = useState(false);
+
+  // Pre-seleccionar el distrito DETECTADO (donde estás), no un fijo. Si el
+  // usuario aún no lo cambió a mano, seguir a la detección; si ya eligió, se
+  // respeta. Fallback al primer distrito activo del catálogo.
+  useEffect(() => {
+    if (districtTouched) return;
+    const preferred = currentDistrict || districts[0]?.name || "";
+    if (preferred && preferred !== form.district) {
+      setForm(prev => ({ ...prev, district: preferred }));
+    }
+  }, [currentDistrict, districts, districtTouched, form.district]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -301,13 +313,14 @@ export default function AuthModal({ open, onClose }: Props) {
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Distrito</label>
                       <div className="relative">
                         <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <select name="district" value={form.district} onChange={handleChange}
+                        <select name="district" value={form.district}
+                          onChange={e => { setDistrictTouched(true); handleChange(e); }}
                           className="w-full pl-9 pr-4 py-2.5 bg-background border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary transition-colors appearance-none">
-                          {/* Distritos reales desde /api/districts — funciona en
-                              cualquier distrito habilitado, no solo San Ramón */}
+                          {/* Distritos reales desde /api/districts (solo activos).
+                              Pre-seleccionado el detectado por GPS. */}
                           {districts.length > 0
                             ? districts.map(d => <option key={d.slug} value={d.name}>{d.name}</option>)
-                            : <option value={DISTRICT.name}>{DISTRICT.name}</option>}
+                            : form.district && <option value={form.district}>{form.district}</option>}
                         </select>
                       </div>
                     </div>

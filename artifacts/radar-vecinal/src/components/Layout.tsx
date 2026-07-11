@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Map as MapIcon, PlusCircle, Bell, User, Menu, X,
-  Radar, Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight,
+  Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight,
   Siren, Phone, LogIn, LogOut, MapPin, ChevronDown,
   Plus,
 } from "lucide-react";
@@ -187,9 +187,8 @@ export function Layout({ children }: LayoutProps) {
       {/* ── Sidebar desktop ── */}
       <aside className="hidden md:flex flex-col w-64 flex-shrink-0 bg-sidebar/90 backdrop-blur-xl border-r border-sidebar-border h-screen sticky top-0 z-30">
         <div className="flex items-center gap-3 px-5 py-[18px] border-b border-white/5">
-          <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-[#1b4fd8] flex items-center justify-center shadow-[0_6px_20px_hsl(221_100%_59%_/_0.4),inset_0_1px_0_rgba(255,255,255,0.25)]">
-            <Radar className="w-[22px] h-[22px] text-white" />
-          </div>
+          <img src="/favicon.svg" alt="Radar Vecinal" width="40" height="40"
+            className="w-10 h-10 flex-shrink-0 drop-shadow-[0_6px_18px_rgba(47,123,255,0.4)]" />
           <div className="min-w-0 flex-1">
             <div className="font-display font-bold text-base text-white tracking-tight leading-none">Radar Vecinal</div>
             <DistrictSelector />
@@ -252,9 +251,7 @@ export function Layout({ children }: LayoutProps) {
           tema se movió a Ajustes para liberar espacio en la barra. */}
       <header className="md:hidden flex items-center justify-between gap-2 px-4 py-3 bg-sidebar/95 backdrop-blur-xl border-b border-sidebar-border sticky top-0 z-40">
         <div className="flex items-center gap-2 min-w-0 flex-shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#1b4fd8] flex items-center justify-center flex-shrink-0">
-            <Radar className="w-[18px] h-[18px] text-white" />
-          </div>
+          <img src="/favicon.svg" alt="Radar Vecinal" width="32" height="32" className="w-8 h-8 flex-shrink-0" />
           <span className="font-display font-bold text-base text-white whitespace-nowrap">Radar Vecinal</span>
         </div>
         <div className="flex items-center gap-1 min-w-0">
@@ -288,9 +285,7 @@ export function Layout({ children }: LayoutProps) {
               style={{ willChange: "transform", overscrollBehavior: "contain" }}>
               <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#1b4fd8] flex items-center justify-center">
-                    <Radar className="w-[18px] h-[18px] text-white" />
-                  </div>
+                  <img src="/favicon.svg" alt="Radar Vecinal" width="32" height="32" className="w-8 h-8 flex-shrink-0" />
                   <span className="font-display font-bold text-white">Radar Vecinal</span>
                 </div>
                 <button onClick={() => setMobileOpen(false)} aria-label="Cerrar menú" className="p-1.5 rounded-lg text-muted-foreground hover:text-white">

@@ -88,6 +88,9 @@ describe.skipIf(!process.env.DATABASE_URL)("Missing Persons RBAC", () => {
     await db.execute(
       sql`DELETE FROM "missing_persons" WHERE "name" = 'RBAC Person'`,
     );
+    // El DELETE de persona extraviada inserta en audit_log; hay que limpiarlo
+    // antes que el distrito (FK audit_log.district_id → districts.id).
+    await db.execute(sql`DELETE FROM "audit_log" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "users" WHERE "name" LIKE 'rbac_%'`);
     await db.execute(sql`DELETE FROM "districts" WHERE "slug" LIKE 'rbac-%'`);
   });

@@ -516,6 +516,7 @@ export async function requireAuth(
         isActive: usersTable.isActive,
         role: usersTable.role,
         districtId: usersTable.districtId,
+        suspendedUntil: usersTable.suspendedUntil,
       })
       .from(usersTable)
       .where(eq(usersTable.id, parseInt(payload.sub)))
@@ -531,6 +532,15 @@ export async function requireAuth(
       return res
         .status(403)
         .json({ error: "Cuenta desactivada. Contacta al administrador." });
+    }
+
+    // Hacer cumplir la suspensión temporal (antes solo se guardaba, no se
+    // aplicaba: un usuario suspendido seguía operando con normalidad).
+    if (user.suspendedUntil && user.suspendedUntil.getTime() > Date.now()) {
+      return res.status(403).json({
+        error: "Cuenta suspendida temporalmente por reportes falsos.",
+        suspendedUntil: user.suspendedUntil.toISOString(),
+      });
     }
 
     // Attach full user info from DB (more reliable than JWT alone)

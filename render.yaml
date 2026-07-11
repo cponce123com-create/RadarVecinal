@@ -39,6 +39,12 @@ services:
         value: ""
       - key: RENIEC_API_TOKEN
         value: ""
+      # Telegram: envío automático de cada reporte a un canal. Si faltan, la
+      # función queda desactivada (los reportes se crean igual).
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
 
 databases:
   - name: radarvecinal-db

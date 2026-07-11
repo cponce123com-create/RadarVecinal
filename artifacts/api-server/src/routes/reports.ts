@@ -25,6 +25,7 @@ import {
 } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { sendStatusChangeEmail } from "../lib/email";
+import { notifyReportToTelegram } from "../lib/telegram";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -248,10 +249,29 @@ router.post("/reports", optionalAuth, async (req, res) => {
           vecinoId: usersTable.vecinoId,
           id: usersTable.id,
           alias: usersTable.alias,
+          isActive: usersTable.isActive,
+          suspendedUntil: usersTable.suspendedUntil,
         })
         .from(usersTable)
         .where(eq(usersTable.id, parseInt(user.sub)))
         .limit(1);
+      // Hacer cumplir las sanciones también aquí: esta ruta usa optionalAuth
+      // (permite anónimos), por lo que NO pasa por requireAuth y un usuario
+      // baneado/suspendido con token vigente podría seguir publicando.
+      if (dbUser && !dbUser.isActive) {
+        return res.status(403).json({
+          error: "Tu cuenta está desactivada y no puede crear reportes.",
+        });
+      }
+      if (
+        dbUser?.suspendedUntil &&
+        dbUser.suspendedUntil.getTime() > Date.now()
+      ) {
+        return res.status(403).json({
+          error: "Tu cuenta está suspendida temporalmente por reportes falsos.",
+          suspendedUntil: dbUser.suspendedUntil.toISOString(),
+        });
+      }
       if (dbUser) {
         authorUserId = dbUser.id;
         vecinoId = dbUser.vecinoId;
@@ -350,6 +370,25 @@ router.post("/reports", optionalAuth, async (req, res) => {
         report.assignedTo = dept.id;
       }
     }
+
+    // Notificar al canal de Telegram (best-effort, no bloquea la respuesta ni
+    // hace fallar el reporte si Telegram está caído o sin configurar).
+    notifyReportToTelegram({
+      id: report.id,
+      title: report.title,
+      description: report.description,
+      category: report.category,
+      urgency: report.urgency,
+      latitude: report.latitude,
+      longitude: report.longitude,
+      address: report.address,
+      sector: report.sector,
+      districtName: report.district,
+      authorName: report.authorName,
+      isAnonymous: report.isAnonymous,
+      imageUrl: report.imageUrl,
+      createdAt: report.createdAt,
+    }).catch((err) => req.log.error({ err }, "Telegram notify failed"));
 
     return res.status(201).json({
       ...report,

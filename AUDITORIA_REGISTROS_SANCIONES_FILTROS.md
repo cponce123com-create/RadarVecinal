@@ -40,17 +40,15 @@ suspendido y baneado reciben 403.
 
 ---
 
-## 3. Filtros 🟠 (pobres para moderación)
+## 3. Filtros 🟠 (mejorados)
 
-| # | Sev | Hallazgo | Recomendación |
+| # | Sev | Hallazgo | Estado |
 |---|---|---|---|
-| **F1** | 🟠 | **`GET /reports`** filtra por `category/status/urgency/sector`, pero **no** por rango de fechas, texto libre, ni "cola de moderación" (reviewing/flagged). El admin no puede buscar ni priorizar. | Añadir `q` (búsqueda), `from`/`to` (fechas) y `flagged=true`. |
-| **F2** | 🟠 | **`GET /users`** no tiene búsqueda, ni filtro por rol/estado (activos/suspendidos/baneados), ni paginación real (límite fijo 200). Con muchos vecinos es inmanejable. | Añadir `q`, `role`, `status` (active/suspended/banned) y paginación `limit/offset`. |
-| **F3** | 🟡 | Los filtros del panel admin viven en el cliente; sin soporte backend, filtran solo la página actual (máx. 200). | Mover el filtrado al backend (deriva de F1/F2). |
+| **F1** | 🟠 | **`GET /reports`** filtraba por `category/status/urgency/sector`, pero no por texto ni fechas. | ✅ Añadidos `q` (busca en título/descripción/dirección/zona) y `from`/`to` (rango de fechas). El panel de reportes tiene chips de **estado** (activo/en revisión/resuelto/archivado) y filtro por **categoría**, además de la cola de "Moderación" ya existente. |
+| **F2** | 🟠 | **`GET /users`** sin búsqueda, sin filtro por rol/estado, ni paginación (límite fijo 200). No se podían listar suspendidos/baneados. | ✅ Añadidos `q`, `role`, `status` (active/suspended/banned) + `limit/offset` + `total`; la respuesta incluye un `status` derivado por usuario. El panel de usuarios tiene chips **Todos/Activos/Suspendidos/Baneados** + selector de rol, resueltos en el backend. |
+| **F3** | 🟡 | Los filtros de estado/rol vivían solo en el cliente (máx. 200 cargados) → un suspendido fuera de esa ventana era invisible. | ✅ Estado/rol se resuelven en el backend (UsersTab). La búsqueda de texto se refina localmente para respuesta instantánea. |
 
-> Estas mejoras tocan backend **y** el panel admin (frontend). Son la siguiente
-> tanda natural; se dejaron fuera de esta iteración para no mezclar con los
-> arreglos de seguridad y la integración de Telegram.
+**Verificación:** `moderation-filters.test.ts` — status/role/q en usuarios y q/from/to en reportes.
 
 ---
 

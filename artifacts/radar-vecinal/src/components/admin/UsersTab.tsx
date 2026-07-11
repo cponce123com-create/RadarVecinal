@@ -19,11 +19,22 @@ interface User {
   district: string;
   districtId: number;
   isActive: boolean;
+  status?: "active" | "suspended" | "banned";
   reportsCount: number;
   trustScore: number;
   suspendedUntil: string | null;
   createdAt: string;
 }
+
+type StatusFilter = "all" | "active" | "suspended" | "banned";
+type RoleFilter = "all" | "user" | "moderator" | "admin" | "super_admin";
+
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "Todos" },
+  { id: "active", label: "Activos" },
+  { id: "suspended", label: "Suspendidos" },
+  { id: "banned", label: "Baneados" },
+];
 
 interface UserStats {
   totalActions: number;
@@ -66,17 +77,25 @@ export default function UsersTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [strikeModalUser, setStrikeModalUser] = useState<User | null>(null);
   const [strikes, setStrikes] = useState<Strike[]>([]);
   const [loadingStrikes, setLoadingStrikes] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ users: User[] }>({
-    queryKey: ["admin-users"],
+  // Los filtros de estado/rol se resuelven en el BACKEND (los suspendidos/
+  // baneados pueden estar fuera de la ventana de los primeros resultados). La
+  // búsqueda de texto se refina localmente para respuesta instantánea.
+  const { data, isLoading } = useQuery<{ users: User[]; total?: number }>({
+    queryKey: ["admin-users", statusFilter, roleFilter],
     queryFn: async () => {
       const token = localStorage.getItem("radarvecinal_token");
-      const res = await fetch("/api/users", {
+      const params = new URLSearchParams({ limit: "200" });
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (roleFilter !== "all") params.set("role", roleFilter);
+      const res = await fetch(`/api/users?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error("Error al cargar usuarios");
@@ -183,10 +202,14 @@ export default function UsersTab() {
   };
 
   const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "admin", sector: "" });
+  // Estado/rol ya vienen filtrados por el backend; aquí solo refinamos por texto.
+  const q = search.trim().toLowerCase();
   const filtered = (data?.users ?? []).filter(u =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.role.includes(search.toLowerCase())
+    !q ||
+    u.name.toLowerCase().includes(q) ||
+    (u.email ?? "").toLowerCase().includes(q) ||
+    u.role.toLowerCase().includes(q) ||
+    (u.sector ?? "").toLowerCase().includes(q)
   );
 
   const handleCreate = (e: React.FormEvent) => {
@@ -208,7 +231,8 @@ export default function UsersTab() {
         <div>
           <h2 className="font-display text-[20px] font-bold text-white">Gestión de Usuarios</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {data?.users.length ?? 0} usuarios registrados
+            {data?.total ?? data?.users?.length ?? 0} usuarios
+            {statusFilter !== "all" || roleFilter !== "all" ? " (filtrados)" : " registrados"}
           </p>
         </div>
         <button onClick={() => setShowCreate(true)}
@@ -221,9 +245,36 @@ export default function UsersTab() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por nombre, correo o rol..."
+          placeholder="Buscar por nombre, correo, rol o sector..."
           className="w-full bg-card border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
         />
+      </div>
+
+      {/* Filtros de moderación: estado + rol (resueltos en el backend) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {STATUS_FILTERS.map(f => (
+            <button key={f.id} onClick={() => setStatusFilter(f.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                statusFilter === f.id
+                  ? "bg-primary/15 text-primary border-primary/30"
+                  : "bg-card text-muted-foreground border-white/10 hover:text-white"
+              }`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative ml-auto">
+          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value as RoleFilter)}
+            className="appearance-none bg-card border border-white/10 rounded-lg pl-8 pr-7 py-1.5 text-xs text-white focus:outline-none focus:border-primary">
+            <option value="all">Todos los roles</option>
+            <option value="user">Vecinos</option>
+            <option value="moderator">Moderadores</option>
+            <option value="admin">Admins</option>
+            <option value="super_admin">Superadmins</option>
+          </select>
+        </div>
       </div>
 
       {/* Modal crear usuario */}

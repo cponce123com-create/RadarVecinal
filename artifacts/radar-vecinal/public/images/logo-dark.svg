@@ -1,18 +1,12 @@
-<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="600" height="168" viewBox="0 0 600 168" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="obg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0b1730"/><stop offset="1" stop-color="#060b18"/>
-    </linearGradient>
-    <radialGradient id="oglow" cx="0.24" cy="0.4" r="0.7">
-      <stop offset="0" stop-color="#2f7bff" stop-opacity="0.22"/><stop offset="1" stop-color="#2f7bff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="otext" x1="0" y1="286" x2="0" y2="346" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#6f9bff"/><stop offset="1" stop-color="#2f6bff"/>
+    <linearGradient id="ltext" x1="196" y1="58" x2="196" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6f9bff"/>
+      <stop offset="1" stop-color="#2f6bff"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="630" fill="url(#obg)"/>
-  <rect width="1200" height="630" fill="url(#oglow)"/>
-  <g transform="translate(96,148) scale(0.652)">
+  <g transform="translate(6,12) scale(0.28)">
+    
   <defs>
     <radialGradient id="face" cx="0.44" cy="0.42" r="0.72">
       <stop offset="0" stop-color="#2f7bff"/>
@@ -88,11 +82,10 @@
       <circle cx="256" cy="396" r="32" fill="#0c1f4c"/>
     </g>
   </g>
-</g>
-  <g font-family="'Space Grotesk','Inter',system-ui,sans-serif">
-    <text x="470" y="300" font-size="86" font-weight="700" letter-spacing="-2" fill="#ffffff">Radar<tspan fill="url(#otext)"> Vecinal</tspan></text>
-    <text x="474" y="352" font-family="'JetBrains Mono',monospace" font-size="23" font-weight="600" letter-spacing="6" fill="#7cb342">SEGURIDAD  CIUDADANA</text>
-    <text x="474" y="410" font-size="30" font-weight="500" fill="#c3ccdb">Reporta incidentes, activa alertas de p&#225;nico</text>
-    <text x="474" y="450" font-size="30" font-weight="500" fill="#c3ccdb">y coordina con tu municipalidad en tiempo real.</text>
+
+  </g>
+  <g font-family="'Space Grotesk','Inter',system-ui,sans-serif" font-weight="700">
+    <text x="170" y="88" font-size="50" letter-spacing="-1" fill="#ffffff">Radar<tspan fill="url(#ltext)"> Vecinal</tspan></text>
+    <text x="172" y="120" font-family="'JetBrains Mono','Space Grotesk',monospace" font-size="14.5" font-weight="600" letter-spacing="3.5" fill="#7cb342">SEGURIDAD  CIUDADANA</text>
   </g>
 </svg>

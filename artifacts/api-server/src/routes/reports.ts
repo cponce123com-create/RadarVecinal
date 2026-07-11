@@ -396,24 +396,35 @@ router.post("/reports", optionalAuth, async (req, res) => {
       }
     }
 
-    // Notificar al canal de Telegram (best-effort, no bloquea la respuesta ni
-    // hace fallar el reporte si Telegram está caído o sin configurar).
-    notifyReportToTelegram({
-      id: report.id,
-      title: report.title,
-      description: report.description,
-      category: report.category,
-      urgency: report.urgency,
-      latitude: report.latitude,
-      longitude: report.longitude,
-      address: report.address,
-      sector: report.sector,
-      districtName: report.district,
-      authorName: report.authorName,
-      isAnonymous: report.isAnonymous,
-      imageUrl: report.imageUrl,
-      createdAt: report.createdAt,
-    }).catch((err) => req.log.error({ err }, "Telegram notify failed"));
+    // Notificar al canal de Telegram DEL DISTRITO (best-effort, no bloquea la
+    // respuesta ni hace fallar el reporte si Telegram está caído o sin
+    // configurar). Cada distrito tiene su propio canal; si no, cae al global.
+    (async () => {
+      const [d] = await db
+        .select({ chatId: districtsTable.telegramChatId })
+        .from(districtsTable)
+        .where(eq(districtsTable.id, districtId))
+        .limit(1);
+      await notifyReportToTelegram(
+        {
+          id: report.id,
+          title: report.title,
+          description: report.description,
+          category: report.category,
+          urgency: report.urgency,
+          latitude: report.latitude,
+          longitude: report.longitude,
+          address: report.address,
+          sector: report.sector,
+          districtName: report.district,
+          authorName: report.authorName,
+          isAnonymous: report.isAnonymous,
+          imageUrl: report.imageUrl,
+          createdAt: report.createdAt,
+        },
+        d?.chatId ?? null,
+      );
+    })().catch((err) => req.log.error({ err }, "Telegram notify failed"));
 
     return res.status(201).json({
       ...report,

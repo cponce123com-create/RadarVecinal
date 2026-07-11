@@ -95,6 +95,10 @@ export const districtsTable = pgTable("districts", {
   // FASE-2: Polígono del distrito en formato GeoJSON (Polygon o MultiPolygon)
   boundary: jsonb("boundary"),
   isActive: boolean("is_active").notNull().default(true),
+  // Telegram: canal destino de los reportes de ESTE distrito (1 bot, N canales).
+  // Se fija desde el panel (pegar id) o por el comando /vincular <código>.
+  telegramChatId: text("telegram_chat_id"),
+  telegramLinkCode: text("telegram_link_code"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

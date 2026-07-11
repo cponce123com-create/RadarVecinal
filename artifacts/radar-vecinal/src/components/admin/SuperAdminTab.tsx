@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Key, Building2, List, RefreshCw, CheckCircle2, XCircle,
   Shield, Users, FileText, Calendar, Copy, Check, Globe,
+  Send, Link2, Unlink,
 } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 
@@ -377,6 +378,157 @@ function StatsCards() {
 }
 
 // ── Componente Principal ══════════════════════════════════════════════════
+// ── Gestión de canales de Telegram por distrito ─────────────────────────────
+interface TgDistrict { id: number; name: string; slug: string; }
+interface TgStatus { chatId: string | null; linked: boolean; linkCode: string; botUsername: string; }
+
+function TelegramChannels() {
+  const [districts, setDistricts] = useState<TgDistrict[]>([]);
+  const [status, setStatus] = useState<Record<number, TgStatus>>({});
+  const [inputs, setInputs] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await customFetch<{ districts: TgDistrict[] }>("/api/districts");
+      const list = data.districts ?? [];
+      setDistricts(list);
+      const entries = await Promise.all(
+        list.map(async (d) => {
+          try {
+            const s = await customFetch<TgStatus>(`/api/districts/${d.id}/telegram`);
+            return [d.id, s] as const;
+          } catch {
+            return [d.id, null] as const;
+          }
+        }),
+      );
+      const map: Record<number, TgStatus> = {};
+      for (const [id, s] of entries) if (s) map[id] = s;
+      setStatus(map);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async (id: number, chatId: string | null) => {
+    setSavingId(id);
+    try {
+      const r = await customFetch<{ chatId: string | null; linked: boolean }>(
+        `/api/districts/${id}/telegram`,
+        { method: "PUT", body: JSON.stringify({ chatId }) },
+      );
+      setStatus((prev) => ({ ...prev, [id]: { ...prev[id], chatId: r.chatId, linked: r.linked } }));
+    } catch {
+      // ignore (customFetch ya maneja errores)
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const copy = (text: string, key: string) => {
+    copyToClipboard(text);
+    setCopied(key);
+    setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl bg-card border border-white/8 p-5 flex justify-center">
+        <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-card border border-white/8 p-5">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <Send className="w-4 h-4 text-primary" />
+          Canales de Telegram por distrito
+        </h3>
+        <button onClick={load} className="p-1.5 rounded-lg hover:bg-white/8 transition-colors">
+          <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
+      </div>
+      <p className="text-[11px] text-muted-foreground mb-4">
+        Un solo bot, un canal por distrito. Vincula desde aquí (pegando el id) o
+        pídele a la municipalidad que agregue <b>@{status[districts[0]?.id]?.botUsername ?? "radar_vecinal_bot"}</b> a
+        su canal como administrador y escriba el comando de vinculación.
+      </p>
+
+      <div className="space-y-3">
+        {districts.map((d) => {
+          const s = status[d.id];
+          const cmd = s ? `/vincular ${s.linkCode}` : "";
+          return (
+            <div key={d.id} className="p-3.5 rounded-xl bg-black/20 border border-white/5">
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s?.linked ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <span className="text-sm font-semibold text-white flex-1 min-w-0 truncate">{d.name}</span>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                  s?.linked ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"
+                }`}>
+                  {s?.linked ? "Vinculado" : "Sin canal"}
+                </span>
+              </div>
+
+              {/* Auto-vinculación por comando */}
+              <div className="flex items-center gap-2 mb-2">
+                <code className="flex-1 text-[12px] text-primary bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5 truncate font-mono">
+                  {cmd}
+                </code>
+                <button onClick={() => copy(cmd, `cmd-${d.id}`)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/6 border border-white/10 text-[11px] text-white/80 hover:bg-white/10">
+                  {copied === `cmd-${d.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  Copiar
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground/70 mb-2.5">
+                La municipalidad pega este comando <b>dentro de su canal</b> (con el bot como admin).
+              </p>
+
+              {/* Vinculación manual por id */}
+              <div className="flex items-center gap-2">
+                <input
+                  value={inputs[d.id] ?? s?.chatId ?? ""}
+                  onChange={(e) => setInputs((p) => ({ ...p, [d.id]: e.target.value }))}
+                  placeholder="id del canal (-100…) o @usuario"
+                  className="flex-1 bg-background border border-white/10 rounded-lg px-2.5 py-1.5 text-[12px] text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary font-mono"
+                />
+                <button
+                  onClick={() => save(d.id, (inputs[d.id] ?? s?.chatId ?? "").trim() || null)}
+                  disabled={savingId === d.id}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/90 text-white text-[11px] font-medium hover:bg-primary disabled:opacity-50">
+                  <Link2 className="w-3.5 h-3.5" /> Guardar
+                </button>
+                {s?.linked && (
+                  <button
+                    onClick={() => { setInputs((p) => ({ ...p, [d.id]: "" })); save(d.id, null); }}
+                    disabled={savingId === d.id}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-destructive/15 text-red-400 text-[11px] font-medium hover:bg-destructive/25 disabled:opacity-50">
+                    <Unlink className="w-3.5 h-3.5" /> Desvincular
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {districts.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-4">No hay distritos activos.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SuperAdminTab() {
   const [refreshKey, setRefreshKey] = useState(0);
   const reload = () => setRefreshKey(k => k + 1);
@@ -396,6 +548,8 @@ export default function SuperAdminTab() {
       </div>
 
       <CreateMunicipalForm onCreated={reload} />
+
+      <TelegramChannels key={`tg-${refreshKey}`} />
     </div>
   );
 }

@@ -39,12 +39,21 @@ services:
         value: ""
       - key: RENIEC_API_TOKEN
         value: ""
-      # Telegram: envío automático de cada reporte a un canal. Si faltan, la
-      # función queda desactivada (los reportes se crean igual).
+      # Telegram: 1 bot global, N canales (uno por distrito, en la BD).
+      # Si faltan, la función queda desactivada (los reportes se crean igual).
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+      # Canal global de RESPALDO (opcional): destino si un distrito no tiene el
+      # suyo configurado. En multi-distrito puede quedar vacío.
       - key: TELEGRAM_CHAT_ID
         sync: false
+      # Secreto del webhook (auto-vinculación /vincular). Debe coincidir con el
+      # secret_token usado en setWebhook.
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      # Usuario del bot (para armar el enlace de invitación en el panel).
+      - key: TELEGRAM_BOT_USERNAME
+        value: "radar_vecinal_bot"
 
 databases:
   - name: radarvecinal-db

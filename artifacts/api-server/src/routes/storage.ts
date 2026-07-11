@@ -11,17 +11,20 @@ const objectStorageService = new ObjectStorageService();
 
 // Formatos de imagen permitidos
 const ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const ALLOWED_FORMATS = ["jpg", "png", "webp"];
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
-function getFormatFromContentType(contentType: string): string | null {
-  const map: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
-  return map[contentType] ?? null;
-}
+// Audio (nota de voz ≤20s): formatos que producen los navegadores + límite bajo
+// para no saturar el almacenamiento (una nota de 20s en opus pesa ~50-150 KB).
+const ALLOWED_AUDIO_TYPES = [
+  "audio/webm",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/aac",
+  "audio/wav",
+  "audio/x-m4a",
+];
+const MAX_AUDIO_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 
 /**
  * POST /storage/uploads/request-url
@@ -54,26 +57,44 @@ router.post(
     }
 
     const { name, size, contentType } = parsed.data;
+    // `kind` no está en el contrato zod (se ignora ahí); lo leemos del body.
+    const isAudio = (req.body as any)?.kind === "audio";
 
-    // Validar tipo de contenido
-    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
-      res.status(400).json({
-        error: `Tipo de archivo no permitido: "${contentType}". Solo se aceptan imágenes: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
-      });
-      return;
-    }
-
-    // Validar tamaño
-    if (size > MAX_FILE_SIZE_BYTES) {
-      res.status(400).json({
-        error: `Archivo demasiado grande (${(size / 1024 / 1024).toFixed(1)}MB). Máximo permitido: 10MB.`,
-      });
-      return;
+    // Validar tipo de contenido y tamaño según el tipo de recurso
+    if (isAudio) {
+      // Algunos navegadores añaden codecs: "audio/webm;codecs=opus"
+      const base = contentType.split(";")[0].trim();
+      if (!ALLOWED_AUDIO_TYPES.includes(base)) {
+        res.status(400).json({
+          error: `Formato de audio no permitido: "${contentType}".`,
+        });
+        return;
+      }
+      if (size > MAX_AUDIO_SIZE_BYTES) {
+        res.status(400).json({
+          error: `Nota de voz demasiado grande (${(size / 1024 / 1024).toFixed(1)}MB). Máximo: 2MB.`,
+        });
+        return;
+      }
+    } else {
+      if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+        res.status(400).json({
+          error: `Tipo de archivo no permitido: "${contentType}". Solo se aceptan imágenes: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
+        });
+        return;
+      }
+      if (size > MAX_FILE_SIZE_BYTES) {
+        res.status(400).json({
+          error: `Archivo demasiado grande (${(size / 1024 / 1024).toFixed(1)}MB). Máximo permitido: 10MB.`,
+        });
+        return;
+      }
     }
 
     try {
-      const uploadResult =
-        await objectStorageService.getObjectEntityUploadURL();
+      const uploadResult = await objectStorageService.getObjectEntityUploadURL(
+        isAudio ? "video" : "image",
+      );
 
       res.json({
         uploadURL: uploadResult.uploadURL,

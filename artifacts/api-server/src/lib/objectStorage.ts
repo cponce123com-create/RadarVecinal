@@ -60,7 +60,9 @@ export class ObjectStorageService {
    * Genera los parámetros para un upload firmado a Cloudinary.
    * Devuelve la URL de upload + los campos que el cliente debe enviar.
    */
-  async getObjectEntityUploadURL(): Promise<{
+  async getObjectEntityUploadURL(
+    resourceType: "image" | "video" = "image",
+  ): Promise<{
     uploadURL: string;
     signature: string;
     timestamp: number;
@@ -70,16 +72,19 @@ export class ObjectStorageService {
   }> {
     const { cloudName, apiKey, apiSecret } = getConfig();
     const timestamp = Math.floor(Date.now() / 1000);
-    const folder = "radarvecinal";
+    // El audio va a una subcarpeta propia; Cloudinary trata el audio como
+    // resource_type "video" (mismo endpoint /video/upload).
+    const folder = resourceType === "video" ? "radarvecinal/audio" : "radarvecinal";
 
     // Cloudinary firma SOLO los parámetros que el cliente enviará, excluyendo
-    // file, api_key, cloud_name y resource_type. Firmamos el mínimo canónico
-    // (folder + timestamp) para que la firma valide de forma fiable; el tipo y
-    // tamaño ya se validan en el servidor antes de emitir la firma.
+    // file, api_key, cloud_name y resource_type (este va en la URL, no se
+    // firma). Firmamos el mínimo canónico (folder + timestamp) para que la
+    // firma valide de forma fiable; el tipo y tamaño ya se validan en el
+    // servidor antes de emitir la firma.
     const signature = generateSignature({ folder, timestamp }, apiSecret);
 
     return {
-      uploadURL: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      uploadURL: `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
       signature,
       timestamp,
       apiKey,

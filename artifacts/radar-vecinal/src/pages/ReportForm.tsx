@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Loader2, X, ImageIcon, Search, Pencil } from "lucide-react";
+import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Loader2, X, ImageIcon, Search, Pencil, Mic } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -13,6 +13,8 @@ import { useDistrict } from "@/contexts/DistrictContext";
 import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
 import IncidentPicker, { type IncidentPick } from "@/components/IncidentPicker";
+import VoiceNoteRecorder from "@/components/VoiceNoteRecorder";
+import { uploadMedia } from "@/lib/uploadMedia";
 
 
 const URGENCY_CFG: Record<ReportUrgency, { label: string; color: string; dot: string }> = {
@@ -164,6 +166,7 @@ export default function ReportForm() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading]       = useState(false);
   const [uploadErr, setUploadErr]       = useState<string | null>(null);
+  const [audioUrl, setAudioUrl]         = useState<string | null>(null);
 
   const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -176,22 +179,9 @@ export default function ReportForm() {
     setImagePreview(URL.createObjectURL(file));
 
     try {
-      const urlRes = await fetch("/api/storage/uploads/request-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
-      });
-      if (!urlRes.ok) throw new Error("Error al obtener URL de subida.");
-      const { uploadURL, objectPath } = await urlRes.json();
-
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error("Error al subir la imagen.");
-
-      setImageUrl(`/api/storage/objects/${objectPath.replace(/^\/objects\//, "")}`);
+      // Subida firmada a Cloudinary (helper compartido con la nota de voz).
+      const secureUrl = await uploadMedia(file, "image");
+      setImageUrl(secureUrl);
     } catch (err: any) {
       setUploadErr(err.message ?? "Error al subir imagen.");
       setImagePreview(null);
@@ -269,7 +259,9 @@ export default function ReportForm() {
         // FIX: sin districtId el backend rechaza reportes de usuarios anónimos (400)
         districtId: currentDistrictId ?? undefined,
         imageUrl: imageUrl ?? null,
-      }
+        // audioUrl aún no está en el contrato generado; el backend sí lo acepta.
+        audioUrl: audioUrl ?? null,
+      } as any
     }, {
       onSuccess: () => {
         toast({ title: "✓ Reporte enviado", description: "Gracias por colaborar con la seguridad del distrito." });
@@ -542,6 +534,14 @@ export default function ReportForm() {
                   )}
                   {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr}</p>}
                 </div>
+
+                {/* Nota de voz (opcional, máx. 20s) */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Nota de voz <span className="text-muted-foreground font-normal">(opcional)</span>
+                  </label>
+                  <VoiceNoteRecorder onChange={setAudioUrl} />
+                </div>
               </motion.div>
             )}
 
@@ -579,6 +579,13 @@ export default function ReportForm() {
                   <div className="p-3 rounded-xl bg-card border border-white/5 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-green-400" />
                     <span className="text-xs text-green-400">Foto adjunta</span>
+                  </div>
+                )}
+
+                {audioUrl && (
+                  <div className="p-3 rounded-xl bg-card border border-white/5 flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-green-400" />
+                    <span className="text-xs text-green-400">Nota de voz adjunta</span>
                   </div>
                 )}
 

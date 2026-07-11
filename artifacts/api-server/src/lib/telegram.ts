@@ -9,20 +9,32 @@
  */
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+// Canal global de respaldo (opcional): destino cuando un distrito no tiene el
+// suyo. En multi-distrito, cada distrito define su propio chat_id en la BD.
+const GLOBAL_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : "";
 
-export function telegramEnabled(): boolean {
-  return Boolean(TOKEN && CHAT_ID);
+/** El bot está operativo si hay token (los canales se resuelven por distrito). */
+export function botEnabled(): boolean {
+  return Boolean(TOKEN);
 }
 
-async function call(method: string, body: Record<string, unknown>): Promise<boolean> {
-  if (!telegramEnabled()) return false;
+/** Mantiene compatibilidad: había consumidores que consultaban esto. */
+export function telegramEnabled(): boolean {
+  return Boolean(TOKEN && GLOBAL_CHAT_ID);
+}
+
+async function call(
+  method: string,
+  chatId: string,
+  body: Record<string, unknown>,
+): Promise<boolean> {
+  if (!TOKEN || !chatId) return false;
   try {
     const res = await fetch(`${API}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: CHAT_ID, ...body }),
+      body: JSON.stringify({ chat_id: chatId, ...body }),
       // Evita que un Telegram lento cuelgue el proceso
       signal: AbortSignal.timeout(8000),
     });
@@ -30,6 +42,14 @@ async function call(method: string, body: Record<string, unknown>): Promise<bool
   } catch {
     return false;
   }
+}
+
+/** Envía un mensaje de texto simple (usado por la confirmación de /vincular). */
+export async function sendTelegramMessage(
+  chatId: string,
+  text: string,
+): Promise<boolean> {
+  return call("sendMessage", chatId, { text, parse_mode: "HTML" });
 }
 
 const CATEGORY_ES: Record<string, string> = {
@@ -122,23 +142,28 @@ function buildCaption(r: ReportForTelegram): string {
 }
 
 /**
- * Envía un reporte al canal de Telegram: captura del mapa + detalle, la
+ * Envía un reporte al canal de Telegram indicado (el del distrito) o, si no se
+ * pasa, al canal global de respaldo. Envía captura del mapa + detalle, la
  * ubicación interactiva y, si existe, la foto del reporte. No lanza; devuelve
- * false si está deshabilitado o falló todo.
+ * false si no hay bot/canal o falló todo.
  */
-export async function notifyReportToTelegram(r: ReportForTelegram): Promise<boolean> {
-  if (!telegramEnabled()) return false;
+export async function notifyReportToTelegram(
+  r: ReportForTelegram,
+  chatIdOverride?: string | null,
+): Promise<boolean> {
+  const chatId = chatIdOverride || GLOBAL_CHAT_ID;
+  if (!TOKEN || !chatId) return false;
   const caption = buildCaption(r);
 
   // 1) Captura del mapa (foto) con el detalle como caption. Si el mapa estático
   //    falla (servicio comunitario), caemos a un mensaje de texto.
-  const sentPhoto = await call("sendPhoto", {
+  const sentPhoto = await call("sendPhoto", chatId, {
     photo: staticMapUrl(r.latitude, r.longitude),
     caption,
     parse_mode: "HTML",
   });
   if (!sentPhoto) {
-    await call("sendMessage", {
+    await call("sendMessage", chatId, {
       text: caption,
       parse_mode: "HTML",
       disable_web_page_preview: false,
@@ -146,11 +171,17 @@ export async function notifyReportToTelegram(r: ReportForTelegram): Promise<bool
   }
 
   // 2) Ubicación interactiva (pin nativo de Telegram)
-  await call("sendLocation", { latitude: r.latitude, longitude: r.longitude });
+  await call("sendLocation", chatId, {
+    latitude: r.latitude,
+    longitude: r.longitude,
+  });
 
   // 3) Foto adjunta del reporte, si la hay
   if (r.imageUrl) {
-    await call("sendPhoto", { photo: r.imageUrl, caption: `📷 Evidencia · #${r.id}` });
+    await call("sendPhoto", chatId, {
+      photo: r.imageUrl,
+      caption: `📷 Evidencia · #${r.id}`,
+    });
   }
 
   return true;

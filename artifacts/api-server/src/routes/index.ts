@@ -18,6 +18,7 @@ import reniecRouter from "./reniec";
 import clearDemoRouter from "./clearDemo";
 import licensesRouter from "./licenses";
 import adminRouter from "./admin";
+import telegramRouter from "./telegram";
 
 const router: IRouter = Router();
 
@@ -39,5 +40,6 @@ router.use(reportsPdfRouter);
 router.use(messagesRouter);
 router.use(licensesRouter);
 router.use(adminRouter);
+router.use(telegramRouter);
 
 export default router;

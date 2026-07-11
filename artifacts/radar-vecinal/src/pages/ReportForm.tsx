@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ReportCategory, ReportUrgency, useCreateReport } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { CATEGORY_CONFIG, SENSITIVE_CATEGORIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -169,47 +170,34 @@ export default function ReportForm() {
     );
   }, [fromMap, reverseGeocode]);
 
-  // Image upload
+  // Image upload — Cloudinary via useUpload hook
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl]         = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploading, setUploading]       = useState(false);
-  const [uploadErr, setUploadErr]       = useState<string | null>(null);
+  const { uploadFile, isUploading: uploading, error: uploadErr } = useUpload({
+    basePath: "/api/storage",
+    getAuthToken: () => {
+      try { return localStorage.getItem("radarvecinal_token"); } catch { return null; }
+    },
+    onSuccess: (response) => {
+      setImageUrl(response.secureUrl);
+      toast({ title: "✅ Foto subida correctamente", description: "La imagen se adjuntará al reporte." });
+    },
+    onError: (err) => {
+      setImagePreview(null);
+      toast({ title: "❌ Error al subir foto", description: err.message, variant: "destructive" });
+    },
+  });
 
   const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setUploadErr("Solo se permiten imágenes."); return; }
-    if (file.size > 8 * 1024 * 1024)     { setUploadErr("Imagen demasiado grande (máx. 8 MB)."); return; }
+    if (!file.type.startsWith("image/")) { toast({ title: "Solo se permiten imágenes.", variant: "destructive" }); return; }
+    if (file.size > 8 * 1024 * 1024)     { toast({ title: "Imagen demasiado grande (máx. 8 MB).", variant: "destructive" }); return; }
 
-    setUploadErr(null);
-    setUploading(true);
     setImagePreview(URL.createObjectURL(file));
-
-    try {
-      const urlRes = await fetch("/api/storage/uploads/request-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
-      });
-      if (!urlRes.ok) throw new Error("Error al obtener URL de subida.");
-      const { uploadURL, objectPath } = await urlRes.json();
-
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error("Error al subir la imagen.");
-
-      setImageUrl(`/api/storage/objects/${objectPath.replace(/^\/objects\//, "")}`);
-    } catch (err: any) {
-      setUploadErr(err.message ?? "Error al subir imagen.");
-      setImagePreview(null);
-    } finally {
-      setUploading(false);
-    }
-  }, []);
+    await uploadFile(file);
+  }, [uploadFile]);
 
   const isSensitive = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
 
@@ -577,7 +565,7 @@ export default function ReportForm() {
                       <span className="text-[10px] opacity-40">JPG, PNG o WEBP · máx. 8 MB</span>
                     </button>
                   )}
-                  {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr}</p>}
+                  {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr.message}</p>}
                 </div>
               </motion.div>
             )}

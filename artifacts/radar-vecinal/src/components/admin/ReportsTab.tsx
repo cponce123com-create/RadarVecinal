@@ -17,6 +17,7 @@ interface Report {
   category: string;
   status: string;
   sector: string;
+  address?: string | null;
   district: string;
   createdAt: string;
   contactPhone?: string | null;
@@ -57,6 +58,8 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [contactReport, setContactReport] = useState<Report | null>(null);
   const [tabFilter, setTabFilter] = useState<TabFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "reviewing" | "resolved" | "archived">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [reviewingReports, setReviewingReports] = useState<ReviewingReport[]>([]);
   const [loadingReviewing, setLoadingReviewing] = useState(false);
   const [flagFakeModal, setFlagFakeModal] = useState<{ id: string; title: string; isReviewing?: boolean } | null>(null);
@@ -145,12 +148,19 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
     }
   };
 
-  const filtered = reports.filter(r =>
-    !search ||
-    r.title.toLowerCase().includes(search.toLowerCase()) ||
-    r.sector.toLowerCase().includes(search.toLowerCase()) ||
-    r.category.toLowerCase().includes(search.toLowerCase())
-  );
+  const q = search.trim().toLowerCase();
+  const filtered = reports.filter(r => {
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (categoryFilter !== "all" && r.category !== categoryFilter) return false;
+    if (!q) return true;
+    return (
+      r.title.toLowerCase().includes(q) ||
+      (r.description ?? "").toLowerCase().includes(q) ||
+      r.sector.toLowerCase().includes(q) ||
+      (r.address ?? "").toLowerCase().includes(q) ||
+      r.category.toLowerCase().includes(q)
+    );
+  });
 
   const handleStatus = (id: string, status: ReportStatus) => {
     updateReport.mutate({ id, data: { status } }, {
@@ -216,6 +226,35 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
           )}
         </button>
       </div>
+
+      {/* Filtros de estado + categoría (pestaña Todos) */}
+      {tabFilter === "all" && (
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {([
+            { id: "all", label: "Todos" },
+            { id: "active", label: "Activos" },
+            { id: "reviewing", label: "En revisión" },
+            { id: "resolved", label: "Resueltos" },
+            { id: "archived", label: "Archivados" },
+          ] as const).map(f => (
+            <button key={f.id} onClick={() => setStatusFilter(f.id)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
+                statusFilter === f.id
+                  ? "bg-primary/15 text-primary border-primary/30"
+                  : "bg-card text-muted-foreground border-white/8 hover:text-white"
+              }`}>
+              {f.label}
+            </button>
+          ))}
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+            className="ml-auto appearance-none bg-card border border-white/8 rounded-lg px-3 py-1 text-[11px] text-white focus:outline-none focus:border-primary">
+            <option value="all">Todas las categorías</option>
+            {Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => (
+              <option key={key} value={key}>{(cfg as any).label}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {tabFilter === "reviewing" && loadingReviewing && (
         <div className="flex items-center justify-center py-12">

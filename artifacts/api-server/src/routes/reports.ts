@@ -16,7 +16,7 @@ import {
   communityFlagsTable,
   reportMessagesTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, sql, isNull, gte, lte } from "drizzle-orm";
+import { eq, desc, and, or, ilike, sql, isNull, gte, lte } from "drizzle-orm";
 import {
   requireAuth,
   requireAdmin,
@@ -132,6 +132,31 @@ router.get("/reports", optionalAuth, async (req, res) => {
     if (status) conditions.push(eq(reportsTable.status, status as any));
     if (urgency) conditions.push(eq(reportsTable.urgency, urgency as any));
     if (sector) conditions.push(eq(reportsTable.sector, sector as string));
+
+    // Búsqueda de texto (moderación): título/descripción/dirección/zona
+    const q = String(req.query.q ?? "").trim();
+    if (q) {
+      const like = `%${q}%`;
+      conditions.push(
+        or(
+          ilike(reportsTable.title, like),
+          ilike(reportsTable.description, like),
+          ilike(reportsTable.address, like),
+          ilike(reportsTable.sector, like),
+        ),
+      );
+    }
+    // Rango de fechas (createdAt) — ISO o YYYY-MM-DD
+    const from = String(req.query.from ?? "").trim();
+    const to = String(req.query.to ?? "").trim();
+    if (from) {
+      const d = new Date(from);
+      if (!isNaN(d.getTime())) conditions.push(gte(reportsTable.createdAt, d));
+    }
+    if (to) {
+      const d = new Date(to);
+      if (!isNaN(d.getTime())) conditions.push(lte(reportsTable.createdAt, d));
+    }
 
     const limitNum = Math.min(Number(limit) || 50, 200);
     const offsetNum = Number(offset) || 0;

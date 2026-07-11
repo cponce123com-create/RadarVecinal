@@ -11,7 +11,7 @@ import {
   licensesTable,
   userStrikesTable,
 } from "@workspace/db/schema";
-import { desc, eq, and, sql, count } from "drizzle-orm";
+import { desc, eq, and, or, ilike, gt, sql, count } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
 import { isMunicipalityLevel } from "../lib/roles";
 import bcrypt from "bcryptjs";
@@ -24,21 +24,67 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
     const user = (req as any).jwtUser;
     const canSeeEmails = user.role === "super_admin";
 
-    const users =
-      user.role === "super_admin"
-        ? await db
-            .select()
-            .from(usersTable)
-            .orderBy(desc(usersTable.createdAt))
-            .limit(200)
-        : await db
-            .select()
-            .from(usersTable)
-            .where(eq(usersTable.districtId, Number(user.districtId)))
-            .orderBy(desc(usersTable.createdAt))
-            .limit(200);
+    // ── Filtros de moderación ────────────────────────────────────────────
+    const q = String(req.query.q ?? "").trim();
+    const role = String(req.query.role ?? "").trim();
+    const status = String(req.query.status ?? "").trim(); // active|suspended|banned
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
 
+    const conditions: any[] = [];
+    // Aislamiento por distrito (super_admin ve todos)
+    if (user.role !== "super_admin") {
+      conditions.push(eq(usersTable.districtId, Number(user.districtId)));
+    }
+    if (q) {
+      const like = `%${q}%`;
+      conditions.push(
+        or(
+          ilike(usersTable.name, like),
+          ilike(usersTable.email, like),
+          ilike(usersTable.dni, like),
+          ilike(usersTable.sector, like),
+        ),
+      );
+    }
+    if (role && ["user", "viewer", "moderator", "municipal", "admin", "super_admin"].includes(role)) {
+      conditions.push(eq(usersTable.role, role as any));
+    }
+    if (status === "banned") {
+      conditions.push(eq(usersTable.isActive, false));
+    } else if (status === "suspended") {
+      conditions.push(eq(usersTable.isActive, true));
+      conditions.push(gt(usersTable.suspendedUntil, new Date()));
+    } else if (status === "active") {
+      conditions.push(eq(usersTable.isActive, true));
+      conditions.push(
+        or(
+          sql`${usersTable.suspendedUntil} IS NULL`,
+          sql`${usersTable.suspendedUntil} <= NOW()`,
+        ),
+      );
+    }
+
+    const where = conditions.length ? and(...conditions) : undefined;
+
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)` })
+      .from(usersTable)
+      .where(where);
+
+    const users = await db
+      .select()
+      .from(usersTable)
+      .where(where)
+      .orderBy(desc(usersTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const now = Date.now();
     return res.json({
+      total: Number(total),
+      limit,
+      offset,
       users: users.map((u) => ({
         id: String(u.id),
         name: u.name,
@@ -49,6 +95,12 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
         district: u.district,
         districtId: u.districtId,
         isActive: u.isActive,
+        // Estado derivado, útil para el panel de moderación
+        status: !u.isActive
+          ? "banned"
+          : u.suspendedUntil && u.suspendedUntil.getTime() > now
+            ? "suspended"
+            : "active",
         reportsCount: u.reportsCount,
         trustScore: u.trustScore ?? 50,
         suspendedUntil: u.suspendedUntil?.toISOString() ?? null,

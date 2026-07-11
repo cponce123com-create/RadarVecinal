@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Loader2, X, ImageIcon, Search, Pencil } from "lucide-react";
+import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Loader2, X, ImageIcon, Search, Pencil, Mic } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -14,6 +14,7 @@ import { useDistrict } from "@/contexts/DistrictContext";
 import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
 import IncidentPicker, { type IncidentPick } from "@/components/IncidentPicker";
+import VoiceNoteRecorder from "@/components/VoiceNoteRecorder";
 
 
 const URGENCY_CFG: Record<ReportUrgency, { label: string; color: string; dot: string }> = {
@@ -177,6 +178,7 @@ export default function ReportForm() {
       toast({ title: "❌ Error al subir foto", description: err.message, variant: "destructive" });
     },
   });
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -186,7 +188,7 @@ export default function ReportForm() {
 
     setImagePreview(URL.createObjectURL(file));
     await uploadFile(file);
-  }, [uploadFile]);
+  }, [uploadFile, toast]);
 
   const isSensitive = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
 
@@ -257,7 +259,9 @@ export default function ReportForm() {
         // FIX: sin districtId el backend rechaza reportes de usuarios anónimos (400)
         districtId: currentDistrictId ?? undefined,
         imageUrl: imageUrl ?? null,
-      }
+        // audioUrl aún no está en el contrato generado; el backend sí lo acepta.
+        audioUrl: audioUrl ?? null,
+      } as any
     }, {
       onSuccess: () => {
         toast({ title: "✓ Reporte enviado", description: "Gracias por colaborar con la seguridad del distrito." });
@@ -516,7 +520,7 @@ export default function ReportForm() {
                       <img src={imagePreview} alt="Vista previa" className="w-full object-cover" style={{ maxHeight: 200 }} />
                       {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/50"><Loader2 className="w-6 h-6 text-white animate-spin" /><span className="text-white text-sm ml-2">Subiendo...</span></div>}
                       {!uploading && (
-                        <button type="button" onClick={() => { setImagePreview(null); setImageUrl(null); setUploadErr(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                        <button type="button" onClick={() => { setImagePreview(null); setImageUrl(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center hover:bg-black/90"><X className="w-4 h-4 text-white" /></button>
                       )}
                     </div>
@@ -529,6 +533,14 @@ export default function ReportForm() {
                     </button>
                   )}
                   {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr.message}</p>}
+                </div>
+
+                {/* Nota de voz (opcional, máx. 20s) */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Nota de voz <span className="text-muted-foreground font-normal">(opcional)</span>
+                  </label>
+                  <VoiceNoteRecorder onChange={setAudioUrl} />
                 </div>
               </motion.div>
             )}
@@ -567,6 +579,13 @@ export default function ReportForm() {
                   <div className="p-3 rounded-xl bg-card border border-white/5 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-green-400" />
                     <span className="text-xs text-green-400">Foto adjunta</span>
+                  </div>
+                )}
+
+                {audioUrl && (
+                  <div className="p-3 rounded-xl bg-card border border-white/5 flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-green-400" />
+                    <span className="text-xs text-green-400">Nota de voz adjunta</span>
                   </div>
                 )}
 

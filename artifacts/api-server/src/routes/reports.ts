@@ -65,6 +65,7 @@ const createReportSchema = z.object({
   districtId: z.number().optional(),
   district: z.string().optional(),
   imageUrl: z.string().optional().nullable(),
+  audioUrl: z.string().url().optional().nullable(),
   authorName: z.string().optional(),
   contactPhone: z
     .string()
@@ -182,6 +183,7 @@ router.get("/reports", optionalAuth, async (req, res) => {
         district: reportsTable.district,
         districtId: reportsTable.districtId,
         imageUrl: reportsTable.imageUrl,
+        audioUrl: reportsTable.audioUrl,
         authorName: reportsTable.authorName,
         authorUserId: reportsTable.authorUserId,
         confirmedCount: reportsTable.confirmedCount,
@@ -341,6 +343,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
         authorUserId: authorUserId ?? undefined,
         contactPhone: isAnonymous ? null : (data.contactPhone ?? null),
         imageUrl: data.imageUrl ?? null,
+        audioUrl: data.audioUrl ?? null,
       })
       .returning();
 
@@ -420,6 +423,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
           authorName: report.authorName,
           isAnonymous: report.isAnonymous,
           imageUrl: report.imageUrl,
+          audioUrl: report.audioUrl,
           createdAt: report.createdAt,
         },
         d?.chatId ?? null,
@@ -553,6 +557,7 @@ router.get("/reports/:id", optionalAuth, async (req, res) => {
         district: reportsTable.district,
         districtId: reportsTable.districtId,
         imageUrl: reportsTable.imageUrl,
+        audioUrl: reportsTable.audioUrl,
         authorName: reportsTable.authorName,
         authorUserId: reportsTable.authorUserId,
         contactPhone: reportsTable.contactPhone,

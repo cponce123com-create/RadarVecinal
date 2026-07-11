@@ -167,6 +167,8 @@ export const reportsTable = pgTable("reports", {
   province: text("province").notNull().default("Chanchamayo"),
   department: text("department").notNull().default("Junín"),
   imageUrl: text("image_url"),
+  // Nota de voz opcional (≤20s), URL de Cloudinary (resource_type video/audio).
+  audioUrl: text("audio_url"),
   authorName: text("author_name").notNull(),
   contactPhone: text("contact_phone"),
   // Bugfix 1: Email real del vecino (no inferido de contactPhone)

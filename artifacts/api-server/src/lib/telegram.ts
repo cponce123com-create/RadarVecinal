@@ -103,7 +103,20 @@ export interface ReportForTelegram {
   authorName?: string | null;
   isAnonymous?: boolean;
   imageUrl?: string | null;
+  audioUrl?: string | null;
   createdAt?: Date | string;
+}
+
+/**
+ * Deriva una URL de audio compatible con Telegram. Cloudinary transcodifica al
+ * cambiar la extensión: forzamos .mp3 para que sendAudio reproduzca siempre
+ * (los .webm/.mp4 del navegador no siempre son aceptados).
+ */
+export function telegramAudioUrl(url: string): string {
+  if (/res\.cloudinary\.com/.test(url)) {
+    return url.replace(/\.(webm|mp4|m4a|ogg|oga|wav|aac|opus)(\?.*)?$/i, ".mp3");
+  }
+  return url;
 }
 
 /** URL de mapa estático (sin API key) con un marcador en las coordenadas. */
@@ -181,6 +194,15 @@ export async function notifyReportToTelegram(
     await call("sendPhoto", chatId, {
       photo: r.imageUrl,
       caption: `📷 Evidencia · #${r.id}`,
+    });
+  }
+
+  // 4) Nota de voz, si la hay (como audio mp3 para máxima compatibilidad)
+  if (r.audioUrl) {
+    await call("sendAudio", chatId, {
+      audio: telegramAudioUrl(r.audioUrl),
+      title: `Nota de voz · #${r.id}`,
+      performer: "Radar Vecinal",
     });
   }
 

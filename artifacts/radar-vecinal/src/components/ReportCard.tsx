@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Clock, CheckSquare, ThumbsUp, Flag, Loader2 } from "lucide-react";
+import { MapPin, Clock, CheckSquare, ThumbsUp, Flag, Loader2, Mic } from "lucide-react";
 import { Report } from "@workspace/api-client-react";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 
@@ -153,6 +153,14 @@ export function ReportCard({ report, compact = false }: ReportCardProps) {
         {report.imageUrl && (
           <div className="h-28 rounded-lg overflow-hidden bg-neutral-900 border border-white/5">
             <img src={report.imageUrl} alt="Evidencia" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+          </div>
+        )}
+
+        {/* Nota de voz */}
+        {(report as any).audioUrl && (
+          <div className="flex items-center gap-2 rounded-lg bg-white/[0.03] border border-white/5 px-2.5 py-2" onClick={(e) => e.stopPropagation()}>
+            <Mic className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+            <audio src={(report as any).audioUrl} controls preload="none" className="h-8 w-full min-w-0" />
           </div>
         )}
 

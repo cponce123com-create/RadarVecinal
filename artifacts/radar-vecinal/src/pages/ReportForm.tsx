@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ReportCategory, ReportUrgency, useCreateReport } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { CATEGORY_CONFIG, SENSITIVE_CATEGORIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +15,6 @@ import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
 import IncidentPicker, { type IncidentPick } from "@/components/IncidentPicker";
 import VoiceNoteRecorder from "@/components/VoiceNoteRecorder";
-import { uploadMedia } from "@/lib/uploadMedia";
 
 
 const URGENCY_CFG: Record<ReportUrgency, { label: string; color: string; dot: string }> = {
@@ -160,35 +160,35 @@ export default function ReportForm() {
     );
   }, [fromMap, reverseGeocode]);
 
-  // Image upload
+  // Image upload — Cloudinary via useUpload hook
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl]         = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploading, setUploading]       = useState(false);
-  const [uploadErr, setUploadErr]       = useState<string | null>(null);
-  const [audioUrl, setAudioUrl]         = useState<string | null>(null);
+  const { uploadFile, isUploading: uploading, error: uploadErr } = useUpload({
+    basePath: "/api/storage",
+    getAuthToken: () => {
+      try { return localStorage.getItem("radarvecinal_token"); } catch { return null; }
+    },
+    onSuccess: (response) => {
+      setImageUrl(response.secureUrl);
+      toast({ title: "✅ Foto subida correctamente", description: "La imagen se adjuntará al reporte." });
+    },
+    onError: (err) => {
+      setImagePreview(null);
+      toast({ title: "❌ Error al subir foto", description: err.message, variant: "destructive" });
+    },
+  });
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setUploadErr("Solo se permiten imágenes."); return; }
-    if (file.size > 8 * 1024 * 1024)     { setUploadErr("Imagen demasiado grande (máx. 8 MB)."); return; }
+    if (!file.type.startsWith("image/")) { toast({ title: "Solo se permiten imágenes.", variant: "destructive" }); return; }
+    if (file.size > 8 * 1024 * 1024)     { toast({ title: "Imagen demasiado grande (máx. 8 MB).", variant: "destructive" }); return; }
 
-    setUploadErr(null);
-    setUploading(true);
     setImagePreview(URL.createObjectURL(file));
-
-    try {
-      // Subida firmada a Cloudinary (helper compartido con la nota de voz).
-      const secureUrl = await uploadMedia(file, "image");
-      setImageUrl(secureUrl);
-    } catch (err: any) {
-      setUploadErr(err.message ?? "Error al subir imagen.");
-      setImagePreview(null);
-    } finally {
-      setUploading(false);
-    }
-  }, []);
+    await uploadFile(file);
+  }, [uploadFile, toast]);
 
   const isSensitive = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
 
@@ -520,7 +520,7 @@ export default function ReportForm() {
                       <img src={imagePreview} alt="Vista previa" className="w-full object-cover" style={{ maxHeight: 200 }} />
                       {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/50"><Loader2 className="w-6 h-6 text-white animate-spin" /><span className="text-white text-sm ml-2">Subiendo...</span></div>}
                       {!uploading && (
-                        <button type="button" onClick={() => { setImagePreview(null); setImageUrl(null); setUploadErr(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                        <button type="button" onClick={() => { setImagePreview(null); setImageUrl(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center hover:bg-black/90"><X className="w-4 h-4 text-white" /></button>
                       )}
                     </div>
@@ -532,7 +532,7 @@ export default function ReportForm() {
                       <span className="text-[10px] opacity-40">JPG, PNG o WEBP · máx. 8 MB</span>
                     </button>
                   )}
-                  {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr}</p>}
+                  {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr.message}</p>}
                 </div>
 
                 {/* Nota de voz (opcional, máx. 20s) */}

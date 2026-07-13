@@ -766,16 +766,19 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
       req.socket?.remoteAddress ||
       null;
 
-    // Deduplicación: verificar si ya confirmó este reporte
+    // Deduplicación: verificar si ya confirmó la VALIDEZ de este reporte
+    // (kind="validity"; independiente de la confirmación de resolución)
     const dupConditions = userId
       ? and(
           eq(resolutionConfirmationsTable.reportId, reportId),
           eq(resolutionConfirmationsTable.userId, userId),
+          eq(resolutionConfirmationsTable.kind, "validity"),
         )
       : and(
           eq(resolutionConfirmationsTable.reportId, reportId),
           isNull(resolutionConfirmationsTable.userId),
           eq(resolutionConfirmationsTable.userIp, userIp ?? ""),
+          eq(resolutionConfirmationsTable.kind, "validity"),
         );
     const [existing] = await db
       .select({ id: resolutionConfirmationsTable.id })
@@ -788,12 +791,13 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
         .json({ error: "Ya confirmaste este reporte. ¡Gracias!" });
     }
 
-    // Registrar confirmación
+    // Registrar confirmación de validez
     try {
       await db.insert(resolutionConfirmationsTable).values({
         reportId,
         userId: userId ?? null,
         userIp,
+        kind: "validity",
       });
     } catch (insertErr: any) {
       // Violación de unique = confirmación duplicada concurrente
@@ -802,11 +806,16 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
         .json({ error: "Ya confirmaste este reporte. ¡Gracias!" });
     }
 
-    // Recontar desde la tabla (fuente de verdad)
+    // Recontar desde la tabla (fuente de verdad), solo confirmaciones de validez
     const [{ count: confCount }] = await db
       .select({ count: sql<number>`count(*)` })
       .from(resolutionConfirmationsTable)
-      .where(eq(resolutionConfirmationsTable.reportId, reportId));
+      .where(
+        and(
+          eq(resolutionConfirmationsTable.reportId, reportId),
+          eq(resolutionConfirmationsTable.kind, "validity"),
+        ),
+      );
 
     const totalConfirmed = Number(confCount);
 
@@ -888,16 +897,19 @@ router.post(
         req.socket?.remoteAddress ||
         null;
 
-      // Verificar si ya confirmó (por usuario autenticado o por IP anónima)
+      // Verificar si ya confirmó la RESOLUCIÓN (kind="resolution"; separado de
+      // la confirmación de validez)
       const dupConditions = userId
         ? and(
             eq(resolutionConfirmationsTable.reportId, reportId),
             eq(resolutionConfirmationsTable.userId, userId),
+            eq(resolutionConfirmationsTable.kind, "resolution"),
           )
         : and(
             eq(resolutionConfirmationsTable.reportId, reportId),
             isNull(resolutionConfirmationsTable.userId),
             eq(resolutionConfirmationsTable.userIp, userIp ?? ""),
+            eq(resolutionConfirmationsTable.kind, "resolution"),
           );
 
       const [existing] = await db
@@ -914,12 +926,13 @@ router.post(
         });
       }
 
-      // Registrar la confirmación (los índices únicos de BD protegen contra carreras)
+      // Registrar la confirmación de resolución (los índices únicos protegen carreras)
       try {
         await db.insert(resolutionConfirmationsTable).values({
           reportId,
           userId: userId ?? null,
           userIp,
+          kind: "resolution",
         });
       } catch (insertErr: any) {
         // Violación de índice único = confirmación duplicada concurrente
@@ -930,11 +943,16 @@ router.post(
         });
       }
 
-      // Recontar desde la tabla (fuente de verdad) para evitar desincronización
+      // Recontar solo confirmaciones de RESOLUCIÓN (fuente de verdad)
       const [{ count: confCount }] = await db
         .select({ count: sql<number>`count(*)` })
         .from(resolutionConfirmationsTable)
-        .where(eq(resolutionConfirmationsTable.reportId, reportId));
+        .where(
+          and(
+            eq(resolutionConfirmationsTable.reportId, reportId),
+            eq(resolutionConfirmationsTable.kind, "resolution"),
+          ),
+        );
 
       const total = Number(confCount);
       const reachedThreshold = total >= RESOLUTION_THRESHOLD;

@@ -1,0 +1,55 @@
+name: 📱 Build Android APK
+
+# Compila el APK de depuración en la nube (los runners de GitHub sí tienen el
+# Android SDK y acceso a los servidores de Google). Se puede lanzar a mano desde
+# la pestaña Actions, o automáticamente al crear un tag vX.Y.Z.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Compilar la web app (Vite)
+        run: pnpm exec vite build
+        working-directory: artifacts/radar-vecinal
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Paquetes del SDK (Capacitor 7 → android-35)
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Generar la plataforma Android (Capacitor)
+        run: npx cap add android
+
+      - name: Sincronizar Capacitor
+        run: npx cap sync android
+
+      - name: Build del APK (assembleDebug)
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      - name: Publicar el APK como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-vecinal-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

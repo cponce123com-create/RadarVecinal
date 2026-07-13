@@ -479,6 +479,8 @@ export const resolutionConfirmationsTable = pgTable(
       .references(() => reportsTable.id),
     userId: integer("user_id").references(() => usersTable.id),
     userIp: text("user_ip"),
+    // "validity" = el reporte es real · "resolution" = la solución es real
+    kind: text("kind").notNull().default("validity"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
 );

@@ -1,26 +1,44 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+#
+# build-apk.sh — genera el APK de depuración de Radar Vecinal (Capacitor).
+#
+# Requisitos en la máquina donde se ejecuta:
+#   - Node + pnpm
+#   - JDK 17+ (java en el PATH o JAVA_HOME)
+#   - Android SDK con ANDROID_HOME/ANDROID_SDK_ROOT apuntando a él
+#     (instálalo con Android Studio o el command-line tools de Android)
+#
+# NOTA: no puede correr en entornos sin acceso a los servidores de Google
+# (dl.google.com / maven.google.com), que es de donde se descargan el SDK y el
+# plugin de Gradle de Android. Para eso usa el workflow de GitHub Actions
+# (.github/workflows/android.yml), que compila el APK en la nube.
+set -euo pipefail
 
-echo "🚀 Generando APK de Radar Vecinal..."
-echo ""
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
 
-# Paso 1: Construir web app
-echo "📦 [1/3] Compilando web app..."
-cd /home/user/almacen/artifacts/radar-vecinal
-pnpm build
+echo "📦 [1/4] Compilando la web app…"
+( cd artifacts/radar-vecinal && pnpm exec vite build )
 
-# Paso 2: Sincronizar Capacitor
-echo "🔗 [2/3] Sincronizando con Capacitor..."
-cd /home/user/almacen
-npx cap sync
+echo "📱 [2/4] Preparando la plataforma Android…"
+if [ ! -d android ]; then
+  npx cap add android
+fi
 
-# Paso 3: Generar APK
-echo "📱 [3/3] Generando APK..."
-export JAVA_HOME=/nix/store/ggwpsfi1mzfc610a30k54q4k2isz7013-openjdk-21.0.9+10/lib/openjdk
-export ANDROID_HOME=/nix/store/nibdn1wppjp3gqw1z3y14s291r8r9rhn-androidsdk/libexec/android-sdk
-cd /home/user/almacen/android
-./gradlew assembleDebug
+echo "🔗 [3/4] Sincronizando Capacitor…"
+npx cap sync android
 
+echo "🤖 [4/4] Generando el APK (assembleDebug)…"
+: "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
+if [ -z "${ANDROID_HOME}" ]; then
+  echo "❌ Falta el Android SDK: define ANDROID_HOME (o ANDROID_SDK_ROOT)." >&2
+  echo "   Instala Android Studio o el command-line tools, o usa el workflow de CI." >&2
+  exit 1
+fi
+export ANDROID_HOME ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+( cd android && ./gradlew assembleDebug --no-daemon )
+
+APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
 echo ""
 echo "✅ APK generado en:"
-echo "   /home/user/almacen/android/app/build/outputs/apk/debug/app-debug.apk"
+echo "   $APK"

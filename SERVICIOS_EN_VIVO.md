@@ -1,0 +1,65 @@
+# Servicios en Vivo — Rastreo GPS en tiempo real
+
+Rama: `claude/production-readiness-audit-3pgip6`
+
+Permite que un **transmisor** comparta su ubicación GPS en vivo y que los
+**vecinos** lo vean moverse por el mapa del distrito. Pensado para:
+
+- 🚛 **Camión recolector** — saber cuándo pasa la basura por tu cuadra.
+- 🍞 Panadero · 🥛 Lechero · 🫔 Tamalero · 🔥 Gasero · 💧 Aguatero — ambulantes
+  que recorren el distrito y muchas veces buscamos sin saber dónde están.
+- 🍲 **"Vendo comida hoy"** (domingos) — pollada, patasca, tamales… con una
+  etiqueta libre que escribe el propio vendedor.
+
+## Cómo se usa
+
+**Transmisor** (menú → *Servicios en vivo*, ruta `/en-vivo`):
+1. Elige qué es. Para "vendedor"/"otro" escribe qué ofrece hoy.
+2. Pulsa **Iniciar transmisión**. La app pide permiso de ubicación.
+3. Mientras transmite: indicador 🔴 EN VIVO, tiempo transcurrido y precisión GPS.
+   La pantalla se mantiene encendida (Wake Lock, best-effort).
+4. **Detener** deja de compartir. La sesión se guarda en el dispositivo, así que
+   se puede navegar por la app o recargar sin cortar la transmisión.
+
+**Vecino** (mapa): el toggle **En vivo** (esquina superior derecha) muestra u
+oculta los marcadores. Cada uno tiene su emoji y un popup con el nombre, qué
+vende y hace cuánto se le vio.
+
+## Diseño técnico
+
+- **Tabla** `live_providers` (migración `0029_live_providers.sql`): distrito,
+  usuario opcional, tipo, etiqueta libre, nombre, lat/lng, `is_active`,
+  `broadcast_key`, `started_at`, `updated_at` (= última vez visto).
+- **API** (`routes/live.ts`):
+  - `POST /live/start` → crea la transmisión, devuelve `{ id, broadcastKey }`.
+  - `POST /live/:id/ping` → actualiza lat/lng (requiere `broadcastKey`).
+  - `POST /live/:id/stop` → finaliza (requiere `broadcastKey`).
+  - `GET  /live?districtId=` → activos y **frescos** (ping < 3 min) del distrito.
+- **Autorización**: la `broadcastKey` (secreta, devuelta al iniciar) autoriza
+  ping/stop **sin sesión iniciada**, porque muchos ambulantes no tienen cuenta.
+  Si el transmisor sí está logueado, se enlaza su `userId` y al reiniciar se
+  cierran sus transmisiones anteriores (evita duplicados fantasma).
+- **Expiración perezosa**: al listar/consultar, las transmisiones sin ping en
+  3 minutos se marcan inactivas (el transmisor cerró la app o perdió señal).
+- **Frontend**:
+  - `lib/liveProviders.ts` — catálogo de tipos + helpers de API (usa
+    `customFetch`, que ya resuelve base URL de Capacitor y el token).
+  - `pages/LiveBroadcast.tsx` — modo transmisor (watchPosition + ping cada ~10 s
+    + Wake Lock + persistencia local de la sesión).
+  - `components/LiveProvidersLayer.tsx` — capa del mapa (polling 12 s); los
+    marcadores se mueven al llegar nuevos pings.
+  - Integrado en `MapPage` con un toggle mostrar/ocultar y contador en vivo.
+
+## Privacidad
+
+- Solo se comparte la ubicación **mientras** el transmisor está transmitiendo;
+  al **Detener** (o al expirar por inactividad) desaparece del mapa.
+- La ubicación es voluntaria y explícita (el propio proveedor la activa).
+- El `broadcast_key` nunca se expone en `GET /live` (solo se devuelve a quien
+  inicia la transmisión).
+
+## Pruebas
+
+`src/__tests__/live-providers.test.ts` (3 tests, Postgres real): ciclo completo
+start→ping→list→stop, rechazo de ping con clave equivocada, y vendedor con
+etiqueta libre. Suite total: **149 tests en verde**.

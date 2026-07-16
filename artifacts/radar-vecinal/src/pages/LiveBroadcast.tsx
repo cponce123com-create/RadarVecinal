@@ -16,11 +16,12 @@
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite } from "lucide-react";
+import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite, FlaskConical } from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { startLocationWatch, isNativeTracking, type GeoWatcher } from "@/lib/backgroundGeo";
+import { startSimulatedWatch } from "@/lib/simulateRoute";
 import {
   PROVIDER_META,
   providerMeta,
@@ -47,6 +48,7 @@ interface PendingStart {
   label: string;
   displayName: string;
   districtId: number;
+  simulate: boolean;
 }
 
 function useElapsed(startedAt: number | null): string {
@@ -63,14 +65,16 @@ function useElapsed(startedAt: number | null): string {
 }
 
 export default function LiveBroadcast() {
-  const { currentDistrictId, currentDistrict } = useDistrict();
+  const { currentDistrictId, currentDistrict, districtCenter } = useDistrict();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [session, setSession] = useState<LiveSession | null>(() => loadLiveSession());
   const [selType, setSelType] = useState<LiveProviderType | null>(null);
   const [label, setLabel] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [simulate, setSimulate] = useState(false);
   const [starting, setStarting] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number; acc?: number } | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -82,6 +86,8 @@ export default function LiveBroadcast() {
   sessionRef.current = session;
   const toastRef = useRef(toast);
   toastRef.current = toast;
+  const centerRef = useRef(districtCenter);
+  centerRef.current = districtCenter;
 
   const elapsed = useElapsed(session?.startedAt ?? null);
 
@@ -127,9 +133,20 @@ export default function LiveBroadcast() {
     if (!sessionRef.current && pendingStartRef.current) {
       const p = pendingStartRef.current;
       pendingStartRef.current = null;
-      startBroadcast({ ...p, latitude: fix.latitude, longitude: fix.longitude })
+      startBroadcast({
+        type: p.type,
+        label: p.label,
+        displayName: p.displayName,
+        districtId: p.districtId,
+        latitude: fix.latitude,
+        longitude: fix.longitude,
+      })
         .then((res) => {
-          const ns: LiveSession = { id: res.id, broadcastKey: res.broadcastKey, ...p, startedAt: Date.now() };
+          const ns: LiveSession = {
+            id: res.id, broadcastKey: res.broadcastKey,
+            type: p.type, label: p.label, displayName: p.displayName,
+            districtId: p.districtId, simulate: p.simulate, startedAt: Date.now(),
+          };
           saveLiveSession(ns);
           sessionRef.current = ns;
           moduleWatcherSession = res.id;
@@ -167,12 +184,21 @@ export default function LiveBroadcast() {
       moduleWatcher = null;
     }
     moduleWatcherSession = sessionKey;
+    const isSim = sessionRef.current?.simulate ?? pendingStartRef.current?.simulate ?? false;
     try {
-      moduleWatcher = await startLocationWatch(
-        onFix,
-        (msg) => setGpsError(msg),
-        { title: "Radar Vecinal", message: "Compartiendo tu ubicación en vivo" },
-      );
+      if (isSim) {
+        // Recorrido simulado (superadmin): no usa GPS real, se mueve solo.
+        moduleWatcher = startSimulatedWatch(
+          { lat: centerRef.current.lat, lng: centerRef.current.lng },
+          onFix,
+        );
+      } else {
+        moduleWatcher = await startLocationWatch(
+          onFix,
+          (msg) => setGpsError(msg),
+          { title: "Radar Vecinal", message: "Compartiendo tu ubicación en vivo" },
+        );
+      }
     } catch {
       moduleWatcherSession = null;
       setStarting(false);
@@ -207,15 +233,18 @@ export default function LiveBroadcast() {
       toast({ title: "Falta el detalle", description: "Escribe qué ofreces (ej: pollada, patasca).", variant: "destructive" });
       return;
     }
+    const isSim = isSuperAdmin && simulate;
     setStarting(true);
     setGpsError(null);
     pendingStartRef.current = {
       type: selType,
-      label: label.trim(),
-      displayName: displayName.trim() || user?.name || "",
+      // Marca visible para distinguir la prueba de una transmisión real.
+      label: isSim ? `🧪 PRUEBA · ${label.trim() || meta.label}` : label.trim(),
+      displayName: isSim ? "Simulación (superadmin)" : displayName.trim() || user?.name || "",
       districtId: currentDistrictId,
+      simulate: isSim,
     };
-    requestWakeLock();
+    if (!isSim) requestWakeLock();
     // La primera ubicación del watcher dispara startBroadcast (ver onFix).
     await startWatching("pending");
   };
@@ -248,6 +277,11 @@ export default function LiveBroadcast() {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
             </span>
             <span className="label-mono text-[11px] font-bold text-red-400 tracking-wider">EN VIVO</span>
+            {session.simulate && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-bold">
+                <FlaskConical className="w-2.5 h-2.5" /> MODO PRUEBA
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col items-center text-center gap-1 mt-3">
@@ -289,7 +323,9 @@ export default function LiveBroadcast() {
         )}
 
         <p className="text-center text-xs text-muted-foreground px-4">
-          {isNativeTracking()
+          {session.simulate
+            ? "Recorrido simulado: el punto se mueve solo alrededor del distrito para probar. Ábrelo en el mapa (toggle “En vivo”) para verlo moverse."
+            : isNativeTracking()
             ? "Sigues transmitiendo aunque bloquees la pantalla. Verás una notificación mientras compartes tu ubicación."
             : "Mantén esta pantalla abierta para seguir compartiendo tu ubicación. En la app instalada se transmite también con la pantalla apagada."}
         </p>
@@ -376,6 +412,33 @@ export default function LiveBroadcast() {
         </p>
       </div>
 
+      {/* Modo simulación — solo superadmin (probar sin salir a la calle) */}
+      {isSuperAdmin && (
+        <button
+          type="button"
+          onClick={() => setSimulate(v => !v)}
+          className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${
+            simulate ? "bg-amber-500/10 border-amber-500/40" : "bg-white/[0.03] border-white/8 hover:border-white/15"
+          }`}
+        >
+          <FlaskConical className={`w-4 h-4 flex-shrink-0 mt-0.5 ${simulate ? "text-amber-400" : "text-muted-foreground"}`} />
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-[12.5px] font-semibold ${simulate ? "text-amber-200" : "text-white/85"}`}>
+                Modo prueba (superadmin)
+              </span>
+              <span className={`ml-auto w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${simulate ? "bg-amber-500" : "bg-white/15"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${simulate ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+              Simula un recorrido que se mueve solo alrededor del centro de {currentDistrict || "tu distrito"}.
+              No usa tu GPS. Aparece marcado como 🧪 PRUEBA en el mapa.
+            </p>
+          </div>
+        </button>
+      )}
+
       {gpsError && (
         <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -387,7 +450,11 @@ export default function LiveBroadcast() {
         onClick={begin} disabled={!selType || starting}
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-px transition-transform shadow-[0_8px_22px_hsl(221_100%_59%_/_0.3)]"
       >
-        {starting ? <><Loader2 className="w-4 h-4 animate-spin" /> Obteniendo ubicación…</> : <><Radio className="w-4 h-4" /> Iniciar transmisión</>}
+        {starting
+          ? <><Loader2 className="w-4 h-4 animate-spin" /> Obteniendo ubicación…</>
+          : isSuperAdmin && simulate
+          ? <><FlaskConical className="w-4 h-4" /> Iniciar prueba simulada</>
+          : <><Radio className="w-4 h-4" /> Iniciar transmisión</>}
       </button>
     </div>
   );

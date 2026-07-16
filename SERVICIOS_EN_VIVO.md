@@ -80,6 +80,24 @@ Detalles:
 > para ver el aviso del servicio; si lo rechaza, la transmisión sigue pero sin
 > notificación visible. El plugin solicita el permiso de ubicación al iniciar.
 
+## Modo prueba (superadmin)
+
+Para probar la función sin salir a la calle, un **superadmin** ve en
+`/en-vivo` un toggle **"Modo prueba (superadmin)"**. Al activarlo e iniciar:
+
+- No usa el GPS real: `lib/simulateRoute.ts` genera un **recorrido que se mueve
+  solo** alrededor del centro del distrito (paseo aleatorio suave, ~20 m/paso,
+  acotado a ~650 m para no salirse del distrito).
+- Alimenta exactamente el mismo flujo que una transmisión real (crea la sesión y
+  envía pings), así se prueba la ruta completa backend + mapa.
+- Queda **marcado como `🧪 PRUEBA`** en el mapa y con un badge *MODO PRUEBA* en
+  la pantalla del transmisor, para no confundirlo con un vendedor real.
+- Se detiene con **Detener** (o expira solo a los 3 min). Solo visible para
+  `super_admin`; no cambia nada en el backend (es una ayuda de cliente).
+
+Para verlo moverse: activa el toggle **"En vivo"** en el mapa (esquina superior
+derecha) — el marcador 🧪 avanza cada ~12 s (intervalo de refresco del mapa).
+
 ## Privacidad
 
 - Solo se comparte la ubicación **mientras** el transmisor está transmitiendo;

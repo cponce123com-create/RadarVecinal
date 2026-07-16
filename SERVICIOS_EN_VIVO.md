@@ -50,6 +50,36 @@ vende y hace cuánto se le vio.
     marcadores se mueven al llegar nuevos pings.
   - Integrado en `MapPage` con un toggle mostrar/ocultar y contador en vivo.
 
+## Seguimiento en segundo plano (APK nativo)
+
+`lib/backgroundGeo.ts` unifica el seguimiento con dos implementaciones:
+
+- **APK nativo (Capacitor)** → `@capacitor-community/background-geolocation`.
+  Usa un **servicio en primer plano con notificación persistente** ("Radar
+  Vecinal está compartiendo tu ubicación"), de modo que el GPS sigue enviando
+  ubicaciones **aunque la pantalla esté apagada o la app en segundo plano** —
+  clave para el camión recolector que transmite durante horas.
+- **Web** → `navigator.geolocation.watchPosition` (solo primer plano) + Wake
+  Lock para que la pantalla no se suspenda.
+
+Detalles:
+- El watcher vive a nivel de módulo: la transmisión **no se corta al navegar**
+  por la app y no se duplica al re-montar la página.
+- El plugin se referencia con `registerPlugin("BackgroundGeolocation")`, así el
+  **bundle web no incluye código nativo** (la rama nativa nunca se ejecuta en
+  web).
+- Permisos Android: el manifest del plugin ya declara `ACCESS_FINE/COARSE_LOCATION`,
+  `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `POST_NOTIFICATIONS` y el
+  servicio con `foregroundServiceType="location"`. `cap sync` los fusiona en la
+  app automáticamente — **sin edición manual del manifest**.
+- Build: tanto `build-apk.sh` como `.github/workflows/android.yml` hacen
+  `pnpm install --frozen-lockfile` + `cap sync android`, que instalan el plugin
+  e incluyen su módulo Android. El lockfile ya está actualizado.
+
+> Nota: en Android 13+ el usuario debe conceder el permiso de notificaciones
+> para ver el aviso del servicio; si lo rechaza, la transmisión sigue pero sin
+> notificación visible. El plugin solicita el permiso de ubicación al iniciar.
+
 ## Privacidad
 
 - Solo se comparte la ubicación **mientras** el transmisor está transmitiendo;

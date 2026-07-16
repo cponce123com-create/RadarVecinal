@@ -5,11 +5,14 @@
  * tamalero, gasero, aguatero o "vendo comida hoy") y comparte su ubicación GPS
  * en vivo. Los vecinos lo ven moverse por el mapa del distrito.
  *
- * Mientras transmite:
- *   - watchPosition envía un ping cada ~10 s (o al moverse).
- *   - Wake Lock mantiene la pantalla encendida (best-effort).
- *   - La sesión (id+clave) se guarda en localStorage para poder reanudar/detener
- *     aunque se recargue la app.
+ * Seguimiento (lib/backgroundGeo.ts):
+ *   - APK nativo: servicio en segundo plano con notificación → sigue enviando
+ *     ubicación aunque la pantalla esté apagada (ideal para el recolector).
+ *   - Web: watchPosition (primer plano) + Wake Lock para no suspender.
+ *
+ * El watcher vive a nivel de módulo, así la transmisión no se corta al navegar
+ * por la app y no se duplica al re-montar la página. La sesión (id+clave) se
+ * guarda en localStorage para poder reanudar/detener tras recargar.
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -17,6 +20,7 @@ import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite } from "l
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { startLocationWatch, isNativeTracking, type GeoWatcher } from "@/lib/backgroundGeo";
 import {
   PROVIDER_META,
   providerMeta,
@@ -31,6 +35,19 @@ import {
 } from "@/lib/liveProviders";
 
 const PING_MIN_MS = 8000; // no enviar pings más seguido que esto
+
+// ── Estado del watcher a nivel de módulo ────────────────────────────────────
+// Vive fuera del componente: la transmisión sigue al navegar por la app y no se
+// crea un segundo watcher al re-montar la página.
+let moduleWatcher: GeoWatcher | null = null;
+let moduleWatcherSession: string | null = null;
+
+interface PendingStart {
+  type: LiveProviderType;
+  label: string;
+  displayName: string;
+  districtId: number;
+}
 
 function useElapsed(startedAt: number | null): string {
   const [, force] = useState(0);
@@ -58,65 +75,15 @@ export default function LiveBroadcast() {
   const [coords, setCoords] = useState<{ lat: number; lng: number; acc?: number } | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  const watchRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
   const lastPingRef = useRef(0);
+  const pendingStartRef = useRef<PendingStart | null>(null);
   const sessionRef = useRef<LiveSession | null>(session);
   sessionRef.current = session;
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const elapsed = useElapsed(session?.startedAt ?? null);
-
-  // ── Detener transmisión ────────────────────────────────────────────────────
-  const stop = useCallback(async (silent = false) => {
-    const s = sessionRef.current;
-    if (watchRef.current != null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchRef.current);
-      watchRef.current = null;
-    }
-    if (wakeLockRef.current) {
-      try { await wakeLockRef.current.release(); } catch { /* ignore */ }
-      wakeLockRef.current = null;
-    }
-    if (s) {
-      try { await stopBroadcast(s.id, s.broadcastKey); } catch { /* best-effort */ }
-    }
-    clearLiveSession();
-    setSession(null);
-    setCoords(null);
-    if (!silent) toast({ title: "Transmisión finalizada", description: "Dejaste de compartir tu ubicación." });
-  }, [toast]);
-
-  // ── Bucle de seguimiento (watchPosition → ping) ─────────────────────────────
-  const startWatching = useCallback(() => {
-    if (!navigator.geolocation) return;
-    if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
-
-    watchRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setCoords({ lat, lng, acc: pos.coords.accuracy });
-        setGpsError(null);
-
-        const s = sessionRef.current;
-        const now = Date.now();
-        if (s && now - lastPingRef.current >= PING_MIN_MS) {
-          lastPingRef.current = now;
-          pingBroadcast(s.id, s.broadcastKey, lat, lng).catch(() => {
-            /* un ping perdido no rompe la transmisión; el siguiente reintenta */
-          });
-        }
-      },
-      (err) => {
-        setGpsError(
-          err.code === err.PERMISSION_DENIED
-            ? "Permiso de ubicación denegado. Actívalo para transmitir."
-            : "No se pudo obtener el GPS. Revisa la señal.",
-        );
-      },
-      { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 },
-    );
-  }, []);
 
   const requestWakeLock = useCallback(async () => {
     try {
@@ -128,28 +95,107 @@ export default function LiveBroadcast() {
     }
   }, []);
 
+  // ── Detener transmisión ────────────────────────────────────────────────────
+  const stop = useCallback(async (silent = false) => {
+    const s = sessionRef.current;
+    if (moduleWatcher) {
+      try { await moduleWatcher.stop(); } catch { /* ignore */ }
+      moduleWatcher = null;
+      moduleWatcherSession = null;
+    }
+    if (wakeLockRef.current) {
+      try { await wakeLockRef.current.release(); } catch { /* ignore */ }
+      wakeLockRef.current = null;
+    }
+    pendingStartRef.current = null;
+    if (s) {
+      try { await stopBroadcast(s.id, s.broadcastKey); } catch { /* best-effort */ }
+    }
+    clearLiveSession();
+    setSession(null);
+    setCoords(null);
+    setStarting(false);
+    if (!silent) toastRef.current({ title: "Transmisión finalizada", description: "Dejaste de compartir tu ubicación." });
+  }, []);
+
+  // ── Manejo de cada actualización de GPS ─────────────────────────────────────
+  const onFix = useCallback((fix: { latitude: number; longitude: number; accuracy?: number }) => {
+    setCoords({ lat: fix.latitude, lng: fix.longitude, acc: fix.accuracy });
+    setGpsError(null);
+
+    // Aún sin sesión: la primera ubicación crea la transmisión.
+    if (!sessionRef.current && pendingStartRef.current) {
+      const p = pendingStartRef.current;
+      pendingStartRef.current = null;
+      startBroadcast({ ...p, latitude: fix.latitude, longitude: fix.longitude })
+        .then((res) => {
+          const ns: LiveSession = { id: res.id, broadcastKey: res.broadcastKey, ...p, startedAt: Date.now() };
+          saveLiveSession(ns);
+          sessionRef.current = ns;
+          moduleWatcherSession = res.id;
+          lastPingRef.current = Date.now();
+          setSession(ns);
+          setStarting(false);
+          toastRef.current({ title: "🔴 Transmitiendo en vivo", description: "Los vecinos ya pueden verte en el mapa." });
+        })
+        .catch((e: any) => {
+          setStarting(false);
+          toastRef.current({ title: "No se pudo iniciar", description: e?.message ?? "Intenta de nuevo.", variant: "destructive" });
+          stop(true);
+        });
+      return;
+    }
+
+    // Con sesión activa: pings espaciados.
+    const s = sessionRef.current;
+    if (s) {
+      const now = Date.now();
+      if (now - lastPingRef.current >= PING_MIN_MS) {
+        lastPingRef.current = now;
+        pingBroadcast(s.id, s.broadcastKey, fix.latitude, fix.longitude).catch(() => {
+          /* un ping perdido no rompe la transmisión; el siguiente reintenta */
+        });
+      }
+    }
+  }, [stop]);
+
+  // ── Arrancar/reanudar el watcher (idempotente por sesión) ───────────────────
+  const startWatching = useCallback(async (sessionKey: string) => {
+    if (moduleWatcher && moduleWatcherSession === sessionKey) return; // ya activo
+    if (moduleWatcher) {
+      try { await moduleWatcher.stop(); } catch { /* ignore */ }
+      moduleWatcher = null;
+    }
+    moduleWatcherSession = sessionKey;
+    try {
+      moduleWatcher = await startLocationWatch(
+        onFix,
+        (msg) => setGpsError(msg),
+        { title: "Radar Vecinal", message: "Compartiendo tu ubicación en vivo" },
+      );
+    } catch {
+      moduleWatcherSession = null;
+      setStarting(false);
+      setGpsError("No se pudo iniciar el GPS. Revisa los permisos de ubicación.");
+    }
+  }, [onFix]);
+
   // ── Reanudar sesión existente al montar / al volver a la pestaña ────────────
   useEffect(() => {
-    if (session) {
-      startWatching();
+    if (sessionRef.current) {
+      startWatching(sessionRef.current.id);
       requestWakeLock();
     }
     const onVisible = () => {
       if (document.visibilityState === "visible" && sessionRef.current) {
         requestWakeLock();
-        startWatching();
+        startWatching(sessionRef.current.id);
       }
     };
     document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      // No detenemos la transmisión al desmontar: el usuario puede navegar por la
-      // app mientras transmite. Solo limpiamos el watcher local.
-      if (watchRef.current != null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchRef.current);
-        watchRef.current = null;
-      }
-    };
+    // No detenemos el watcher al desmontar: el usuario puede navegar por la app
+    // mientras transmite (vive a nivel de módulo).
+    return () => document.removeEventListener("visibilitychange", onVisible);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -161,59 +207,17 @@ export default function LiveBroadcast() {
       toast({ title: "Falta el detalle", description: "Escribe qué ofreces (ej: pollada, patasca).", variant: "destructive" });
       return;
     }
-    if (!navigator.geolocation) {
-      toast({ title: "Sin GPS", description: "Tu dispositivo no permite geolocalización.", variant: "destructive" });
-      return;
-    }
-
     setStarting(true);
     setGpsError(null);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const res = await startBroadcast({
-            type: selType,
-            label: label.trim(),
-            displayName: displayName.trim() || user?.name || "",
-            latitude: lat,
-            longitude: lng,
-            districtId: currentDistrictId,
-          });
-          const s: LiveSession = {
-            id: res.id,
-            broadcastKey: res.broadcastKey,
-            type: selType,
-            label: label.trim(),
-            displayName: displayName.trim() || user?.name || "",
-            districtId: currentDistrictId,
-            startedAt: Date.now(),
-          };
-          saveLiveSession(s);
-          sessionRef.current = s;
-          setSession(s);
-          setCoords({ lat, lng, acc: pos.coords.accuracy });
-          lastPingRef.current = Date.now();
-          startWatching();
-          requestWakeLock();
-          toast({ title: "🔴 Transmitiendo en vivo", description: "Los vecinos ya pueden verte en el mapa." });
-        } catch (e: any) {
-          toast({ title: "No se pudo iniciar", description: e?.message ?? "Intenta de nuevo.", variant: "destructive" });
-        } finally {
-          setStarting(false);
-        }
-      },
-      (err) => {
-        setStarting(false);
-        setGpsError(
-          err.code === err.PERMISSION_DENIED
-            ? "Permiso de ubicación denegado. Actívalo para transmitir."
-            : "No se pudo obtener tu ubicación.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
+    pendingStartRef.current = {
+      type: selType,
+      label: label.trim(),
+      displayName: displayName.trim() || user?.name || "",
+      districtId: currentDistrictId,
+    };
+    requestWakeLock();
+    // La primera ubicación del watcher dispara startBroadcast (ver onFix).
+    await startWatching("pending");
   };
 
   // ── Sin distrito activo ─────────────────────────────────────────────────────
@@ -285,8 +289,9 @@ export default function LiveBroadcast() {
         )}
 
         <p className="text-center text-xs text-muted-foreground px-4">
-          Mantén esta pantalla abierta para seguir compartiendo tu ubicación. Puedes
-          minimizar, pero algunos teléfonos pausan el GPS en segundo plano.
+          {isNativeTracking()
+            ? "Sigues transmitiendo aunque bloquees la pantalla. Verás una notificación mientras compartes tu ubicación."
+            : "Mantén esta pantalla abierta para seguir compartiendo tu ubicación. En la app instalada se transmite también con la pantalla apagada."}
         </p>
 
         <button

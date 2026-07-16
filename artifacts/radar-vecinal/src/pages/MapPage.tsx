@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Thermometer, Radar, RotateCcw, Map as MapIcon, ShieldAlert, MapPinned } from "lucide-react";
+import { Thermometer, Radar, RotateCcw, Map as MapIcon, ShieldAlert, MapPinned, Radio } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import { LeafletMap, MapMode } from "@/components/LeafletMap";
 import PanicAlertsLayer from "@/components/PanicAlertsLayer";
+import LiveProvidersLayer from "@/components/LiveProvidersLayer";
+import { listLiveProviders } from "@/lib/liveProviders";
+import { useQuery } from "@tanstack/react-query";
 import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
 import { CAT_HEX, CATEGORY_CONFIG, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
@@ -140,6 +143,7 @@ export default function MapPage() {
   const [contextReport, setContextReport] = useState<{ id: string; title: string; status: string } | null>(null);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [showLive, setShowLive] = useState(true);
 
   const { currentDistrictId, currentDistrict } = useDistrict();
   const { user, token } = useAuth();
@@ -158,6 +162,16 @@ export default function MapPage() {
     { query: { refetchInterval: 20000 } as any },
   );
   const activePanicCount = (panicData?.alerts ?? []).filter(a => a.isActive).length;
+
+  // Servicios en vivo del distrito (comparte caché con LiveProvidersLayer).
+  const { data: liveProviders } = useQuery({
+    queryKey: ["live-providers", currentDistrictId],
+    queryFn: () => listLiveProviders(currentDistrictId as number),
+    enabled: !!currentDistrictId,
+    refetchInterval: 12000,
+    staleTime: 8000,
+  });
+  const liveCount = liveProviders?.length ?? 0;
 
   const cutoff15d = subDays(new Date(), 15);
   // Modo mapa: últimos 15 días + reportes resueltos pendientes de verificación
@@ -377,6 +391,8 @@ export default function MapPage() {
           >
             {/* Alertas de pánico activas — visibles en los 3 modos del mapa */}
             <PanicAlertsLayer />
+            {/* Servicios en vivo (recolector, panadero, vendedores…) */}
+            <LiveProvidersLayer enabled={showLive} />
           </LeafletMap>
         )}
 
@@ -399,6 +415,28 @@ export default function MapPage() {
           </span>
           <span className="text-[10px] text-muted-foreground">· {displayReports.length}</span>
         </div>
+
+        {/* Toggle de servicios en vivo */}
+        <button
+          onClick={() => setShowLive(v => !v)}
+          className="absolute top-3 right-3 z-[500] flex items-center gap-1.5 px-3 py-1.5 rounded-xl backdrop-blur-md border shadow-lg transition-all"
+          style={{
+            background: "rgba(7,9,15,0.88)",
+            borderColor: showLive ? "rgba(34,197,94,0.45)" : "rgba(255,255,255,0.1)",
+          }}
+          title={showLive ? "Ocultar servicios en vivo" : "Mostrar servicios en vivo"}
+        >
+          {showLive && liveCount > 0 && (
+            <span className="relative flex w-2 h-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+            </span>
+          )}
+          <Radio className="w-3.5 h-3.5" style={{ color: showLive ? "#22c55e" : "#9ca3af" }} />
+          <span className="text-[10px] font-semibold" style={{ color: showLive ? "#4ade80" : "#9ca3af" }}>
+            {liveCount > 0 ? `${liveCount} en vivo` : "En vivo"}
+          </span>
+        </button>
 
         {/* Hint: reportar tocando el mapa */}
         {viewMode === "map" && !isLoading && (
@@ -445,7 +483,7 @@ export default function MapPage() {
 
         {activeCategory !== "all" && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            className="absolute top-3 right-14 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 shadow-xl"
+            className="absolute top-14 right-3 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 shadow-xl"
             style={{ background: "rgba(7,9,15,0.90)" }}>
             <span className="w-2 h-2 rounded-full" style={{ background: CAT_HEX[activeCategory] }} />
             <span className="text-xs font-semibold text-white">{displayReports.length} reportes</span>

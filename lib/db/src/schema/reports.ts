@@ -246,6 +246,45 @@ export const missingPersonsTable = pgTable("missing_persons", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ── Servicios en vivo: rastreo GPS de camión recolector y vendedores ────────
+// Un "transmisor" (camión recolector, panadero, lechero, tamalero, gasero,
+// aguatero o un vendedor de comida dominical) comparte su ubicación en vivo;
+// los vecinos lo ven moverse por el mapa del distrito. Puede transmitir sin
+// sesión (muchos son ambulantes), por eso la autorización de ping/stop usa
+// una `broadcastKey` secreta devuelta al iniciar la transmisión.
+export const liveProviderTypeEnum = pgEnum("live_provider_type", [
+  "recolector", // camión de basura
+  "panadero",
+  "lechero",
+  "tamalero",
+  "gasero",
+  "agua", // reparto de agua
+  "vendedor", // vendedor de comida (pollada, patasca, tamales…) con etiqueta libre
+  "otro",
+]);
+
+export const liveProvidersTable = pgTable("live_providers", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  // Opcional: si el transmisor tiene cuenta, se enlaza (para límites/moderación).
+  userId: integer("user_id").references((): AnyPgColumn => usersTable.id),
+  type: liveProviderTypeEnum("type").notNull(),
+  // Etiqueta libre para "vendedor"/"otro" (ej: "Vendo patasca y pollada hoy").
+  label: text("label").notNull().default(""),
+  // Nombre visible de quien transmite (ej: "Panadería San José").
+  displayName: text("display_name").notNull().default(""),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  // Clave secreta para autorizar ping/stop sin sesión iniciada.
+  broadcastKey: text("broadcast_key").notNull(),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  // Cada ping actualiza `updatedAt`; sirve de "última vez visto" (lastSeen).
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
 export const adSlotsTable = pgTable("ad_slots", {
   id: serial("id").primaryKey(),

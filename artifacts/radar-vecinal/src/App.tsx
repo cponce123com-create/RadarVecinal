@@ -27,6 +27,7 @@ const History = lazy(() => import("@/pages/History"));
 const Stats = lazy(() => import("@/pages/Stats"));
 const MissingPerson = lazy(() => import("@/pages/MissingPerson"));
 const Admin = lazy(() => import("@/pages/Admin"));
+const LiveBroadcast = lazy(() => import("@/pages/LiveBroadcast"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
@@ -108,6 +109,9 @@ function Router() {
       </Route>
       <Route path="/menor-perdido">
         {() => <Layout><BrandingWrapper><SuspenseWrapper><MissingPerson /></SuspenseWrapper></BrandingWrapper></Layout>}
+      </Route>
+      <Route path="/en-vivo">
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><LiveBroadcast /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
       <Route path="/admin">
         {() => <Layout><BrandingWrapper><SuspenseWrapper><Admin /></SuspenseWrapper></BrandingWrapper></Layout>}

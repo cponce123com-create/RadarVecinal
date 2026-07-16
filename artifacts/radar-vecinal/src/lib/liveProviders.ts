@@ -91,6 +91,19 @@ export async function listLiveProviders(
   return data.providers ?? [];
 }
 
+export interface LiveProviderAdmin extends LiveProvider {
+  districtId: number;
+  districtName: string | null;
+}
+
+/** Solo super_admin: todas las transmisiones activas de todos los distritos. */
+export async function listAllLiveProviders(): Promise<LiveProviderAdmin[]> {
+  const data = await customFetch<{ providers: LiveProviderAdmin[] }>(
+    `/api/live/all`,
+  );
+  return data.providers ?? [];
+}
+
 export async function startBroadcast(payload: {
   type: LiveProviderType;
   label?: string;

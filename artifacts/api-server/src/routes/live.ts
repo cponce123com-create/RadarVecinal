@@ -18,9 +18,9 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { db } from "@workspace/db";
-import { liveProvidersTable } from "@workspace/db/schema";
+import { liveProvidersTable, districtsTable } from "@workspace/db/schema";
 import { eq, and, gt, sql } from "drizzle-orm";
-import { optionalAuth } from "./auth";
+import { optionalAuth, requireAuth } from "./auth";
 import { getDistrictId } from "./tenant";
 
 const router: IRouter = Router();
@@ -73,6 +73,55 @@ async function expireStaleProviders() {
       ),
     );
 }
+
+// ── GET /live/all — TODAS las transmisiones activas (solo super_admin) ──────
+// Herramienta de diagnóstico para pruebas: ve las transmisiones de todos los
+// distritos con su distrito, para confirmar dónde quedó una transmisión.
+router.get("/live/all", requireAuth, async (req, res) => {
+  const user = (req as any).jwtUser;
+  if (user?.role !== "super_admin") {
+    return res.status(403).json({ error: "Solo super_admin." });
+  }
+  try {
+    await expireStaleProviders();
+    const fresh = new Date(Date.now() - FRESH_MS);
+    const rows = await db
+      .select({
+        id: liveProvidersTable.id,
+        districtId: liveProvidersTable.districtId,
+        districtName: districtsTable.name,
+        type: liveProvidersTable.type,
+        label: liveProvidersTable.label,
+        displayName: liveProvidersTable.displayName,
+        latitude: liveProvidersTable.latitude,
+        longitude: liveProvidersTable.longitude,
+        startedAt: liveProvidersTable.startedAt,
+        updatedAt: liveProvidersTable.updatedAt,
+      })
+      .from(liveProvidersTable)
+      .leftJoin(districtsTable, eq(liveProvidersTable.districtId, districtsTable.id))
+      .where(
+        and(
+          eq(liveProvidersTable.isActive, true),
+          gt(liveProvidersTable.updatedAt, fresh),
+        ),
+      )
+      .orderBy(liveProvidersTable.updatedAt)
+      .limit(200);
+
+    return res.json({
+      providers: rows.map((r) => ({
+        ...r,
+        id: String(r.id),
+        startedAt: r.startedAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list all live providers");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
 
 // ── GET /live — transmisiones activas y frescas del distrito ────────────────
 router.get("/live", optionalAuth, async (req, res) => {

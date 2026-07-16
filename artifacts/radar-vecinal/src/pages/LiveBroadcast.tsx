@@ -17,7 +17,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite, FlaskConical, Map as MapIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite, FlaskConical, Map as MapIcon, Users } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -26,12 +29,14 @@ import { startSimulatedWatch } from "@/lib/simulateRoute";
 import {
   PROVIDER_META,
   providerMeta,
+  providerTitle,
   startBroadcast,
   pingBroadcast,
   stopBroadcast,
   saveLiveSession,
   loadLiveSession,
   clearLiveSession,
+  listAllLiveProviders,
   type LiveProviderType,
   type LiveSession,
 } from "@/lib/liveProviders";
@@ -50,6 +55,61 @@ interface PendingStart {
   displayName: string;
   districtId: number;
   simulate: boolean;
+}
+
+// ── Panel de diagnóstico (superadmin): todas las transmisiones activas ──────
+function SuperAdminLivePanel({ currentDistrictId }: { currentDistrictId: number | null }) {
+  const { data } = useQuery({
+    queryKey: ["live-providers-all"],
+    queryFn: listAllLiveProviders,
+    refetchInterval: 6000,
+    staleTime: 4000,
+  });
+  const providers = data ?? [];
+
+  return (
+    <div className="mt-2 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Users className="w-4 h-4 text-primary" />
+        <h3 className="text-[13px] font-semibold text-white">Transmisiones activas (todos los distritos)</h3>
+        <span className="ml-auto text-[11px] text-muted-foreground label-mono">{providers.length}</span>
+      </div>
+      {providers.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No hay transmisiones activas ahora mismo.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {providers.map((p) => {
+            const meta = providerMeta(p.type);
+            const otherDistrict = currentDistrictId != null && p.districtId !== currentDistrictId;
+            return (
+              <li key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/6">
+                <span className="text-xl flex-shrink-0">{meta.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12.5px] font-medium text-white truncate">{providerTitle(p)}</p>
+                  <p className="text-[10.5px] text-muted-foreground">
+                    Distrito:{" "}
+                    <span className={otherDistrict ? "text-amber-300 font-semibold" : "text-emerald-300"}>
+                      {p.districtName ?? `#${p.districtId}`}
+                    </span>
+                    {" · "}visto hace {formatDistanceToNow(new Date(p.updatedAt), { locale: es })}
+                  </p>
+                </div>
+                {otherDistrict && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 flex-shrink-0">
+                    otro distrito
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="text-[10.5px] text-muted-foreground/70 mt-3 leading-relaxed">
+        Para verla en el mapa de otro celular, ese celular debe estar en el <b>mismo distrito</b> que la
+        transmisión (elígelo en el selector de arriba). Si dice “otro distrito”, ahí está el desajuste.
+      </p>
+    </div>
+  );
 }
 
 function useElapsed(startedAt: number | null): string {
@@ -345,6 +405,8 @@ export default function LiveBroadcast() {
         >
           <Square className="w-4 h-4 fill-current" /> Detener transmisión
         </button>
+
+        {isSuperAdmin && <SuperAdminLivePanel currentDistrictId={currentDistrictId} />}
       </div>
     );
   }
@@ -465,6 +527,8 @@ export default function LiveBroadcast() {
           ? <><FlaskConical className="w-4 h-4" /> Iniciar prueba simulada</>
           : <><Radio className="w-4 h-4" /> Iniciar transmisión</>}
       </button>
+
+      {isSuperAdmin && <SuperAdminLivePanel currentDistrictId={currentDistrictId} />}
     </div>
   );
 }

@@ -88,6 +88,11 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     await request(app).post(`/api/live/${id}/stop`).send({ broadcastKey });
   });
 
+  it("GET /live/all exige super_admin (401 sin token)", async () => {
+    const res = await request(app).get("/api/live/all");
+    expect(res.status).toBe(401);
+  });
+
   it("vendedor con etiqueta libre se guarda y se lista", async () => {
     const start = await request(app)
       .post("/api/live/start")

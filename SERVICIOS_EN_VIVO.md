@@ -98,6 +98,16 @@ Para probar la función sin salir a la calle, un **superadmin** ve en
 Para verlo moverse: activa el toggle **"En vivo"** en el mapa (esquina superior
 derecha) — el marcador 🧪 avanza cada ~12 s (intervalo de refresco del mapa).
 
+### Panel de diagnóstico (superadmin)
+
+Al final de `/en-vivo`, el superadmin ve **"Transmisiones activas (todos los
+distritos)"** (`GET /live/all`, solo super_admin): lista cada transmisión con su
+**distrito** y hace cuánto se vio. Sirve para resolver el caso típico *"no lo veo
+en el otro celular"*: **una transmisión solo aparece en el mapa de quien está en
+el mismo distrito**. Si la fila dice *"otro distrito"* respecto al que tienes
+seleccionado, ese es el desajuste — pon ambos celulares en el mismo distrito con
+el selector de arriba.
+
 ## Privacidad
 
 - Solo se comparte la ubicación **mientras** el transmisor está transmitiendo;

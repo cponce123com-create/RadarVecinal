@@ -139,6 +139,8 @@ export interface LiveSession {
   displayName: string;
   districtId: number;
   startedAt: number;
+  /** Transmisión de prueba (superadmin): recorrido simulado, no GPS real. */
+  simulate?: boolean;
 }
 
 export function saveLiveSession(s: LiveSession): void {

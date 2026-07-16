@@ -15,8 +15,9 @@
  * guarda en localStorage para poder reanudar/detener tras recargar.
  */
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite, FlaskConical } from "lucide-react";
+import { Radio, MapPin, Loader2, Square, AlertCircle, Clock, Satellite, FlaskConical, Map as MapIcon } from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +69,7 @@ export default function LiveBroadcast() {
   const { currentDistrictId, currentDistrict, districtCenter } = useDistrict();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const isSuperAdmin = user?.role === "super_admin";
 
   const [session, setSession] = useState<LiveSession | null>(() => loadLiveSession());
@@ -329,6 +331,13 @@ export default function LiveBroadcast() {
             ? "Sigues transmitiendo aunque bloquees la pantalla. Verás una notificación mientras compartes tu ubicación."
             : "Mantén esta pantalla abierta para seguir compartiendo tu ubicación. En la app instalada se transmite también con la pantalla apagada."}
         </p>
+
+        <button
+          onClick={() => setLocation("/mapa")}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.05] border border-white/12 text-white font-semibold hover:bg-white/[0.09] transition-colors"
+        >
+          <MapIcon className="w-4 h-4" /> Ver en el mapa
+        </button>
 
         <button
           onClick={() => stop()}

@@ -25,6 +25,7 @@ export interface LiveProvider {
   displayName: string;
   latitude: number;
   longitude: number;
+  verified?: boolean;
   startedAt: string;
   updatedAt: string;
 }
@@ -206,6 +207,74 @@ export async function listLiveHistory(params: {
   if (params.type) q.set("type", params.type);
   const data = await customFetch<{ routes: LiveRoute[] }>(`/api/live/history?${q.toString()}`);
   return data.routes ?? [];
+}
+
+// ── Dispositivos oficiales (registro admin + modo dispositivo) ──────────────
+
+export interface LiveDevice {
+  id: string;
+  type: LiveProviderType;
+  label: string;
+  deviceKey: string;
+  enabled: boolean;
+  liveNow?: boolean;
+  createdAt: string;
+}
+
+export interface DeviceInfo {
+  id: string;
+  type: LiveProviderType;
+  label: string;
+  districtId: number;
+  districtName: string | null;
+  enabled: boolean;
+}
+
+export async function listDevices(districtId?: number): Promise<LiveDevice[]> {
+  const q = districtId ? `?districtId=${districtId}` : "";
+  const data = await customFetch<{ devices: LiveDevice[] }>(`/api/live/devices${q}`);
+  return data.devices ?? [];
+}
+
+export async function createDevice(body: {
+  label: string;
+  type?: LiveProviderType;
+  districtId?: number;
+}): Promise<LiveDevice> {
+  return customFetch<LiveDevice>(`/api/live/devices`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateDevice(
+  id: string,
+  patch: { label?: string; enabled?: boolean },
+): Promise<LiveDevice> {
+  return customFetch<LiveDevice>(`/api/live/devices/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteDevice(id: string): Promise<void> {
+  await customFetch(`/api/live/devices/${id}`, { method: "DELETE" });
+}
+
+/** Modo dispositivo (celular montado): info pública por deviceKey. */
+export async function getDeviceInfo(deviceKey: string): Promise<DeviceInfo> {
+  return customFetch<DeviceInfo>(`/api/live/device/${deviceKey}`);
+}
+
+export async function devicePing(deviceKey: string, latitude: number, longitude: number): Promise<void> {
+  await customFetch(`/api/live/device/${deviceKey}/ping`, {
+    method: "POST",
+    body: JSON.stringify({ latitude, longitude }),
+  });
+}
+
+export async function deviceStop(deviceKey: string): Promise<void> {
+  await customFetch(`/api/live/device/${deviceKey}/stop`, { method: "POST" });
 }
 
 // ── Persistencia local de la sesión de transmisión ──────────────────────────

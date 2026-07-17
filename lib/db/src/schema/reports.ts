@@ -280,9 +280,35 @@ export const liveProvidersTable = pgTable("live_providers", {
   isActive: boolean("is_active").notNull().default(true),
   // Clave secreta para autorizar ping/stop sin sesión iniciada.
   broadcastKey: text("broadcast_key").notNull(),
+  // Si la transmisión proviene de un dispositivo oficial registrado (camión
+  // recolector con celular montado o GPS vehicular), se enlaza aquí y se marca
+  // como verificada (distintivo "Oficial" en el mapa).
+  deviceId: integer("device_id").references((): AnyPgColumn => liveDevicesTable.id),
+  verified: boolean("verified").notNull().default(false),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   // Cada ping actualiza `updatedAt`; sirve de "última vez visto" (lastSeen).
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ── Dispositivos oficiales de rastreo (registrados desde el panel admin) ─────
+// La municipalidad da de alta un camión/servicio y obtiene una `deviceKey`
+// secreta. El celular montado (o un GPS vehicular) reporta su ubicación con esa
+// clave, sin login ni operador: aparece como transmisión "Oficial" con su ruta
+// e historial. La misma clave sirve para el modo dispositivo del app y para un
+// endpoint de ingesta HTTP (GPS vehicular vía Traccar/HTTP).
+export const liveDevicesTable = pgTable("live_devices", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  type: liveProviderTypeEnum("type").notNull().default("recolector"),
+  label: text("label").notNull().default(""),
+  deviceKey: text("device_key").notNull().unique(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdById: integer("created_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // ── Ruta recorrida por una transmisión (breadcrumbs) ────────────────────────

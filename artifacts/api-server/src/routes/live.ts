@@ -18,10 +18,16 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { db } from "@workspace/db";
-import { liveProvidersTable, liveTracksTable, districtsTable } from "@workspace/db/schema";
+import {
+  liveProvidersTable,
+  liveTracksTable,
+  liveDevicesTable,
+  districtsTable,
+} from "@workspace/db/schema";
 import { eq, and, gt, gte, lt, lte, sql, asc, desc } from "drizzle-orm";
 import { optionalAuth, requireAuth } from "./auth";
-import { getDistrictId } from "./tenant";
+import { getDistrictId, checkTenant } from "./tenant";
+import { isMunicipalityLevel } from "../lib/roles";
 
 const router: IRouter = Router();
 
@@ -114,6 +120,7 @@ router.get("/live/all", requireAuth, async (req, res) => {
         displayName: liveProvidersTable.displayName,
         latitude: liveProvidersTable.latitude,
         longitude: liveProvidersTable.longitude,
+        verified: liveProvidersTable.verified,
         startedAt: liveProvidersTable.startedAt,
         updatedAt: liveProvidersTable.updatedAt,
       })
@@ -161,6 +168,7 @@ router.get("/live", optionalAuth, async (req, res) => {
         displayName: liveProvidersTable.displayName,
         latitude: liveProvidersTable.latitude,
         longitude: liveProvidersTable.longitude,
+        verified: liveProvidersTable.verified,
         startedAt: liveProvidersTable.startedAt,
         updatedAt: liveProvidersTable.updatedAt,
       })
@@ -266,7 +274,7 @@ router.post("/live/:id/ping", async (req, res) => {
       .status(400)
       .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (!Number.isFinite(id)) {
     return res.status(400).json({ error: "Id inválido." });
   }
@@ -325,7 +333,7 @@ router.post("/live/:id/stop", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Se requiere broadcastKey." });
   }
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (!Number.isFinite(id)) {
     return res.status(400).json({ error: "Id inválido." });
   }
@@ -358,7 +366,7 @@ router.post("/live/:id/stop", async (req, res) => {
 // Público: sirve tanto para la línea verde en vivo como para ver una ruta del
 // historial. Devuelve los puntos en orden cronológico.
 router.get("/live/:id/track", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (!Number.isFinite(id)) {
     return res.status(400).json({ error: "Id inválido." });
   }
@@ -518,6 +526,289 @@ router.get("/live/passed", optionalAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to compute passed-by");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Dispositivos oficiales (registro desde admin + ingesta por deviceKey)
+// ════════════════════════════════════════════════════════════════════════════
+
+// Nivel municipalidad+ y del mismo distrito (super_admin puede en cualquiera).
+function resolveAdminDistrict(req: any, res: any): number | null {
+  const user = req.jwtUser;
+  if (!user || !isMunicipalityLevel(user.role)) {
+    res.status(403).json({ error: "Solo la municipalidad puede gestionar dispositivos." });
+    return null;
+  }
+  let districtId: number;
+  if (user.role === "super_admin") {
+    districtId = Number(req.query.districtId ?? req.body?.districtId ?? user.districtId);
+    if (!districtId) {
+      res.status(400).json({ error: "Se requiere districtId." });
+      return null;
+    }
+  } else {
+    districtId = Number(user.districtId);
+  }
+  return districtId;
+}
+
+// ── GET /live/devices — listar dispositivos del distrito ────────────────────
+router.get("/live/devices", requireAuth, async (req, res) => {
+  const districtId = resolveAdminDistrict(req, res);
+  if (districtId == null) return;
+  try {
+    const fresh = new Date(Date.now() - FRESH_MS);
+    const devices = await db
+      .select({
+        id: liveDevicesTable.id,
+        type: liveDevicesTable.type,
+        label: liveDevicesTable.label,
+        deviceKey: liveDevicesTable.deviceKey,
+        enabled: liveDevicesTable.enabled,
+        createdAt: liveDevicesTable.createdAt,
+        liveNow: sql<boolean>`EXISTS (
+          SELECT 1 FROM ${liveProvidersTable}
+          WHERE ${liveProvidersTable.deviceId} = ${liveDevicesTable.id}
+            AND ${liveProvidersTable.isActive} = true
+            AND ${liveProvidersTable.updatedAt} > ${fresh}
+        )`,
+      })
+      .from(liveDevicesTable)
+      .where(eq(liveDevicesTable.districtId, districtId))
+      .orderBy(desc(liveDevicesTable.createdAt));
+    return res.json({
+      devices: devices.map((d) => ({ ...d, id: String(d.id), createdAt: d.createdAt.toISOString() })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list devices");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /live/devices — crear dispositivo (devuelve deviceKey) ─────────────
+const createDeviceSchema = z.object({
+  label: z.string().min(2).max(80),
+  type: z.enum(PROVIDER_TYPES).optional().default("recolector"),
+  districtId: z.number().int().optional(),
+});
+router.post("/live/devices", requireAuth, async (req, res) => {
+  const districtId = resolveAdminDistrict(req, res);
+  if (districtId == null) return;
+  const parsed = createDeviceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+  }
+  try {
+    const deviceKey = crypto.randomBytes(12).toString("hex");
+    const [device] = await db
+      .insert(liveDevicesTable)
+      .values({
+        districtId,
+        type: parsed.data.type,
+        label: parsed.data.label,
+        deviceKey,
+        createdById: (req as any).jwtUser?.sub ? Number((req as any).jwtUser.sub) : null,
+      })
+      .returning();
+    return res.status(201).json({ ...device, id: String(device.id), createdAt: device.createdAt.toISOString() });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create device");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── PATCH /live/devices/:id — renombrar / habilitar-deshabilitar ────────────
+router.patch("/live/devices/:id", requireAuth, async (req, res) => {
+  const user = (req as any).jwtUser;
+  if (!user || !isMunicipalityLevel(user.role)) {
+    return res.status(403).json({ error: "Solo la municipalidad." });
+  }
+  const id = parseInt(req.params.id as string, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Id inválido." });
+  try {
+    const [device] = await db.select().from(liveDevicesTable).where(eq(liveDevicesTable.id, id)).limit(1);
+    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!checkTenant(req, device.districtId)) {
+      return res.status(403).json({ error: "No puedes gestionar dispositivos de otro distrito." });
+    }
+    const patch: Record<string, unknown> = {};
+    if (typeof req.body?.label === "string" && req.body.label.trim().length >= 2) patch.label = req.body.label.trim();
+    if (typeof req.body?.enabled === "boolean") patch.enabled = req.body.enabled;
+    if (Object.keys(patch).length === 0) return res.status(400).json({ error: "Nada que actualizar." });
+
+    const [updated] = await db.update(liveDevicesTable).set(patch).where(eq(liveDevicesTable.id, id)).returning();
+
+    // Al deshabilitar, cortar cualquier transmisión activa del dispositivo.
+    if (patch.enabled === false) {
+      await db
+        .update(liveProvidersTable)
+        .set({ isActive: false })
+        .where(and(eq(liveProvidersTable.deviceId, id), eq(liveProvidersTable.isActive, true)));
+    }
+    return res.json({ ...updated, id: String(updated.id), createdAt: updated.createdAt.toISOString() });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update device");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── DELETE /live/devices/:id — eliminar dispositivo ─────────────────────────
+router.delete("/live/devices/:id", requireAuth, async (req, res) => {
+  const user = (req as any).jwtUser;
+  if (!user || !isMunicipalityLevel(user.role)) {
+    return res.status(403).json({ error: "Solo la municipalidad." });
+  }
+  const id = parseInt(req.params.id as string, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Id inválido." });
+  try {
+    const [device] = await db.select().from(liveDevicesTable).where(eq(liveDevicesTable.id, id)).limit(1);
+    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!checkTenant(req, device.districtId)) {
+      return res.status(403).json({ error: "No puedes gestionar dispositivos de otro distrito." });
+    }
+    // Desenlazar transmisiones históricas (mantienen su ruta) antes de borrar.
+    await db.update(liveProvidersTable).set({ deviceId: null, isActive: false }).where(eq(liveProvidersTable.deviceId, id));
+    await db.delete(liveDevicesTable).where(eq(liveDevicesTable.id, id));
+    return res.json({ success: true, id: String(id) });
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete device");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /live/device/:deviceKey — info pública del dispositivo (modo app) ────
+router.get("/live/device/:deviceKey", async (req, res) => {
+  try {
+    const [device] = await db
+      .select({
+        id: liveDevicesTable.id,
+        type: liveDevicesTable.type,
+        label: liveDevicesTable.label,
+        districtId: liveDevicesTable.districtId,
+        districtName: districtsTable.name,
+        enabled: liveDevicesTable.enabled,
+      })
+      .from(liveDevicesTable)
+      .leftJoin(districtsTable, eq(liveDevicesTable.districtId, districtsTable.id))
+      .where(eq(liveDevicesTable.deviceKey, req.params.deviceKey))
+      .limit(1);
+    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!device.enabled) return res.status(403).json({ error: "Dispositivo deshabilitado." });
+    return res.json({ ...device, id: String(device.id) });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get device");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /live/device/:deviceKey/ping — ingesta de ubicación (sin login) ────
+// Sirve para el celular montado (modo dispositivo del app) y para un GPS
+// vehicular que reporte por HTTP. Busca o crea UNA transmisión activa por
+// dispositivo y le agrega el punto de ruta.
+const devicePingSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+router.post("/live/device/:deviceKey/ping", async (req, res) => {
+  const parsed = devicePingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+  }
+  const { latitude, longitude } = parsed.data;
+  try {
+    const [device] = await db
+      .select()
+      .from(liveDevicesTable)
+      .where(eq(liveDevicesTable.deviceKey, req.params.deviceKey))
+      .limit(1);
+    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!device.enabled) return res.status(403).json({ error: "Dispositivo deshabilitado." });
+
+    const fresh = new Date(Date.now() - FRESH_MS);
+    const [active] = await db
+      .select({
+        id: liveProvidersTable.id,
+        latitude: liveProvidersTable.latitude,
+        longitude: liveProvidersTable.longitude,
+      })
+      .from(liveProvidersTable)
+      .where(
+        and(
+          eq(liveProvidersTable.deviceId, device.id),
+          eq(liveProvidersTable.isActive, true),
+          gt(liveProvidersTable.updatedAt, fresh),
+        ),
+      )
+      .orderBy(desc(liveProvidersTable.updatedAt))
+      .limit(1);
+
+    let providerId: number;
+    if (active) {
+      providerId = active.id;
+      await db
+        .update(liveProvidersTable)
+        .set({ latitude, longitude, isActive: true, updatedAt: new Date() })
+        .where(eq(liveProvidersTable.id, providerId));
+      const moved = distanceMeters(active.latitude, active.longitude, latitude, longitude);
+      if (moved >= TRACK_MIN_METERS) {
+        const [{ count }] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(liveTracksTable)
+          .where(eq(liveTracksTable.providerId, providerId));
+        if (Number(count) < TRACK_MAX_POINTS) {
+          await db
+            .insert(liveTracksTable)
+            .values({ providerId, districtId: device.districtId, latitude, longitude })
+            .catch(() => {});
+        }
+      }
+    } else {
+      const [created] = await db
+        .insert(liveProvidersTable)
+        .values({
+          districtId: device.districtId,
+          type: device.type,
+          label: device.label,
+          displayName: "",
+          latitude,
+          longitude,
+          broadcastKey: crypto.randomBytes(16).toString("hex"),
+          deviceId: device.id,
+          verified: true,
+        })
+        .returning();
+      providerId = created.id;
+      await db
+        .insert(liveTracksTable)
+        .values({ providerId, districtId: device.districtId, latitude, longitude })
+        .catch(() => {});
+    }
+
+    return res.json({ ok: true, providerId: String(providerId) });
+  } catch (err) {
+    req.log.error({ err }, "Failed device ping");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── POST /live/device/:deviceKey/stop — finalizar transmisión del dispositivo ─
+router.post("/live/device/:deviceKey/stop", async (req, res) => {
+  try {
+    const [device] = await db
+      .select({ id: liveDevicesTable.id })
+      .from(liveDevicesTable)
+      .where(eq(liveDevicesTable.deviceKey, req.params.deviceKey))
+      .limit(1);
+    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    await db
+      .update(liveProvidersTable)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(eq(liveProvidersTable.deviceId, device.id), eq(liveProvidersTable.isActive, true)));
+    return res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed device stop");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

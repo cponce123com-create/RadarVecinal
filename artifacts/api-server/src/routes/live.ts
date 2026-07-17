@@ -18,8 +18,8 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { db } from "@workspace/db";
-import { liveProvidersTable, districtsTable } from "@workspace/db/schema";
-import { eq, and, gt, sql } from "drizzle-orm";
+import { liveProvidersTable, liveTracksTable, districtsTable } from "@workspace/db/schema";
+import { eq, and, gt, gte, lt, sql, asc, desc } from "drizzle-orm";
 import { optionalAuth, requireAuth } from "./auth";
 import { getDistrictId } from "./tenant";
 
@@ -29,6 +29,25 @@ const router: IRouter = Router();
 // Pasado ese tiempo se da por terminada (el transmisor cerró la app o perdió
 // señal). Los vecinos dejan de verla en el mapa.
 const FRESH_MS = 3 * 60 * 1000;
+
+// Solo se guarda un punto de ruta si el transmisor avanzó al menos esta
+// distancia desde el último punto guardado (submuestreo: ruta fiel sin inflar
+// la base de datos).
+const TRACK_MIN_METERS = 12;
+// Tope de seguridad de puntos por transmisión (una ruta larga no crece sin fin).
+const TRACK_MAX_POINTS = 5000;
+
+// Distancia aproximada en metros entre dos coordenadas (haversine).
+function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
 
 const PROVIDER_TYPES = [
   "recolector",
@@ -221,6 +240,17 @@ router.post("/live/start", optionalAuth, async (req, res) => {
       })
       .returning();
 
+    // Primer punto de la ruta (inicio de la transmisión).
+    await db
+      .insert(liveTracksTable)
+      .values({
+        providerId: row.id,
+        districtId,
+        latitude: data.latitude,
+        longitude: data.longitude,
+      })
+      .catch(() => {});
+
     return res.status(201).json({ id: String(row.id), broadcastKey });
   } catch (err) {
     req.log.error({ err }, "Failed to start live provider");
@@ -243,7 +273,12 @@ router.post("/live/:id/ping", async (req, res) => {
 
   try {
     const [row] = await db
-      .select({ broadcastKey: liveProvidersTable.broadcastKey })
+      .select({
+        broadcastKey: liveProvidersTable.broadcastKey,
+        districtId: liveProvidersTable.districtId,
+        latitude: liveProvidersTable.latitude,
+        longitude: liveProvidersTable.longitude,
+      })
       .from(liveProvidersTable)
       .where(eq(liveProvidersTable.id, id))
       .limit(1);
@@ -253,15 +288,29 @@ router.post("/live/:id/ping", async (req, res) => {
       return res.status(403).json({ error: "Clave de transmisión inválida." });
     }
 
+    const { latitude, longitude } = parsed.data;
+
     await db
       .update(liveProvidersTable)
-      .set({
-        latitude: parsed.data.latitude,
-        longitude: parsed.data.longitude,
-        isActive: true,
-        updatedAt: new Date(),
-      })
+      .set({ latitude, longitude, isActive: true, updatedAt: new Date() })
       .where(eq(liveProvidersTable.id, id));
+
+    // Guardar punto de ruta solo si avanzó ≥ TRACK_MIN_METERS (submuestreo),
+    // respetando un tope de puntos por transmisión. Best-effort: si falla, el
+    // ping igual se considera exitoso.
+    const moved = distanceMeters(row.latitude, row.longitude, latitude, longitude);
+    if (moved >= TRACK_MIN_METERS) {
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(liveTracksTable)
+        .where(eq(liveTracksTable.providerId, id));
+      if (Number(count) < TRACK_MAX_POINTS) {
+        await db
+          .insert(liveTracksTable)
+          .values({ providerId: id, districtId: row.districtId, latitude, longitude })
+          .catch(() => {});
+      }
+    }
 
     return res.json({ ok: true });
   } catch (err) {
@@ -301,6 +350,100 @@ router.post("/live/:id/stop", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed to stop live provider");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /live/:id/track — puntos de la ruta de una transmisión ──────────────
+// Público: sirve tanto para la línea verde en vivo como para ver una ruta del
+// historial. Devuelve los puntos en orden cronológico.
+router.get("/live/:id/track", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) {
+    return res.status(400).json({ error: "Id inválido." });
+  }
+  try {
+    const points = await db
+      .select({
+        latitude: liveTracksTable.latitude,
+        longitude: liveTracksTable.longitude,
+        recordedAt: liveTracksTable.recordedAt,
+      })
+      .from(liveTracksTable)
+      .where(eq(liveTracksTable.providerId, id))
+      .orderBy(asc(liveTracksTable.recordedAt))
+      .limit(TRACK_MAX_POINTS);
+
+    return res.json({
+      points: points.map((p) => ({
+        lat: p.latitude,
+        lng: p.longitude,
+        at: p.recordedAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get track");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /live/history — transmisiones (rutas) de un distrito por rango ───────
+// El cliente envía from/to (ISO) calculando el día local; así el servidor no
+// asume zona horaria. Devuelve un resumen por transmisión, con nº de puntos.
+router.get("/live/history", optionalAuth, async (req, res) => {
+  const districtId = getDistrictId(req);
+  if (!districtId) {
+    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+  }
+  const from = new Date(String(req.query.from ?? ""));
+  const to = new Date(String(req.query.to ?? ""));
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+    return res.status(400).json({ error: "Rango de fechas inválido (from/to)." });
+  }
+  const type = req.query.type ? String(req.query.type) : null;
+
+  try {
+    const conditions: any[] = [
+      eq(liveProvidersTable.districtId, districtId),
+      gte(liveProvidersTable.startedAt, from),
+      lt(liveProvidersTable.startedAt, to),
+    ];
+    if (type && (PROVIDER_TYPES as readonly string[]).includes(type)) {
+      conditions.push(eq(liveProvidersTable.type, type as any));
+    }
+
+    const rows = await db
+      .select({
+        id: liveProvidersTable.id,
+        type: liveProvidersTable.type,
+        label: liveProvidersTable.label,
+        displayName: liveProvidersTable.displayName,
+        isActive: liveProvidersTable.isActive,
+        startedAt: liveProvidersTable.startedAt,
+        updatedAt: liveProvidersTable.updatedAt,
+        points: sql<number>`count(${liveTracksTable.id})`,
+      })
+      .from(liveProvidersTable)
+      .leftJoin(liveTracksTable, eq(liveTracksTable.providerId, liveProvidersTable.id))
+      .where(and(...conditions))
+      .groupBy(liveProvidersTable.id)
+      .orderBy(desc(liveProvidersTable.startedAt))
+      .limit(200);
+
+    return res.json({
+      routes: rows.map((r) => ({
+        id: String(r.id),
+        type: r.type,
+        label: r.label,
+        displayName: r.displayName,
+        isActive: r.isActive,
+        startedAt: r.startedAt.toISOString(),
+        endedAt: r.updatedAt.toISOString(),
+        points: Number(r.points),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get live history");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

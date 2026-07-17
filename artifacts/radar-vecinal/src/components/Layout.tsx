@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Map as MapIcon, PlusCircle, Bell, User, Menu, X,
   Clock, BarChart3, UserX, Settings, ShieldAlert, ChevronRight,
   Siren, Phone, LogIn, LogOut, MapPin, ChevronDown,
-  Plus, Radio,
+  Plus, Radio, Route as RouteIcon,
 } from "lucide-react";
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
@@ -31,6 +31,7 @@ const SIDE_NAV = [
   { href: "/home",           icon: LayoutDashboard, label: "Inicio" },
   { href: "/mapa",           icon: MapIcon,         label: "Mapa" },
   { href: "/en-vivo",        icon: Radio,           label: "Servicios en vivo" },
+  { href: "/rutas",          icon: RouteIcon,       label: "Historial de rutas" },
   { href: "/alertas",        icon: Siren,           label: "Alertas" },
   { href: "/reportar",       icon: PlusCircle,      label: "Reportar" },
   { href: "/emergencias",    icon: Phone,           label: "Emergencias" },
@@ -55,6 +56,7 @@ const TITLES: { match: (l: string) => boolean; title: string; sub: string }[] = 
   { match: l => l.startsWith("/historial"),     title: "Historial",           sub: "REGISTRO · INCIDENTES" },
   { match: l => l.startsWith("/menor-perdido"), title: "Personas Extraviadas",sub: "BÚSQUEDA ACTIVA" },
   { match: l => l.startsWith("/en-vivo"),       title: "Servicios en Vivo",   sub: "RASTREO · TIEMPO REAL" },
+  { match: l => l.startsWith("/rutas"),         title: "Historial de Rutas",  sub: "RECORRIDOS · POR FECHA" },
 ];
 
 function DistrictSelector({ compact = false }: { compact?: boolean }) {

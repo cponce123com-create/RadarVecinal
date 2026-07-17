@@ -140,6 +140,48 @@ export async function stopBroadcast(
   });
 }
 
+// ── Rutas (breadcrumbs) e historial ─────────────────────────────────────────
+
+export interface TrackPoint {
+  lat: number;
+  lng: number;
+  at: string;
+}
+
+export interface LiveRoute {
+  id: string;
+  type: LiveProviderType;
+  label: string;
+  displayName: string;
+  isActive: boolean;
+  startedAt: string;
+  endedAt: string;
+  points: number;
+}
+
+/** Puntos de la ruta de una transmisión (para la línea en vivo o el historial). */
+export async function getProviderTrack(id: string): Promise<TrackPoint[]> {
+  const data = await customFetch<{ points: TrackPoint[] }>(`/api/live/${id}/track`);
+  return data.points ?? [];
+}
+
+/** Historial de rutas de un distrito en un rango de fechas (día local). */
+export async function listLiveHistory(params: {
+  districtId: number;
+  from: string;
+  to: string;
+  type?: LiveProviderType | "";
+}): Promise<LiveRoute[]> {
+  const q = new URLSearchParams({
+    districtId: String(params.districtId),
+    from: params.from,
+    to: params.to,
+  });
+  if (params.type) q.set("type", params.type);
+  const data = await customFetch<{ routes: LiveRoute[] }>(`/api/live/history?${q.toString()}`);
+  return data.routes ?? [];
+}
+
 // ── Persistencia local de la sesión de transmisión ──────────────────────────
 // Guardamos id+clave para poder reanudar o detener aunque se recargue la app.
 const LS_KEY = "rvs_live_session";

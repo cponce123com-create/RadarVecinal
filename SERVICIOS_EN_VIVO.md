@@ -50,6 +50,33 @@ vende y hace cuánto se le vio.
     marcadores se mueven al llegar nuevos pings.
   - Integrado en `MapPage` con un toggle mostrar/ocultar y contador en vivo.
 
+## Ruta recorrida (línea verde) + historial por fecha
+
+Cada transmisión guarda su **ruta** como puntos (breadcrumbs), submuestreados:
+solo se guarda un punto si el transmisor avanzó **≥ 12 m** desde el último
+(ruta fiel sin inflar la base de datos), con un tope de 5 000 puntos por
+transmisión.
+
+- **En vivo** (`components/LiveProvidersLayer.tsx`): para el **camión
+  recolector** se dibuja una **línea verde** desde que inició su transmisión, así
+  la ciudadanía ve por dónde pasó y comprueba si pasó por su casa. Se refresca
+  cada 12 s.
+- **Historial** (`pages/LiveHistory.tsx`, ruta `/rutas`, menú *Historial de
+  rutas*): eliges una **fecha** (y opcionalmente el tipo de servicio) y ves todas
+  las rutas de ese día en tu distrito. Al seleccionar una, se dibuja su recorrido
+  en un mapa con inicio (🔵) y fin (🟢/🔴 si sigue en curso), más **duración,
+  distancia total y nº de puntos**.
+
+Backend (`routes/live.ts`), tabla `live_tracks` (migración `0030`):
+- `POST /live/start` inserta el primer punto.
+- `POST /live/:id/ping` inserta un punto si avanzó ≥ 12 m (haversine).
+- `GET /live/:id/track` → puntos de una ruta en orden (línea en vivo o detalle).
+- `GET /live/history?districtId=&from=&to=&type=` → resumen de rutas por rango
+  (el cliente manda `from`/`to` del día local; el servidor no asume zona horaria).
+
+> Mejora futura sugerida: **"¿pasó por mi casa?"** — el vecino marca su ubicación
+> y la app calcula a qué hora pasó el camión más cerca y a cuántos metros.
+
 ## Seguimiento en segundo plano (APK nativo)
 
 `lib/backgroundGeo.ts` unifica el seguimiento con dos implementaciones:

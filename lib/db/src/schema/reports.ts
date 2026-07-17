@@ -285,6 +285,23 @@ export const liveProvidersTable = pgTable("live_providers", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ── Ruta recorrida por una transmisión (breadcrumbs) ────────────────────────
+// Cada punto es una posición por la que pasó el transmisor. Se guardan
+// submuestreados (solo si avanzó ≥ ~12 m) para dibujar la línea de la ruta en
+// vivo y conservarla en el historial sin inflar la base de datos.
+export const liveTracksTable = pgTable("live_tracks", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id")
+    .notNull()
+    .references(() => liveProvidersTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+});
+
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
 export const adSlotsTable = pgTable("ad_slots", {
   id: serial("id").primaryKey(),

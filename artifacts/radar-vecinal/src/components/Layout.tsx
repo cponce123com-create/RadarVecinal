@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { PanicModal } from "./PanicModal";
 import AuthModal from "./AuthModal";
+import WelcomeModal from "./WelcomeModal";
 import ThemeToggle from "./ThemeToggle";
 import OfflineBanner from "./OfflineBanner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,20 +28,37 @@ const MAIN_NAV = [
   { href: "/emergencias", icon: Phone, label: "Emergencias" },
 ];
 
-const SIDE_NAV = [
-  { href: "/home",           icon: LayoutDashboard, label: "Inicio" },
-  { href: "/mapa",           icon: MapIcon,         label: "Mapa" },
-  { href: "/en-vivo",        icon: Radio,           label: "Servicios en vivo" },
-  { href: "/rutas",          icon: RouteIcon,       label: "Historial de rutas" },
-  { href: "/alertas",        icon: Siren,           label: "Alertas" },
-  { href: "/reportar",       icon: PlusCircle,      label: "Reportar" },
-  { href: "/emergencias",    icon: Phone,           label: "Emergencias" },
-  { href: "/notificaciones", icon: Bell,            label: "Notificaciones" },
-  { href: "/historial",      icon: Clock,           label: "Historial" },
-  { href: "/menor-perdido",  icon: UserX,           label: "Personas Extraviadas" },
-  { href: "/estadisticas",   icon: BarChart3,       label: "Estadísticas" },
-  { href: "/perfil",         icon: User,            label: "Perfil" },
-  { href: "/admin",          icon: Settings,        label: "Administración" },
+// Navegación agrupada en secciones para que no se sienta cargada.
+interface NavItem { href: string; icon: any; label: string; adminOnly?: boolean }
+const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Principal",
+    items: [
+      { href: "/home",        icon: LayoutDashboard, label: "Inicio" },
+      { href: "/mapa",        icon: MapIcon,         label: "Mapa" },
+      { href: "/reportar",    icon: PlusCircle,      label: "Reportar" },
+      { href: "/alertas",     icon: Siren,           label: "Alertas" },
+      { href: "/emergencias", icon: Phone,           label: "Emergencias" },
+    ],
+  },
+  {
+    title: "Comunidad",
+    items: [
+      { href: "/en-vivo",       icon: Radio,     label: "Servicios en vivo" },
+      { href: "/rutas",         icon: RouteIcon, label: "Rutas del recolector" },
+      { href: "/menor-perdido", icon: UserX,     label: "Personas Extraviadas" },
+      { href: "/historial",     icon: Clock,     label: "Historial de incidentes" },
+    ],
+  },
+  {
+    title: "Cuenta",
+    items: [
+      { href: "/notificaciones", icon: Bell,     label: "Notificaciones" },
+      { href: "/estadisticas",   icon: BarChart3, label: "Estadísticas" },
+      { href: "/perfil",         icon: User,      label: "Perfil" },
+      { href: "/admin",          icon: Settings,  label: "Administración", adminOnly: true },
+    ],
+  },
 ];
 
 // Título dinámico del topbar según la ruta
@@ -153,6 +171,58 @@ function DistrictSelector({ compact = false }: { compact?: boolean }) {
   );
 }
 
+// Lista de navegación por secciones (misma en escritorio y en el drawer móvil).
+function SideNav({
+  isActive, isAdmin, mobile = false, onNavigate,
+}: {
+  isActive: (href: string) => boolean;
+  isAdmin: boolean;
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      {NAV_SECTIONS.map(section => {
+        const items = section.items.filter(it => !it.adminOnly || isAdmin);
+        if (items.length === 0) return null;
+        return (
+          <div key={section.title} className="mb-1.5">
+            <p className={`px-3 ${mobile ? "pt-2 pb-1" : "pt-2.5 pb-1"} text-[9px] font-semibold text-muted-foreground/50 uppercase tracking-wider`}>
+              {section.title}
+            </p>
+            {items.map(item => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
+                  <div
+                    onClick={onNavigate}
+                    className={
+                      mobile
+                        ? `flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer min-h-[44px] ${active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`
+                        : `flex items-center gap-3 px-3 py-2.5 rounded-[11px] transition-all duration-150 cursor-pointer ${active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white/80"}`
+                    }
+                  >
+                    <Icon className={mobile
+                      ? `w-5 h-5 ${active ? "text-[#5b8dff]" : ""}`
+                      : `w-[17px] h-[17px] flex-shrink-0 ${active ? "text-[#5b8dff]" : "text-[#6b7488]"}`} />
+                    <span className={mobile
+                      ? `text-sm ${active ? "font-semibold" : ""}`
+                      : `text-[13.5px] ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
+                    {active && (mobile
+                      ? <ChevronRight className="w-4 h-4 ml-auto text-primary" />
+                      : <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />)}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -166,7 +236,7 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [location]);
 
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { currentDistrict } = useDistrict();
   const isActive = (href: string) =>
     href === "/home" ? location === href || location === "/" : location.startsWith(href);
@@ -207,22 +277,8 @@ export function Layout({ children }: LayoutProps) {
           </Link>
         </div>
 
-        <nav className="flex-1 px-2.5 py-2 space-y-0.5 overflow-y-auto hide-scrollbar">
-          {SIDE_NAV.map(item => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
-                <div className={`flex items-center gap-3 px-3 py-2.5 rounded-[11px] transition-all duration-150 cursor-pointer ${
-                  active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white/80"
-                }`}>
-                  <Icon className={`w-[17px] h-[17px] flex-shrink-0 ${active ? "text-[#5b8dff]" : "text-[#6b7488]"}`} />
-                  <span className={`text-[13.5px] ${active ? "font-semibold" : "font-normal"}`}>{item.label}</span>
-                  {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
-                </div>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-2.5 py-2 overflow-y-auto hide-scrollbar">
+          <SideNav isActive={isActive} isAdmin={isAdmin} />
         </nav>
 
         <div className="px-2 pb-1"><ThemeToggle /></div>
@@ -296,22 +352,8 @@ export function Layout({ children }: LayoutProps) {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-                {SIDE_NAV.map(item => {
-                  const Icon = item.icon;
-                  const active = isActive(item.href);
-                  return (
-                    <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
-                      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer min-h-[44px] ${
-                        active ? "bg-primary/15 text-white" : "text-muted-foreground hover:bg-white/5 hover:text-white"
-                      }`} onClick={() => setMobileOpen(false)}>
-                        <Icon className={`w-5 h-5 ${active ? "text-[#5b8dff]" : ""}`} />
-                        <span className={`text-sm ${active ? "font-semibold" : ""}`}>{item.label}</span>
-                        {active && <ChevronRight className="w-4 h-4 ml-auto text-primary" />}
-                      </div>
-                    </Link>
-                  );
-                })}
+              <nav className="flex-1 px-3 py-3 overflow-y-auto">
+                <SideNav isActive={isActive} isAdmin={isAdmin} mobile onNavigate={() => setMobileOpen(false)} />
               </nav>
               <div className="p-4 border-t border-sidebar-border flex flex-col gap-2">
                 <Link href="/reportar">
@@ -412,6 +454,7 @@ export function Layout({ children }: LayoutProps) {
 
       <PanicModal isOpen={panicOpen} onClose={() => setPanicOpen(false)} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <WelcomeModal />
     </div>
   );
 }

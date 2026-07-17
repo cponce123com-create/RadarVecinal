@@ -87,6 +87,33 @@ para la fecha elegida, **si el camión pasó cerca, a qué hora y a cuántos met
 - La UI responde: *"Sí pasó. El recolector estuvo a 25 m de tu casa a las 08:14"*,
   o *"No pasó muy cerca (lo más cerca: 340 m a las 08:20)"*, o *"No pasó cerca"*.
 
+## Dispositivos oficiales (celular montado / GPS vehicular)
+
+Para que el camión recolector transmita **sin operador ni login**, la
+municipalidad registra un **dispositivo** desde el panel admin (pestaña
+**Recolector**):
+
+- Se crea un dispositivo con un nombre y tipo → el sistema genera una
+  **`deviceKey`** secreta y un **enlace** `…/en-vivo?device=CLAVE`.
+- Ese enlace se abre **una vez** en el celular montado en el camión (con chip):
+  entra en **modo dispositivo**, pide la ubicación y **transmite solo**,
+  marcado como **✓ Oficial** en el mapa, con su ruta e historial. Reanuda al
+  recargar (la clave va en la URL) y usa el servicio en segundo plano del APK.
+- El admin puede **habilitar/deshabilitar, renombrar o eliminar** el dispositivo;
+  deshabilitarlo corta su transmisión al instante.
+
+Backend (`routes/live.ts`, tabla `live_devices`, migración `0031`):
+- `GET/POST /live/devices`, `PATCH/DELETE /live/devices/:id` — gestión (nivel
+  municipalidad, aislado por distrito).
+- `GET /live/device/:deviceKey` — info pública para el modo dispositivo.
+- `POST /live/device/:deviceKey/ping` — **ingesta de ubicación sin login**:
+  busca o crea UNA transmisión activa por dispositivo (verificada), actualiza
+  posición y agrega punto de ruta. **La misma clave sirve para un GPS vehicular**
+  que reporte por HTTP (o vía un puente Traccar) el día que se quiera migrar.
+- `POST /live/device/:deviceKey/stop` — finaliza.
+
+`live_providers` gana `deviceId` + `verified` (distintivo "Oficial" en el mapa).
+
 ## Seguimiento en segundo plano (APK nativo)
 
 `lib/backgroundGeo.ts` unifica el seguimiento con dos implementaciones:

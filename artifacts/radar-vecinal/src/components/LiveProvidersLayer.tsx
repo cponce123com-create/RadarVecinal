@@ -94,11 +94,16 @@ export function LiveProvidersLayer({ enabled = true }: { enabled?: boolean }) {
           >
             <Popup closeButton={false} maxWidth={230}>
               <div style={{ fontFamily: "inherit", minWidth: 170 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
                   <span style={{ fontSize: 18 }}>{meta.emoji}</span>
                   <strong style={{ fontSize: 13, color: meta.color }}>
                     {providerTitle(p)}
                   </strong>
+                  {p.verified && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#059669", background: "#05966922", border: "1px solid #05966955", borderRadius: 6, padding: "1px 5px" }}>
+                      ✓ Oficial
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, lineHeight: 1.5, color: "#444" }}>
                   {p.displayName && p.label && <div>{p.displayName}</div>}

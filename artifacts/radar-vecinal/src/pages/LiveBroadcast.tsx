@@ -37,8 +37,12 @@ import {
   loadLiveSession,
   clearLiveSession,
   listAllLiveProviders,
+  getDeviceInfo,
+  devicePing,
+  deviceStop,
   type LiveProviderType,
   type LiveSession,
+  type DeviceInfo,
 } from "@/lib/liveProviders";
 
 const PING_MIN_MS = 8000; // no enviar pings más seguido que esto
@@ -126,6 +130,17 @@ function useElapsed(startedAt: number | null): string {
 }
 
 export default function LiveBroadcast() {
+  // Modo dispositivo oficial: el celular montado abre /en-vivo?device=CLAVE y
+  // transmite solo, sin login ni operador. Se separa en su propio componente
+  // para no mezclar hooks con el flujo de transmisión manual.
+  const deviceKey = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("device")
+    : null;
+  if (deviceKey) return <DeviceMode deviceKey={deviceKey} />;
+  return <BroadcasterUI />;
+}
+
+function BroadcasterUI() {
   const { currentDistrictId, currentDistrict, districtCenter } = useDistrict();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -529,6 +544,171 @@ export default function LiveBroadcast() {
       </button>
 
       {isSuperAdmin && <SuperAdminLivePanel currentDistrictId={currentDistrictId} />}
+    </div>
+  );
+}
+
+// ── Modo dispositivo oficial (celular montado en el camión) ─────────────────
+// Abre /en-vivo?device=CLAVE, permite la ubicación y transmite solo, sin login
+// ni operador. Reanuda al recargar (la clave va en la URL).
+function DeviceMode({ deviceKey }: { deviceKey: string }) {
+  const { toast } = useToast();
+  const [info, setInfo] = useState<DeviceInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(true);
+  const [coords, setCoords] = useState<{ lat: number; lng: number; acc?: number } | null>(null);
+  const [startedAt] = useState(() => Date.now());
+
+  const watcherRef = useRef<GeoWatcher | null>(null);
+  const wakeLockRef = useRef<any>(null);
+  const lastPingRef = useRef(0);
+  const runningRef = useRef(true);
+  runningRef.current = running;
+
+  const elapsed = useElapsed(running ? startedAt : null);
+
+  const requestWakeLock = useCallback(async () => {
+    try {
+      if ("wakeLock" in navigator) wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+    } catch { /* opcional */ }
+  }, []);
+
+  const startWatch = useCallback(async () => {
+    if (watcherRef.current) return;
+    watcherRef.current = await startLocationWatch(
+      (fix) => {
+        setCoords({ lat: fix.latitude, lng: fix.longitude, acc: fix.accuracy });
+        setError(null);
+        if (!runningRef.current) return;
+        const now = Date.now();
+        if (now - lastPingRef.current >= 8000) {
+          lastPingRef.current = now;
+          devicePing(deviceKey, fix.latitude, fix.longitude).catch(() => {});
+        }
+      },
+      (msg) => setError(msg),
+      { title: info?.label || "Radar Vecinal", message: "Transmitiendo ubicación (oficial)" },
+    );
+  }, [deviceKey, info?.label]);
+
+  const stopWatch = useCallback(async () => {
+    if (watcherRef.current) { try { await watcherRef.current.stop(); } catch { /* ignore */ } watcherRef.current = null; }
+  }, []);
+
+  // Cargar info del dispositivo y arrancar.
+  useEffect(() => {
+    let cancelled = false;
+    getDeviceInfo(deviceKey)
+      .then((d) => {
+        if (cancelled) return;
+        setInfo(d);
+        startWatch();
+        requestWakeLock();
+      })
+      .catch((e: any) => {
+        if (!cancelled) setError(e?.status === 403 ? "Dispositivo deshabilitado." : "Dispositivo no encontrado o enlace inválido.");
+      });
+    const onVisible = () => { if (document.visibilityState === "visible" && runningRef.current) { requestWakeLock(); startWatch(); } };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); stopWatch(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceKey]);
+
+  const stop = async () => {
+    setRunning(false);
+    await stopWatch();
+    try { await deviceStop(deviceKey); } catch { /* best-effort */ }
+    if (wakeLockRef.current) { try { await wakeLockRef.current.release(); } catch { /* ignore */ } wakeLockRef.current = null; }
+    toast({ title: "Transmisión detenida" });
+  };
+
+  const resume = async () => {
+    setRunning(true);
+    runningRef.current = true;
+    lastPingRef.current = 0;
+    await startWatch();
+    requestWakeLock();
+  };
+
+  const meta = info ? providerMeta(info.type) : null;
+
+  if (error && !info) {
+    return (
+      <div className="rv-in max-w-md mx-auto">
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-200">No se pudo iniciar el modo dispositivo</p>
+            <p className="text-xs text-red-200/80 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rv-in max-w-md mx-auto flex flex-col gap-4">
+      <div className="relative rounded-3xl overflow-hidden border border-white/8 p-6"
+        style={{ background: `radial-gradient(120% 120% at 50% 0%, ${meta?.color ?? "#22c55e"}22, rgba(9,12,20,0.92))` }}>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          {running ? (
+            <>
+              <span className="relative flex w-2.5 h-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              </span>
+              <span className="label-mono text-[11px] font-bold text-red-400 tracking-wider">EN VIVO · OFICIAL</span>
+            </>
+          ) : (
+            <span className="label-mono text-[11px] font-bold text-muted-foreground tracking-wider">DETENIDO</span>
+          )}
+        </div>
+        <div className="flex flex-col items-center text-center gap-1 mt-3">
+          <span className="text-5xl mb-1">{meta?.emoji ?? "🚛"}</span>
+          <h2 className="font-display text-xl font-bold text-white">{info?.label ?? "Dispositivo"}</h2>
+          <p className="text-xs text-muted-foreground mt-1">{info?.districtName ?? ""} · Modo dispositivo</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-5">
+          <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/[0.04] border border-white/8">
+            <Clock className="w-4 h-4 text-primary" />
+            <span className="font-display text-lg font-bold text-white tabular-nums">{elapsed}</span>
+            <span className="text-[10px] text-muted-foreground">Transmitiendo</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/[0.04] border border-white/8">
+            <Satellite className="w-4 h-4 text-emerald-400" />
+            <span className="font-display text-lg font-bold text-white tabular-nums">{coords?.acc ? `±${Math.round(coords.acc)}m` : "…"}</span>
+            <span className="text-[10px] text-muted-foreground">Precisión GPS</span>
+          </div>
+        </div>
+        {coords && (
+          <p className="text-center text-[10px] text-muted-foreground/70 mt-3 label-mono">{coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</p>
+        )}
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <p className="text-xs text-red-200">{error}</p>
+        </div>
+      )}
+
+      <p className="text-center text-xs text-muted-foreground px-4">
+        {isNativeTracking()
+          ? "Deja el celular montado y cargando. Sigue transmitiendo aunque bloquees la pantalla."
+          : "Deja esta pantalla abierta con el celular montado y cargando. En la app instalada transmite también con la pantalla apagada."}
+      </p>
+
+      {running ? (
+        <button onClick={stop}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-red-500/15 border border-red-500/40 text-red-300 font-semibold hover:bg-red-500/25 transition-colors">
+          <Square className="w-4 h-4 fill-current" /> Detener transmisión
+        </button>
+      ) : (
+        <button onClick={resume}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold hover:-translate-y-px transition-transform">
+          <Radio className="w-4 h-4" /> Reanudar transmisión
+        </button>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@
  * Requiere DATABASE_URL — se salta si no hay DB.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import jwt from "jsonwebtoken";
 
 describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
   let app: any;
@@ -11,7 +12,9 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
   let db: any;
   let sql: any;
   let districtsTable: any;
+  let usersTable: any;
   let districtId: number;
+  let adminToken: string;
 
   beforeAll(async () => {
     app = (await import("../app")).default;
@@ -19,6 +22,7 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     db = (await import("@workspace/db")).db;
     const schema = await import("@workspace/db/schema");
     districtsTable = schema.districtsTable;
+    usersTable = schema.usersTable;
     sql = (await import("drizzle-orm")).sql;
 
     const [d] = await db
@@ -26,12 +30,27 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
       .values({ slug: `lv-${Date.now()}`, name: "LV", province: "T", department: "T" })
       .returning();
     districtId = d.id;
+
+    const [admin] = await db
+      .insert(usersTable)
+      .values({
+        name: "Admin LV", email: `admin-lv-${Date.now()}@t.pe`,
+        role: "admin", sector: "T", district: "T", districtId,
+      })
+      .returning();
+    adminToken = jwt.sign(
+      { sub: String(admin.id), role: "admin", districtId, district: "T", email: admin.email },
+      process.env.JWT_SECRET!,
+      { expiresIn: "1h" },
+    );
   });
 
   afterAll(async () => {
     if (!db) return;
     await db.execute(sql`DELETE FROM "live_tracks" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "live_providers" WHERE "district_id" = ${districtId}`);
+    await db.execute(sql`DELETE FROM "live_devices" WHERE "district_id" = ${districtId}`);
+    await db.execute(sql`DELETE FROM "users" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "districts" WHERE "id" = ${districtId}`);
   });
 
@@ -166,6 +185,61 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     expect(far.body.passedNear).toBe(false);
 
     await request(app).post(`/api/live/${id}/stop`).send({ broadcastKey });
+  });
+
+  it("dispositivo oficial: admin crea → ingesta crea transmisión verificada", async () => {
+    // Sin token no se pueden gestionar dispositivos.
+    const noAuth = await request(app).get("/api/live/devices");
+    expect(noAuth.status).toBe(401);
+
+    // Admin crea un dispositivo (recolector).
+    const created = await request(app)
+      .post("/api/live/devices")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ label: "Camión Recolector 1", type: "recolector" });
+    expect(created.status).toBe(201);
+    const deviceKey = created.body.deviceKey;
+    expect(typeof deviceKey).toBe("string");
+    const deviceId = created.body.id;
+
+    // Aparece en el listado del admin.
+    const list = await request(app).get("/api/live/devices").set("Authorization", `Bearer ${adminToken}`);
+    expect(list.body.devices.some((d: any) => d.id === deviceId)).toBe(true);
+
+    // Info pública por clave (modo dispositivo del app).
+    const info = await request(app).get(`/api/live/device/${deviceKey}`);
+    expect(info.status).toBe(200);
+    expect(info.body.type).toBe("recolector");
+
+    // Ingesta: primer ping crea la transmisión verificada.
+    const p1 = await request(app).post(`/api/live/device/${deviceKey}/ping`).send({ latitude: -12.06, longitude: -76.96 });
+    expect(p1.status).toBe(200);
+    const providerId = p1.body.providerId;
+
+    // Aparece en /live como verificada (Oficial).
+    const live = await request(app).get(`/api/live?districtId=${districtId}`);
+    const mine = live.body.providers.find((x: any) => x.id === providerId);
+    expect(mine).toBeTruthy();
+    expect(mine.verified).toBe(true);
+
+    // Un segundo ping (moviéndose) usa la MISMA transmisión y suma ruta.
+    const p2 = await request(app).post(`/api/live/device/${deviceKey}/ping`).send({ latitude: -12.061, longitude: -76.96 });
+    expect(p2.body.providerId).toBe(providerId);
+    const track = await request(app).get(`/api/live/${providerId}/track`);
+    expect(track.body.points.length).toBe(2);
+
+    // Deshabilitar corta la transmisión y bloquea nuevos pings.
+    const patch = await request(app)
+      .patch(`/api/live/devices/${deviceId}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ enabled: false });
+    expect(patch.status).toBe(200);
+    const blocked = await request(app).post(`/api/live/device/${deviceKey}/ping`).send({ latitude: -12.062, longitude: -76.96 });
+    expect(blocked.status).toBe(403);
+
+    // Clave inválida → 404.
+    const bad = await request(app).post(`/api/live/device/claveinventada/ping`).send({ latitude: -12, longitude: -76 });
+    expect(bad.status).toBe(404);
   });
 
   it("vendedor con etiqueta libre se guarda y se lista", async () => {

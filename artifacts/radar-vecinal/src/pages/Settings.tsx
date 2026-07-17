@@ -5,11 +5,17 @@ import {
   Smartphone, Globe, Trash2, Download, ChevronRight, AlertTriangle,
   Eye, EyeOff, Wifi, BellOff, Radius, SlidersHorizontal,
   Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar, HelpCircle,
+  Home as HomeIcon, Volume2 as VoiceIcon, Loader2, CheckCircle2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { playAlertSound } from "@/lib/alertSound";
 import { openWelcome } from "@/components/WelcomeModal";
+import {
+  getHome, setHome as saveHome, clearHome, getVoicePrefs, setVoicePrefs,
+  isVoiceSupported, unlockAndTestVoice, speak,
+} from "@/lib/voiceAlerts";
+import { PROVIDER_META, type LiveProviderType } from "@/lib/liveProviders";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
@@ -139,6 +145,52 @@ export default function Settings() {
         : [...alertCategories, id]
     );
   };
+
+  // ── Avisos por voz (v1) ──
+  const [voiceEnabled, setVoiceEnabled]   = useState(() => getVoicePrefs().enabled);
+  const [voiceDistance, setVoiceDistance] = useState(() => getVoicePrefs().distanceM);
+  const [voiceTypes, setVoiceTypes]       = useState<LiveProviderType[]>(() => getVoicePrefs().types);
+  const [home, setHomeState]              = useState(() => getHome());
+  const [locatingHome, setLocatingHome]   = useState(false);
+
+  const toggleVoice = (v: boolean) => {
+    if (v && !isVoiceSupported()) {
+      toast({ title: "Voz no disponible", description: "Tu dispositivo no soporta avisos por voz.", variant: "destructive" });
+      return;
+    }
+    setVoiceEnabled(v);
+    setVoicePrefs({ enabled: v });
+    if (v) {
+      unlockAndTestVoice("Avisos por voz activados.");
+      if (!home) toast({ title: "Marca tu casa", description: "Para avisarte, primero marca la ubicación de tu casa abajo." });
+    }
+  };
+  const changeVoiceDistance = (m: number) => { setVoiceDistance(m); setVoicePrefs({ distanceM: m }); };
+  const toggleVoiceType = (t: LiveProviderType) => {
+    const next = voiceTypes.includes(t) ? voiceTypes.filter(x => x !== t) : [...voiceTypes, t];
+    setVoiceTypes(next);
+    setVoicePrefs({ types: next });
+  };
+  const markHome = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Sin GPS", description: "Tu dispositivo no permite geolocalización.", variant: "destructive" });
+      return;
+    }
+    setLocatingHome(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setHomeState(saveHome(pos.coords.latitude, pos.coords.longitude));
+        setLocatingHome(false);
+        toast({ title: "🏠 Casa guardada", description: "Te avisaremos cuando un servicio se acerque." });
+      },
+      () => { setLocatingHome(false); toast({ title: "No se pudo ubicar", description: "Revisa el permiso de ubicación.", variant: "destructive" }); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
+  const removeHome = () => { clearHome(); setHomeState(null); toast({ title: "Casa eliminada" }); };
+
+  // Servicios que se pueden anunciar (los ambulantes que recorren el distrito).
+  const VOICE_TYPES: LiveProviderType[] = ["recolector", "panadero", "lechero", "tamalero", "gasero", "agua"];
 
   const save = () => toast({ title: "✓ Configuración guardada", description: "Tus preferencias fueron actualizadas." });
 
@@ -301,6 +353,79 @@ export default function Settings() {
                   onChange={e => setQuietEnd(e.target.value)}
                   className="w-full bg-background border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors"
                 />
+              </div>
+            </div>
+          )}
+        </SettingSection>
+      </motion.div>
+
+      {/* ── Avisos por voz ── */}
+      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible">
+        <SettingSection title="Avisos por voz" icon={VoiceIcon} iconColor="text-emerald-400">
+          <SettingRow
+            label="Avisar cuando un servicio se acerque"
+            sub="Con la app abierta, te anuncia en voz alta (ej: “El camión recolector está a 300 metros de tu casa”)."
+          >
+            <Toggle checked={voiceEnabled} onChange={toggleVoice} />
+          </SettingRow>
+
+          {/* Marcar la casa */}
+          <SettingRow
+            label="Mi casa"
+            sub={home ? `Guardada (${home.lat.toFixed(4)}, ${home.lng.toFixed(4)})` : "Marca tu casa para recibir los avisos."}
+          >
+            <div className="flex items-center gap-1.5">
+              {home && (
+                <button onClick={removeHome} className="text-[11px] text-muted-foreground hover:text-red-400 px-2 py-1.5">Quitar</button>
+              )}
+              <button
+                onClick={markHome} disabled={locatingHome}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[12px] font-semibold hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+              >
+                {locatingHome ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : home ? <CheckCircle2 className="w-3.5 h-3.5" /> : <HomeIcon className="w-3.5 h-3.5" />}
+                {home ? "Actualizar" : "Marcar mi casa"}
+              </button>
+            </div>
+          </SettingRow>
+
+          {/* Distancia del aviso */}
+          {voiceEnabled && (
+            <SettingRow label="Avisar cuando esté a" sub="Distancia a tu casa para lanzar el aviso.">
+              <div className="flex items-center gap-1">
+                {[200, 300, 500].map(m => (
+                  <button key={m} onClick={() => changeVoiceDistance(m)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border ${
+                      voiceDistance === m ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
+                    }`}>
+                    {m} m
+                  </button>
+                ))}
+              </div>
+            </SettingRow>
+          )}
+
+          {/* Qué servicios anunciar */}
+          {voiceEnabled && (
+            <div className="px-4 py-3.5">
+              <p className="text-sm font-medium text-white mb-2">¿Qué servicios anunciar?</p>
+              <div className="flex flex-wrap gap-1.5">
+                {VOICE_TYPES.map(t => {
+                  const meta = PROVIDER_META.find(m => m.type === t)!;
+                  const on = voiceTypes.includes(t);
+                  return (
+                    <button key={t} onClick={() => toggleVoiceType(t)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border transition-all ${
+                        on ? "bg-emerald-500/15 border-emerald-500/45 text-emerald-200" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
+                      }`}>
+                      <span>{meta.emoji}</span> {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-[11px] text-muted-foreground">Suena solo con la app abierta.</p>
+                <button onClick={() => speak("Prueba de voz. El camión recolector está a 300 metros de tu casa.")}
+                  className="text-[11px] text-primary hover:underline">Probar voz</button>
               </div>
             </div>
           )}

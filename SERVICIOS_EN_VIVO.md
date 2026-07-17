@@ -114,6 +114,29 @@ Backend (`routes/live.ts`, tabla `live_devices`, migración `0031`):
 
 `live_providers` gana `deviceId` + `verified` (distintivo "Oficial" en el mapa).
 
+## Avisos por voz — "el recolector está cerca de tu casa" (v1)
+
+Como cuando navegas con Maps y te avisa por voz, la app anuncia en **español**
+cuando un servicio en vivo se acerca a tu casa. **Sin costo ni audios**: usa la
+voz del propio dispositivo (Web Speech API `speechSynthesis`).
+
+- **Ajustes → Avisos por voz:** activas el aviso, **marcas tu casa** (con GPS,
+  guardada solo en tu dispositivo), eliges la **distancia** (200/300/500 m) y
+  **qué servicios** anunciar (recolector por defecto; también panadero, lechero,
+  gasero, agua…). Botón "Probar voz".
+- **Cómo funciona** (`lib/voiceAlerts.ts` + `hooks/useProximityVoice.ts`, montado
+  global en `App`): con la app abierta consulta la posición en vivo cada 12 s,
+  calcula la distancia a tu casa y, al **cruzar el umbral acercándose**, dice
+  *"El camión recolector está a unos 300 metros de tu casa"* — una sola vez, con
+  enfriamiento de 8 min para no repetir.
+- El audio requiere un gesto del usuario (los navegadores lo exigen): al activar
+  el aviso se desbloquea con un mensaje de confirmación.
+
+**Limitación (honesta):** los navegadores suspenden el audio en segundo plano,
+así que la voz suena **con la app abierta**. Para avisos con la app cerrada
+(como Maps) haría falta **push FCM** (infraestructura ya existente, fase 2) o el
+**APK nativo con servicio + TTS nativo** (fase 3).
+
 ## Seguimiento en segundo plano (APK nativo)
 
 `lib/backgroundGeo.ts` unifica el seguimiento con dos implementaciones:

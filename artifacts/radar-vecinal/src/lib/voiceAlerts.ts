@@ -64,11 +64,38 @@ export function speak(text: string): void {
   }
 }
 
+// Elemento de audio reutilizable para los clips grabados (se "desbloquea" con
+// el primer gesto del usuario, igual que el TTS).
+let _clipAudio: HTMLAudioElement | null = null;
+function clipAudio(): HTMLAudioElement | null {
+  if (typeof Audio === "undefined") return null;
+  if (!_clipAudio) _clipAudio = new Audio();
+  return _clipAudio;
+}
+
+/** Reproduce un clip de audio (voz grabada). Devuelve una promesa best-effort. */
+export function playClip(url: string): void {
+  const a = clipAudio();
+  if (!a) return;
+  try {
+    a.src = url;
+    a.currentTime = 0;
+    void a.play().catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Desbloquea el audio: los navegadores exigen un gesto del usuario antes de
- * poder hablar. Llamar desde un onClick. Devuelve true si se soporta.
+ * poder hablar/reproducir. Llamar desde un onClick. Devuelve true si se soporta.
  */
 export function unlockAndTestVoice(sample = "Avisos por voz activados."): boolean {
+  // Prime del elemento de audio de clips (permite reproducir luego sin gesto).
+  try {
+    const a = clipAudio();
+    if (a) { a.muted = true; void a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; }); }
+  } catch { /* ignore */ }
   if (!isVoiceSupported()) return false;
   speak(sample);
   return true;

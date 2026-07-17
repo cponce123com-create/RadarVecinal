@@ -22,6 +22,7 @@ import {
   liveProvidersTable,
   liveTracksTable,
   liveDevicesTable,
+  liveVoiceClipsTable,
   districtsTable,
 } from "@workspace/db/schema";
 import { eq, and, gt, gte, lt, lte, sql, asc, desc } from "drizzle-orm";
@@ -809,6 +810,105 @@ router.post("/live/device/:deviceKey/stop", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed device stop");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Clips de voz de los avisos ("Vecino, la tamalera está cerca")
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── GET /live/voice-clips?districtId= — clips del distrito (para reproducir) ─
+// Público (optionalAuth): la app del vecino los necesita para sonar el aviso.
+router.get("/live/voice-clips", optionalAuth, async (req, res) => {
+  const districtId = getDistrictId(req);
+  if (!districtId) {
+    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+  }
+  try {
+    const rows = await db
+      .select({
+        id: liveVoiceClipsTable.id,
+        type: liveVoiceClipsTable.type,
+        audioUrl: liveVoiceClipsTable.audioUrl,
+        phrase: liveVoiceClipsTable.phrase,
+        enabled: liveVoiceClipsTable.enabled,
+        updatedAt: liveVoiceClipsTable.updatedAt,
+      })
+      .from(liveVoiceClipsTable)
+      .where(eq(liveVoiceClipsTable.districtId, districtId));
+    return res.json({
+      clips: rows.map((r) => ({ ...r, id: String(r.id), updatedAt: r.updatedAt.toISOString() })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list voice clips");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── PUT /live/voice-clips — crear/actualizar un clip (municipalidad) ─────────
+const voiceClipSchema = z.object({
+  type: z.enum(PROVIDER_TYPES),
+  audioUrl: z.string().url().max(500).nullable().optional(),
+  phrase: z.string().max(200).optional().default(""),
+  enabled: z.boolean().optional().default(true),
+  districtId: z.number().int().optional(),
+});
+router.put("/live/voice-clips", requireAuth, async (req, res) => {
+  const districtId = resolveAdminDistrict(req, res);
+  if (districtId == null) return;
+  const parsed = voiceClipSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+  }
+  const { type, audioUrl, phrase, enabled } = parsed.data;
+  const userId = (req as any).jwtUser?.sub ? Number((req as any).jwtUser.sub) : null;
+  try {
+    // Upsert manual (único por distrito+tipo).
+    const [existing] = await db
+      .select({ id: liveVoiceClipsTable.id })
+      .from(liveVoiceClipsTable)
+      .where(and(eq(liveVoiceClipsTable.districtId, districtId), eq(liveVoiceClipsTable.type, type as any)))
+      .limit(1);
+
+    let row;
+    if (existing) {
+      [row] = await db
+        .update(liveVoiceClipsTable)
+        .set({ audioUrl: audioUrl ?? null, phrase: phrase ?? "", enabled: enabled ?? true, updatedById: userId, updatedAt: new Date() })
+        .where(eq(liveVoiceClipsTable.id, existing.id))
+        .returning();
+    } else {
+      [row] = await db
+        .insert(liveVoiceClipsTable)
+        .values({ districtId, type: type as any, audioUrl: audioUrl ?? null, phrase: phrase ?? "", enabled: enabled ?? true, updatedById: userId })
+        .returning();
+    }
+    return res.json({ ...row, id: String(row.id), updatedAt: row.updatedAt.toISOString() });
+  } catch (err) {
+    req.log.error({ err }, "Failed to upsert voice clip");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── DELETE /live/voice-clips/:id — eliminar un clip (municipalidad) ──────────
+router.delete("/live/voice-clips/:id", requireAuth, async (req, res) => {
+  const user = (req as any).jwtUser;
+  if (!user || !isMunicipalityLevel(user.role)) {
+    return res.status(403).json({ error: "Solo la municipalidad." });
+  }
+  const id = parseInt(req.params.id as string, 10);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Id inválido." });
+  try {
+    const [clip] = await db.select().from(liveVoiceClipsTable).where(eq(liveVoiceClipsTable.id, id)).limit(1);
+    if (!clip) return res.status(404).json({ error: "Clip no encontrado." });
+    if (!checkTenant(req, clip.districtId)) {
+      return res.status(403).json({ error: "No puedes gestionar clips de otro distrito." });
+    }
+    await db.delete(liveVoiceClipsTable).where(eq(liveVoiceClipsTable.id, id));
+    return res.json({ success: true, id: String(id) });
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete voice clip");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

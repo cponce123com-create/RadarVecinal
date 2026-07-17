@@ -9,9 +9,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { listLiveProviders, providerMeta } from "@/lib/liveProviders";
+import { listLiveProviders, providerMeta, type LiveProviderType } from "@/lib/liveProviders";
+import { listVoiceClips } from "@/lib/voiceClips";
 import {
-  getHome, getVoicePrefs, speak, distanceMeters, type VoicePrefs, type HomeLocation,
+  getHome, getVoicePrefs, speak, playClip, distanceMeters, type VoicePrefs, type HomeLocation,
 } from "@/lib/voiceAlerts";
 
 const COOLDOWN_MS = 8 * 60 * 1000; // no repetir el mismo servicio en 8 min
@@ -49,6 +50,22 @@ export function useProximityVoice() {
     staleTime: 8000,
   });
 
+  // Clips de voz grabados del distrito (voz local en vez del TTS). Se refrescan
+  // de vez en cuando; no son críticos.
+  const { data: clips } = useQuery({
+    queryKey: ["voice-clips", currentDistrictId],
+    queryFn: () => listVoiceClips(currentDistrictId as number),
+    enabled: active,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+  const clipByType = new Map<LiveProviderType, { audioUrl: string | null; phrase: string }>();
+  for (const c of clips ?? []) {
+    if (c.enabled) clipByType.set(c.type, { audioUrl: c.audioUrl, phrase: c.phrase });
+  }
+  const clipRef = useRef(clipByType);
+  clipRef.current = clipByType;
+
   // Estado por proveedor: última distancia y último anuncio.
   const stateRef = useRef<Map<string, { lastDist: number; lastAnnounced: number }>>(new Map());
 
@@ -68,9 +85,18 @@ export function useProximityVoice() {
 
       let lastAnnounced = prev?.lastAnnounced ?? 0;
       if (entering && approaching && cooldownOk) {
-        const meta = providerMeta(p.type);
-        const label = p.type === "recolector" ? "El camión recolector" : `El ${meta.label.toLowerCase()}`;
-        speak(announceText(label, d));
+        const clip = clipRef.current.get(p.type);
+        if (clip?.audioUrl) {
+          // Voz grabada por la municipalidad (acento local).
+          playClip(clip.audioUrl);
+        } else if (clip?.phrase) {
+          // Frase personalizada por TTS.
+          speak(clip.phrase);
+        } else {
+          const meta = providerMeta(p.type);
+          const label = p.type === "recolector" ? "El camión recolector" : `El ${meta.label.toLowerCase()}`;
+          speak(announceText(label, d));
+        }
         lastAnnounced = now;
       }
       stateRef.current.set(p.id, { lastDist: d, lastAnnounced });

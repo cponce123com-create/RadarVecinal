@@ -83,7 +83,7 @@ export default function WelcomeModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[71] mx-auto max-w-sm rounded-3xl border border-white/10 bg-card p-6 shadow-2xl"
+            className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[71] mx-auto max-w-sm max-h-[88vh] overflow-y-auto rounded-3xl border border-white/10 bg-card p-6 shadow-2xl"
             role="dialog" aria-modal="true" aria-label="Introducción"
           >
             <button onClick={close} aria-label="Cerrar"

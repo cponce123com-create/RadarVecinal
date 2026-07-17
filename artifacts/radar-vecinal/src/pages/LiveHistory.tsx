@@ -89,7 +89,7 @@ function RouteDetail({ route }: { route: LiveRoute }) {
 
   return (
     <div className="rounded-2xl overflow-hidden border border-white/8 bg-card">
-      <div className="relative" style={{ height: 300 }}>
+      <div className="relative h-[240px] sm:h-[300px]">
         {latlngs.length >= 1 ? (
           <MapContainer
             center={latlngs[0]} zoom={15} zoomControl={false} attributionControl={false}
@@ -283,19 +283,19 @@ export default function LiveHistory() {
         </div>
       </div>
 
-      {/* Controles: fecha + tipo */}
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10">
-          <Calendar className="w-4 h-4 text-primary" />
+      {/* Controles: fecha + tipo (a lo ancho en móvil) */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <label className="flex items-center gap-2 px-3 h-11 rounded-xl bg-white/[0.04] border border-white/10 flex-1">
+          <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
           <input
             type="date" value={date} max={todayStr()}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-transparent text-sm text-white focus:outline-none [color-scheme:dark]"
+            className="bg-transparent text-sm text-white focus:outline-none [color-scheme:dark] w-full"
           />
         </label>
         <select
           value={type} onChange={(e) => setType(e.target.value as LiveProviderType | "")}
-          className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none [color-scheme:dark]"
+          className="px-3 h-11 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none [color-scheme:dark] flex-1"
         >
           <option value="">Todos los servicios</option>
           {PROVIDER_META.map((m) => (

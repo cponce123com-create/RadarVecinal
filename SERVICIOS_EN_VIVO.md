@@ -50,6 +50,43 @@ vende y hace cuánto se le vio.
     marcadores se mueven al llegar nuevos pings.
   - Integrado en `MapPage` con un toggle mostrar/ocultar y contador en vivo.
 
+## Ruta recorrida (línea verde) + historial por fecha
+
+Cada transmisión guarda su **ruta** como puntos (breadcrumbs), submuestreados:
+solo se guarda un punto si el transmisor avanzó **≥ 12 m** desde el último
+(ruta fiel sin inflar la base de datos), con un tope de 5 000 puntos por
+transmisión.
+
+- **En vivo** (`components/LiveProvidersLayer.tsx`): para el **camión
+  recolector** se dibuja una **línea verde** desde que inició su transmisión, así
+  la ciudadanía ve por dónde pasó y comprueba si pasó por su casa. Se refresca
+  cada 12 s.
+- **Historial** (`pages/LiveHistory.tsx`, ruta `/rutas`, menú *Historial de
+  rutas*): eliges una **fecha** (y opcionalmente el tipo de servicio) y ves todas
+  las rutas de ese día en tu distrito. Al seleccionar una, se dibuja su recorrido
+  en un mapa con inicio (🔵) y fin (🟢/🔴 si sigue en curso), más **duración,
+  distancia total y nº de puntos**.
+
+Backend (`routes/live.ts`), tabla `live_tracks` (migración `0030`):
+- `POST /live/start` inserta el primer punto.
+- `POST /live/:id/ping` inserta un punto si avanzó ≥ 12 m (haversine).
+- `GET /live/:id/track` → puntos de una ruta en orden (línea en vivo o detalle).
+- `GET /live/history?districtId=&from=&to=&type=` → resumen de rutas por rango
+  (el cliente manda `from`/`to` del día local; el servidor no asume zona horaria).
+
+## ¿Pasó el recolector por mi casa?
+
+En `/rutas`, una tarjeta permite al vecino compartir su ubicación (GPS) y saber,
+para la fecha elegida, **si el camión pasó cerca, a qué hora y a cuántos metros**:
+
+- `GET /live/passed?districtId=&lat=&lng=&from=&to=&type=`: acota con una caja
+  delimitadora (~2 km, índices de `live_tracks`) y calcula la distancia exacta
+  (haversine) sobre los candidatos para hallar el punto de ruta más cercano.
+- Devuelve `{ nearest: { distanceMeters, at, providerId } | null, passedNear,
+  thresholdMeters }`. `passedNear` es true si el punto más cercano quedó a ≤ 60 m.
+- La UI responde: *"Sí pasó. El recolector estuvo a 25 m de tu casa a las 08:14"*,
+  o *"No pasó muy cerca (lo más cerca: 340 m a las 08:20)"*, o *"No pasó cerca"*.
+
 ## Seguimiento en segundo plano (APK nativo)
 
 `lib/backgroundGeo.ts` unifica el seguimiento con dos implementaciones:
@@ -97,6 +134,16 @@ Para probar la función sin salir a la calle, un **superadmin** ve en
 
 Para verlo moverse: activa el toggle **"En vivo"** en el mapa (esquina superior
 derecha) — el marcador 🧪 avanza cada ~12 s (intervalo de refresco del mapa).
+
+### Panel de diagnóstico (superadmin)
+
+Al final de `/en-vivo`, el superadmin ve **"Transmisiones activas (todos los
+distritos)"** (`GET /live/all`, solo super_admin): lista cada transmisión con su
+**distrito** y hace cuánto se vio. Sirve para resolver el caso típico *"no lo veo
+en el otro celular"*: **una transmisión solo aparece en el mapa de quien está en
+el mismo distrito**. Si la fila dice *"otro distrito"* respecto al que tienes
+seleccionado, ese es el desajuste — pon ambos celulares en el mismo distrito con
+el selector de arriba.
 
 ## Privacidad
 

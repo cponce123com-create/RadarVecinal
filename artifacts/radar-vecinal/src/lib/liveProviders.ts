@@ -91,6 +91,19 @@ export async function listLiveProviders(
   return data.providers ?? [];
 }
 
+export interface LiveProviderAdmin extends LiveProvider {
+  districtId: number;
+  districtName: string | null;
+}
+
+/** Solo super_admin: todas las transmisiones activas de todos los distritos. */
+export async function listAllLiveProviders(): Promise<LiveProviderAdmin[]> {
+  const data = await customFetch<{ providers: LiveProviderAdmin[] }>(
+    `/api/live/all`,
+  );
+  return data.providers ?? [];
+}
+
 export async function startBroadcast(payload: {
   type: LiveProviderType;
   label?: string;
@@ -125,6 +138,74 @@ export async function stopBroadcast(
     method: "POST",
     body: JSON.stringify({ broadcastKey }),
   });
+}
+
+// ── Rutas (breadcrumbs) e historial ─────────────────────────────────────────
+
+export interface TrackPoint {
+  lat: number;
+  lng: number;
+  at: string;
+}
+
+export interface LiveRoute {
+  id: string;
+  type: LiveProviderType;
+  label: string;
+  displayName: string;
+  isActive: boolean;
+  startedAt: string;
+  endedAt: string;
+  points: number;
+}
+
+/** Puntos de la ruta de una transmisión (para la línea en vivo o el historial). */
+export async function getProviderTrack(id: string): Promise<TrackPoint[]> {
+  const data = await customFetch<{ points: TrackPoint[] }>(`/api/live/${id}/track`);
+  return data.points ?? [];
+}
+
+export interface PassedResult {
+  nearest: { distanceMeters: number; at: string; providerId: string } | null;
+  passedNear: boolean;
+  thresholdMeters: number;
+}
+
+/** "¿Pasó el recolector por mi casa?" — punto de ruta más cercano a lat/lng. */
+export async function findWhenPassed(params: {
+  districtId: number;
+  lat: number;
+  lng: number;
+  from: string;
+  to: string;
+  type?: LiveProviderType;
+}): Promise<PassedResult> {
+  const q = new URLSearchParams({
+    districtId: String(params.districtId),
+    lat: String(params.lat),
+    lng: String(params.lng),
+    from: params.from,
+    to: params.to,
+    type: params.type ?? "recolector",
+  });
+  return customFetch<PassedResult>(`/api/live/passed?${q.toString()}`);
+}
+
+/** Historial de rutas de un distrito en un rango de fechas (día local). */
+export async function listLiveHistory(params: {
+  districtId: number;
+  from: string;
+  to: string;
+  type?: LiveProviderType | "";
+}): Promise<LiveRoute[]> {
+  const q = new URLSearchParams({
+    districtId: String(params.districtId),
+    from: params.from,
+    to: params.to,
+  });
+  if (params.type) q.set("type", params.type);
+  const data = await customFetch<{ routes: LiveRoute[] }>(`/api/live/history?${q.toString()}`);
+  return data.routes ?? [];
 }
 
 // ── Persistencia local de la sesión de transmisión ──────────────────────────

@@ -10,11 +10,12 @@ import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet
 import L from "leaflet";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Route as RouteIcon, Calendar, Clock, MapPin, Ruler, AlertCircle, Radio } from "lucide-react";
+import { Route as RouteIcon, Calendar, Clock, MapPin, Ruler, AlertCircle, Radio, Home, LocateFixed, Loader2, CheckCircle2 } from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
 import {
   listLiveHistory,
   getProviderTrack,
+  findWhenPassed,
   providerMeta,
   PROVIDER_META,
   type LiveRoute,
@@ -146,6 +147,96 @@ function RouteDetail({ route }: { route: LiveRoute }) {
   );
 }
 
+// ── "¿Pasó el recolector por mi casa?" ──────────────────────────────────────
+function PassedByCard({
+  districtId, range, dateLabel,
+}: { districtId: number; range: { from: string; to: string }; dateLabel: string }) {
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["passed", districtId, range.from, loc?.lat, loc?.lng],
+    queryFn: () => findWhenPassed({ districtId, lat: loc!.lat, lng: loc!.lng, from: range.from, to: range.to, type: "recolector" }),
+    enabled: !!loc,
+  });
+
+  const locate = () => {
+    if (!navigator.geolocation) { setGeoError("Tu dispositivo no permite geolocalización."); return; }
+    setLocating(true);
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); },
+      (err) => {
+        setLocating(false);
+        setGeoError(err.code === err.PERMISSION_DENIED ? "Permiso de ubicación denegado." : "No se pudo obtener tu ubicación.");
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
+
+  const nearest = data?.nearest ?? null;
+  const passedNear = data?.passedNear ?? false;
+
+  return (
+    <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-emerald-500/[0.06] to-transparent p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Home className="w-4 h-4 text-emerald-400" />
+        <h3 className="text-[13px] font-semibold text-white">¿Pasó el recolector por tu casa?</h3>
+      </div>
+
+      {!loc ? (
+        <>
+          <p className="text-[11.5px] text-muted-foreground leading-relaxed mb-3">
+            Comparte tu ubicación y te digo si el camión pasó cerca el {dateLabel}, a qué hora y a cuántos metros.
+          </p>
+          <button
+            onClick={locate} disabled={locating}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-sm font-semibold hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+          >
+            {locating ? <><Loader2 className="w-4 h-4 animate-spin" /> Ubicando…</> : <><LocateFixed className="w-4 h-4" /> Usar mi ubicación</>}
+          </button>
+          {geoError && <p className="text-[11px] text-red-300 mt-2">{geoError}</p>}
+        </>
+      ) : isFetching ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+          <Loader2 className="w-4 h-4 animate-spin" /> Revisando el recorrido…
+        </div>
+      ) : (
+        <div>
+          {nearest && passedNear ? (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-500/12 border border-emerald-500/40">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[13px] text-emerald-100">
+                <b>Sí pasó.</b> El recolector estuvo a <b>{nearest.distanceMeters} m</b> de tu casa a las{" "}
+                <b>{format(new Date(nearest.at), "HH:mm")}</b>.
+              </p>
+            </div>
+          ) : nearest ? (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[13px] text-amber-100">
+                No pasó muy cerca. Lo más cerca fue a <b>{nearest.distanceMeters} m</b> a las{" "}
+                <b>{format(new Date(nearest.at), "HH:mm")}</b>.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.04] border border-white/10">
+              <AlertCircle className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <p className="text-[13px] text-muted-foreground">
+                El recolector no pasó cerca de tu casa el {dateLabel}.
+              </p>
+            </div>
+          )}
+          <button onClick={locate} className="text-[11px] text-primary hover:underline mt-2">
+            Actualizar mi ubicación
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LiveHistory() {
   const { currentDistrictId, currentDistrict } = useDistrict();
   const [date, setDate] = useState(todayStr());
@@ -212,6 +303,13 @@ export default function LiveHistory() {
           ))}
         </select>
       </div>
+
+      {/* ¿Pasó el recolector por mi casa? */}
+      <PassedByCard
+        districtId={currentDistrictId}
+        range={range}
+        dateLabel={format(new Date(`${date}T00:00:00`), "dd/MM/yyyy")}
+      />
 
       {/* Ruta seleccionada */}
       {selected && (

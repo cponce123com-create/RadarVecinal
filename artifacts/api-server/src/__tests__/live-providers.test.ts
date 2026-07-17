@@ -134,6 +134,40 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     await request(app).post(`/api/live/${id}/stop`).send({ broadcastKey });
   });
 
+  it("'¿pasó por mi casa?' encuentra el punto más cercano y la hora", async () => {
+    const start = await request(app)
+      .post("/api/live/start")
+      .send({ type: "recolector", latitude: -12.05, longitude: -76.95, districtId });
+    const { id, broadcastKey } = start.body;
+    // Recorre pasando MUY cerca de la "casa" (-12.052, -76.95).
+    for (const lat of [-12.051, -12.052, -12.053]) {
+      await request(app).post(`/api/live/${id}/ping`).send({ broadcastKey, latitude: lat, longitude: -76.95 });
+    }
+
+    const from = new Date(Date.now() - 3600_000).toISOString();
+    const to = new Date(Date.now() + 3600_000).toISOString();
+
+    // Casa exactamente sobre un punto de ruta → distancia ~0, passedNear true.
+    const near = await request(app).get(
+      `/api/live/passed?districtId=${districtId}&lat=-12.052&lng=-76.95&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    );
+    expect(near.status).toBe(200);
+    expect(near.body.nearest).toBeTruthy();
+    expect(near.body.nearest.distanceMeters).toBeLessThanOrEqual(60);
+    expect(near.body.passedNear).toBe(true);
+    expect(near.body.nearest.at).toBeTruthy();
+
+    // Casa lejos (>2 km) → sin candidatos en la caja → nearest null.
+    const far = await request(app).get(
+      `/api/live/passed?districtId=${districtId}&lat=-12.20&lng=-77.20&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    );
+    expect(far.status).toBe(200);
+    expect(far.body.nearest).toBeNull();
+    expect(far.body.passedNear).toBe(false);
+
+    await request(app).post(`/api/live/${id}/stop`).send({ broadcastKey });
+  });
+
   it("vendedor con etiqueta libre se guarda y se lista", async () => {
     const start = await request(app)
       .post("/api/live/start")

@@ -165,6 +165,32 @@ export async function getProviderTrack(id: string): Promise<TrackPoint[]> {
   return data.points ?? [];
 }
 
+export interface PassedResult {
+  nearest: { distanceMeters: number; at: string; providerId: string } | null;
+  passedNear: boolean;
+  thresholdMeters: number;
+}
+
+/** "¿Pasó el recolector por mi casa?" — punto de ruta más cercano a lat/lng. */
+export async function findWhenPassed(params: {
+  districtId: number;
+  lat: number;
+  lng: number;
+  from: string;
+  to: string;
+  type?: LiveProviderType;
+}): Promise<PassedResult> {
+  const q = new URLSearchParams({
+    districtId: String(params.districtId),
+    lat: String(params.lat),
+    lng: String(params.lng),
+    from: params.from,
+    to: params.to,
+    type: params.type ?? "recolector",
+  });
+  return customFetch<PassedResult>(`/api/live/passed?${q.toString()}`);
+}
+
 /** Historial de rutas de un distrito en un rango de fechas (día local). */
 export async function listLiveHistory(params: {
   districtId: number;

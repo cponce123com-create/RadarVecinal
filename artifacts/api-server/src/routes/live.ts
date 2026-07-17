@@ -19,7 +19,7 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import { db } from "@workspace/db";
 import { liveProvidersTable, liveTracksTable, districtsTable } from "@workspace/db/schema";
-import { eq, and, gt, gte, lt, sql, asc, desc } from "drizzle-orm";
+import { eq, and, gt, gte, lt, lte, sql, asc, desc } from "drizzle-orm";
 import { optionalAuth, requireAuth } from "./auth";
 import { getDistrictId } from "./tenant";
 
@@ -444,6 +444,80 @@ router.get("/live/history", optionalAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get live history");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── GET /live/passed — "¿pasó el recolector por mi casa?" ───────────────────
+// Dado un punto (lat/lng), una fecha (from/to) y un tipo (por defecto
+// recolector), devuelve el punto de ruta MÁS CERCANO a esa casa: a cuántos
+// metros pasó y a qué hora. Acota con una caja delimitadora (~2 km) y calcula
+// la distancia exacta (haversine) sobre los candidatos.
+const PASSED_BOX_DEG = 0.02; // ~2.2 km alrededor de la casa
+const PASSED_NEAR_METERS = 60; // umbral para considerar "sí pasó cerca"
+
+router.get("/live/passed", optionalAuth, async (req, res) => {
+  const districtId = getDistrictId(req);
+  if (!districtId) {
+    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+  }
+  const lat = parseFloat(String(req.query.lat));
+  const lng = parseFloat(String(req.query.lng));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return res.status(400).json({ error: "lat y lng deben ser números válidos." });
+  }
+  const from = new Date(String(req.query.from ?? ""));
+  const to = new Date(String(req.query.to ?? ""));
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+    return res.status(400).json({ error: "Rango de fechas inválido (from/to)." });
+  }
+  const type = req.query.type ? String(req.query.type) : "recolector";
+
+  try {
+    const conditions: any[] = [
+      eq(liveTracksTable.districtId, districtId),
+      gte(liveTracksTable.recordedAt, from),
+      lt(liveTracksTable.recordedAt, to),
+      gte(liveTracksTable.latitude, lat - PASSED_BOX_DEG),
+      lte(liveTracksTable.latitude, lat + PASSED_BOX_DEG),
+      gte(liveTracksTable.longitude, lng - PASSED_BOX_DEG),
+      lte(liveTracksTable.longitude, lng + PASSED_BOX_DEG),
+    ];
+    if ((PROVIDER_TYPES as readonly string[]).includes(type)) {
+      conditions.push(eq(liveProvidersTable.type, type as any));
+    }
+
+    const rows = await db
+      .select({
+        latitude: liveTracksTable.latitude,
+        longitude: liveTracksTable.longitude,
+        recordedAt: liveTracksTable.recordedAt,
+        providerId: liveTracksTable.providerId,
+      })
+      .from(liveTracksTable)
+      .innerJoin(liveProvidersTable, eq(liveTracksTable.providerId, liveProvidersTable.id))
+      .where(and(...conditions))
+      .limit(20000);
+
+    let best: { distanceMeters: number; at: string; providerId: string } | null = null;
+    for (const p of rows) {
+      const d = distanceMeters(lat, lng, p.latitude, p.longitude);
+      if (!best || d < best.distanceMeters) {
+        best = {
+          distanceMeters: Math.round(d),
+          at: p.recordedAt.toISOString(),
+          providerId: String(p.providerId),
+        };
+      }
+    }
+
+    return res.json({
+      nearest: best,
+      passedNear: !!best && best.distanceMeters <= PASSED_NEAR_METERS,
+      thresholdMeters: PASSED_NEAR_METERS,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to compute passed-by");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

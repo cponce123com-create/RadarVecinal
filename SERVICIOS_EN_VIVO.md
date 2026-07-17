@@ -74,8 +74,18 @@ Backend (`routes/live.ts`), tabla `live_tracks` (migración `0030`):
 - `GET /live/history?districtId=&from=&to=&type=` → resumen de rutas por rango
   (el cliente manda `from`/`to` del día local; el servidor no asume zona horaria).
 
-> Mejora futura sugerida: **"¿pasó por mi casa?"** — el vecino marca su ubicación
-> y la app calcula a qué hora pasó el camión más cerca y a cuántos metros.
+## ¿Pasó el recolector por mi casa?
+
+En `/rutas`, una tarjeta permite al vecino compartir su ubicación (GPS) y saber,
+para la fecha elegida, **si el camión pasó cerca, a qué hora y a cuántos metros**:
+
+- `GET /live/passed?districtId=&lat=&lng=&from=&to=&type=`: acota con una caja
+  delimitadora (~2 km, índices de `live_tracks`) y calcula la distancia exacta
+  (haversine) sobre los candidatos para hallar el punto de ruta más cercano.
+- Devuelve `{ nearest: { distanceMeters, at, providerId } | null, passedNear,
+  thresholdMeters }`. `passedNear` es true si el punto más cercano quedó a ≤ 60 m.
+- La UI responde: *"Sí pasó. El recolector estuvo a 25 m de tu casa a las 08:14"*,
+  o *"No pasó muy cerca (lo más cerca: 340 m a las 08:20)"*, o *"No pasó cerca"*.
 
 ## Seguimiento en segundo plano (APK nativo)
 

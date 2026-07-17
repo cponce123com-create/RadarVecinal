@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DistrictProvider } from "@/contexts/DistrictContext";
 import { usePanicAlertStream } from "@/lib/usePanicAlertStream";
+import { useProximityVoice } from "@/hooks/useProximityVoice";
 import { initApiBaseUrl } from "@/lib/apiConfig";
 
 // Inicializar URL base de la API (detecta Capacitor vs web automáticamente)
@@ -81,6 +82,12 @@ function GlobalPanicStream() {
   return null;
 }
 
+// Aviso por voz cuando un servicio en vivo se acerca a tu casa (app abierta).
+function ProximityVoiceWatcher() {
+  useProximityVoice();
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -151,6 +158,7 @@ function App() {
               <Router />
             </WouterRouter>
             <GlobalPanicStream />
+            <ProximityVoiceWatcher />
             <Toaster />
           </DistrictProvider>
         </AuthProvider>

@@ -23,12 +23,15 @@ import {
   liveTracksTable,
   liveDevicesTable,
   liveVoiceClipsTable,
+  proximitySubscriptionsTable,
   districtsTable,
 } from "@workspace/db/schema";
 import { eq, and, gt, gte, lt, lte, sql, asc, desc } from "drizzle-orm";
 import { optionalAuth, requireAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { isMunicipalityLevel } from "../lib/roles";
+import { sendProximityPush } from "../lib/fcm";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -54,6 +57,95 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+// No repetir el aviso push del mismo servicio al mismo vecino en 8 min.
+const PUSH_COOLDOWN_MS = 8 * 60 * 1000;
+
+const PUSH_LABEL: Record<string, { emoji: string; label: string }> = {
+  recolector: { emoji: "🚛", label: "El camión recolector" },
+  panadero: { emoji: "🍞", label: "El panadero" },
+  lechero: { emoji: "🥛", label: "El lechero" },
+  tamalero: { emoji: "🫔", label: "La tamalera" },
+  gasero: { emoji: "🔥", label: "El gasero" },
+  agua: { emoji: "💧", label: "El repartidor de agua" },
+  vendedor: { emoji: "🍲", label: "El vendedor" },
+  otro: { emoji: "📍", label: "El servicio" },
+};
+
+/**
+ * notifyProximity — Al moverse un proveedor, avisa por push a los vecinos cuya
+ * casa quedó dentro del radio (con la app cerrada). Best-effort, no bloquea el
+ * ping. Respeta el radio, los tipos elegidos y un enfriamiento por (vecino,tipo).
+ */
+async function notifyProximity(p: {
+  districtId: number;
+  type: string;
+  latitude: number;
+  longitude: number;
+}): Promise<void> {
+  try {
+    const subs = await db
+      .select()
+      .from(proximitySubscriptionsTable)
+      .where(
+        and(
+          eq(proximitySubscriptionsTable.districtId, p.districtId),
+          eq(proximitySubscriptionsTable.enabled, true),
+        ),
+      )
+      .limit(2000);
+    if (subs.length === 0) return;
+
+    // Frase personalizada (voz grabada) si el distrito la definió.
+    const [clip] = await db
+      .select({ phrase: liveVoiceClipsTable.phrase, enabled: liveVoiceClipsTable.enabled })
+      .from(liveVoiceClipsTable)
+      .where(
+        and(
+          eq(liveVoiceClipsTable.districtId, p.districtId),
+          eq(liveVoiceClipsTable.type, p.type as any),
+        ),
+      )
+      .limit(1);
+
+    const meta = PUSH_LABEL[p.type] ?? PUSH_LABEL.otro;
+    const now = Date.now();
+
+    for (const s of subs) {
+      const types = Array.isArray(s.types) ? (s.types as string[]) : [];
+      if (!types.includes(p.type)) continue;
+
+      const d = distanceMeters(s.homeLat, s.homeLng, p.latitude, p.longitude);
+      if (d > s.radiusM) continue;
+
+      const cooldowns = (s.cooldowns && typeof s.cooldowns === "object" ? s.cooldowns : {}) as Record<string, number>;
+      if (cooldowns[p.type] && now - cooldowns[p.type] < PUSH_COOLDOWN_MS) continue;
+
+      const body =
+        clip?.enabled && clip.phrase
+          ? clip.phrase
+          : `${meta.label} está cerca de tu casa.`;
+
+      const sent = await sendProximityPush({
+        token: s.pushToken,
+        title: `${meta.emoji} Servicio cerca`,
+        body,
+        districtId: p.districtId,
+        providerType: p.type,
+      });
+
+      if (sent) {
+        await db
+          .update(proximitySubscriptionsTable)
+          .set({ cooldowns: { ...cooldowns, [p.type]: now } })
+          .where(eq(proximitySubscriptionsTable.id, s.id))
+          .catch(() => {});
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, "[live] notifyProximity failed");
+  }
 }
 
 const PROVIDER_TYPES = [
@@ -285,6 +377,7 @@ router.post("/live/:id/ping", async (req, res) => {
       .select({
         broadcastKey: liveProvidersTable.broadcastKey,
         districtId: liveProvidersTable.districtId,
+        type: liveProvidersTable.type,
         latitude: liveProvidersTable.latitude,
         longitude: liveProvidersTable.longitude,
       })
@@ -320,6 +413,9 @@ router.post("/live/:id/ping", async (req, res) => {
           .catch(() => {});
       }
     }
+
+    // Aviso push a vecinos cercanos (best-effort, no bloquea el ping).
+    void notifyProximity({ districtId: row.districtId, type: row.type, latitude, longitude });
 
     return res.json({ ok: true });
   } catch (err) {
@@ -787,6 +883,9 @@ router.post("/live/device/:deviceKey/ping", async (req, res) => {
         .catch(() => {});
     }
 
+    // Aviso push a vecinos cercanos (best-effort).
+    void notifyProximity({ districtId: device.districtId, type: device.type, latitude, longitude });
+
     return res.json({ ok: true, providerId: String(providerId) });
   } catch (err) {
     req.log.error({ err }, "Failed device ping");
@@ -810,6 +909,70 @@ router.post("/live/device/:deviceKey/stop", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed device stop");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Suscripción de proximidad (aviso push con la app cerrada)
+// ════════════════════════════════════════════════════════════════════════════
+
+const proxSubSchema = z.object({
+  pushToken: z.string().min(10).max(500),
+  districtId: z.number().int(),
+  homeLat: z.number().min(-90).max(90),
+  homeLng: z.number().min(-180).max(180),
+  radiusM: z.number().int().min(50).max(2000).optional().default(300),
+  types: z.array(z.enum(PROVIDER_TYPES)).optional().default(["recolector"]),
+  enabled: z.boolean().optional().default(true),
+});
+
+// ── PUT /live/proximity-subscription — registrar/actualizar (por token) ─────
+router.put("/live/proximity-subscription", optionalAuth, async (req, res) => {
+  const parsed = proxSubSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+  }
+  const d = parsed.data;
+  try {
+    const [existing] = await db
+      .select({ id: proximitySubscriptionsTable.id })
+      .from(proximitySubscriptionsTable)
+      .where(eq(proximitySubscriptionsTable.pushToken, d.pushToken))
+      .limit(1);
+
+    if (existing) {
+      await db
+        .update(proximitySubscriptionsTable)
+        .set({
+          districtId: d.districtId, homeLat: d.homeLat, homeLng: d.homeLng,
+          radiusM: d.radiusM, types: d.types, enabled: d.enabled, updatedAt: new Date(),
+        })
+        .where(eq(proximitySubscriptionsTable.id, existing.id));
+    } else {
+      await db.insert(proximitySubscriptionsTable).values({
+        districtId: d.districtId, pushToken: d.pushToken, homeLat: d.homeLat, homeLng: d.homeLng,
+        radiusM: d.radiusM, types: d.types, enabled: d.enabled,
+      });
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to save proximity subscription");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── DELETE /live/proximity-subscription — darse de baja (por token) ─────────
+router.delete("/live/proximity-subscription", async (req, res) => {
+  const token = req.body?.pushToken;
+  if (!token || typeof token !== "string") {
+    return res.status(400).json({ error: "Se requiere pushToken." });
+  }
+  try {
+    await db.delete(proximitySubscriptionsTable).where(eq(proximitySubscriptionsTable.pushToken, token));
+    return res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete proximity subscription");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

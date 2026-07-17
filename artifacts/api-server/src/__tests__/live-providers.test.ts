@@ -49,6 +49,7 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     if (!db) return;
     await db.execute(sql`DELETE FROM "live_tracks" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "live_providers" WHERE "district_id" = ${districtId}`);
+    await db.execute(sql`DELETE FROM "proximity_subscriptions" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "live_voice_clips" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "live_devices" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "users" WHERE "district_id" = ${districtId}`);
@@ -281,6 +282,53 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     expect(del.status).toBe(200);
     const list3 = await request(app).get(`/api/live/voice-clips?districtId=${districtId}`);
     expect(list3.body.clips.find((c: any) => c.type === "tamalero")).toBeUndefined();
+  });
+
+  it("suscripción de proximidad: upsert por token, valida y da de baja", async () => {
+    const token = `tok-${Date.now()}`;
+
+    // Falta pushToken → 400.
+    const bad = await request(app)
+      .put("/api/live/proximity-subscription")
+      .send({ districtId, homeLat: -12.04, homeLng: -76.97 });
+    expect(bad.status).toBe(400);
+
+    // Alta.
+    const put1 = await request(app)
+      .put("/api/live/proximity-subscription")
+      .send({ pushToken: token, districtId, homeLat: -12.04, homeLng: -76.97, radiusM: 300, types: ["recolector"] });
+    expect(put1.status).toBe(200);
+
+    // Segundo PUT del mismo token actualiza (no duplica) — token es único.
+    const put2 = await request(app)
+      .put("/api/live/proximity-subscription")
+      .send({ pushToken: token, districtId, homeLat: -12.05, homeLng: -76.98, radiusM: 500, types: ["recolector", "tamalero"] });
+    expect(put2.status).toBe(200);
+
+    const [{ count }] = await db
+      .execute(sql`SELECT count(*)::int AS count FROM "proximity_subscriptions" WHERE "push_token" = ${token}`)
+      .then((r: any) => r.rows ?? r);
+    expect(Number(count)).toBe(1);
+
+    // Un ping de proveedor cercano NO rompe (aunque FCM no esté configurado).
+    const start = await request(app)
+      .post("/api/live/start")
+      .send({ type: "recolector", latitude: -12.05, longitude: -76.98, districtId });
+    const ping = await request(app)
+      .post(`/api/live/${start.body.id}/ping`)
+      .send({ broadcastKey: start.body.broadcastKey, latitude: -12.0505, longitude: -76.98 });
+    expect(ping.status).toBe(200);
+    await request(app).post(`/api/live/${start.body.id}/stop`).send({ broadcastKey: start.body.broadcastKey });
+
+    // Baja.
+    const del = await request(app)
+      .delete("/api/live/proximity-subscription")
+      .send({ pushToken: token });
+    expect(del.status).toBe(200);
+    const [{ count: c2 }] = await db
+      .execute(sql`SELECT count(*)::int AS count FROM "proximity_subscriptions" WHERE "push_token" = ${token}`)
+      .then((r: any) => r.rows ?? r);
+    expect(Number(c2)).toBe(0);
   });
 
   it("vendedor con etiqueta libre se guarda y se lista", async () => {

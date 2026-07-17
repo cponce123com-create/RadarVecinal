@@ -137,6 +137,26 @@ así que la voz suena **con la app abierta**. Para avisos con la app cerrada
 (como Maps) haría falta **push FCM** (infraestructura ya existente, fase 2) o el
 **APK nativo con servicio + TTS nativo** (fase 3).
 
+### Voz propia grabada (acento local) — panel admin → "Audios"
+
+En vez del TTS robótico, el superadmin/municipalidad puede **grabar su propia
+voz** (o subir un audio) por tipo de servicio y distrito: *"Vecino, la tamalera
+está cerca"*. La app reproduce ese clip en el aviso de cercanía; si no hay clip,
+usa el TTS como respaldo.
+
+- Panel admin, pestaña **Audios**: por cada servicio (recolector, tamalero,
+  panadero, lechero, gasero, agua) puede **grabar** (≤20 s, reutiliza
+  `VoiceNoteRecorder` → Cloudinary), **subir** un archivo, **escuchar**, editar
+  la **frase** (respaldo TTS), activar/desactivar y **quitar** el audio.
+- Backend (tabla `live_voice_clips`, migración `0032`, único por distrito+tipo):
+  - `GET /live/voice-clips?districtId=` (público) — la app del vecino los
+    obtiene para reproducirlos.
+  - `PUT /live/voice-clips` (municipalidad, aislado por distrito) — upsert.
+  - `DELETE /live/voice-clips/:id` (municipalidad).
+- Reproducción: `lib/voiceAlerts.ts#playClip` usa un `<audio>` que se desbloquea
+  con el mismo gesto del usuario que activa los avisos; `useProximityVoice`
+  reproduce el clip del tipo si existe, si no habla por TTS.
+
 ## Seguimiento en segundo plano (APK nativo)
 
 `lib/backgroundGeo.ts` unifica el seguimiento con dos implementaciones:

@@ -328,6 +328,25 @@ export const liveTracksTable = pgTable("live_tracks", {
   recordedAt: timestamp("recorded_at").notNull().defaultNow(),
 });
 
+// ── Clips de voz para los avisos ("Vecino, la tamalera está cerca") ─────────
+// El superadmin/municipalidad graba o sube un audio por tipo de servicio y
+// distrito, para que el aviso suene con la voz y el acento locales en vez del
+// TTS robótico. Si no hay clip, la app usa el TTS como respaldo.
+export const liveVoiceClipsTable = pgTable("live_voice_clips", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  type: liveProviderTypeEnum("type").notNull(),
+  audioUrl: text("audio_url"), // URL de Cloudinary (null = solo frase para TTS)
+  phrase: text("phrase").notNull().default(""), // texto del aviso (respaldo TTS)
+  enabled: boolean("enabled").notNull().default(true),
+  updatedById: integer("updated_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
 export const adSlotsTable = pgTable("ad_slots", {
   id: serial("id").primaryKey(),

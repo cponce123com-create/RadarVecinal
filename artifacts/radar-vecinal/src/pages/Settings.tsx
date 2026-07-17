@@ -394,7 +394,7 @@ export default function Settings() {
               <div className="flex items-center gap-1">
                 {[200, 300, 500].map(m => (
                   <button key={m} onClick={() => changeVoiceDistance(m)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all border ${
+                    className={`px-3 py-2 min-h-[38px] rounded-lg text-[12px] font-semibold transition-all border ${
                       voiceDistance === m ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
                     }`}>
                     {m} m
@@ -414,7 +414,7 @@ export default function Settings() {
                   const on = voiceTypes.includes(t);
                   return (
                     <button key={t} onClick={() => toggleVoiceType(t)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-full text-[12px] font-medium border transition-all ${
                         on ? "bg-emerald-500/15 border-emerald-500/45 text-emerald-200" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
                       }`}>
                       <span>{meta.emoji}</span> {meta.label}

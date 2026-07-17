@@ -49,6 +49,7 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     if (!db) return;
     await db.execute(sql`DELETE FROM "live_tracks" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "live_providers" WHERE "district_id" = ${districtId}`);
+    await db.execute(sql`DELETE FROM "live_voice_clips" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "live_devices" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "users" WHERE "district_id" = ${districtId}`);
     await db.execute(sql`DELETE FROM "districts" WHERE "id" = ${districtId}`);
@@ -240,6 +241,46 @@ describe.skipIf(!process.env.DATABASE_URL)("Servicios en vivo", () => {
     // Clave inválida → 404.
     const bad = await request(app).post(`/api/live/device/claveinventada/ping`).send({ latitude: -12, longitude: -76 });
     expect(bad.status).toBe(404);
+  });
+
+  it("clips de voz: admin sube/actualiza y el vecino los lista; borrar funciona", async () => {
+    // Sin token no se puede escribir.
+    const noAuth = await request(app)
+      .put("/api/live/voice-clips")
+      .send({ type: "tamalero", audioUrl: "https://cdn.test/a.mp3", districtId });
+    expect(noAuth.status).toBe(401);
+
+    // Admin crea el clip.
+    const created = await request(app)
+      .put("/api/live/voice-clips")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ type: "tamalero", audioUrl: "https://cdn.test/tamalera.mp3", phrase: "Vecino, la tamalera está cerca.", districtId });
+    expect(created.status).toBe(200);
+    expect(created.body.audioUrl).toBe("https://cdn.test/tamalera.mp3");
+    const clipId = created.body.id;
+
+    // El vecino (sin login) los lista para reproducir.
+    const list = await request(app).get(`/api/live/voice-clips?districtId=${districtId}`);
+    expect(list.status).toBe(200);
+    const mine = list.body.clips.find((c: any) => c.type === "tamalero");
+    expect(mine.audioUrl).toBe("https://cdn.test/tamalera.mp3");
+    expect(mine.phrase).toContain("tamalera");
+
+    // Segundo PUT del mismo tipo actualiza (no duplica).
+    const upd = await request(app)
+      .put("/api/live/voice-clips")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ type: "tamalero", audioUrl: "https://cdn.test/tamalera2.mp3", phrase: "Vecino, llegó la tamalera.", districtId });
+    expect(upd.body.id).toBe(clipId);
+    const list2 = await request(app).get(`/api/live/voice-clips?districtId=${districtId}`);
+    expect(list2.body.clips.filter((c: any) => c.type === "tamalero").length).toBe(1);
+    expect(list2.body.clips.find((c: any) => c.type === "tamalero").audioUrl).toBe("https://cdn.test/tamalera2.mp3");
+
+    // Eliminar.
+    const del = await request(app).delete(`/api/live/voice-clips/${clipId}`).set("Authorization", `Bearer ${adminToken}`);
+    expect(del.status).toBe(200);
+    const list3 = await request(app).get(`/api/live/voice-clips?districtId=${districtId}`);
+    expect(list3.body.clips.find((c: any) => c.type === "tamalero")).toBeUndefined();
   });
 
   it("vendedor con etiqueta libre se guarda y se lista", async () => {

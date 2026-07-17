@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Clock, MapPin, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
+import { Search, Clock, MapPin, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, ClipboardList } from "lucide-react";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
 import { useDistrict } from "@/contexts/DistrictContext";
+import EmptyState from "@/components/EmptyState";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -123,6 +124,7 @@ export default function History() {
           </button>
         </div>
       ) : filtered.length === 0 ? (
+        (search || category !== "all") ? (
         <div className="py-16 flex flex-col items-center text-center">
           <div className="w-16 h-16 rounded-2xl bg-card border border-white/5 flex items-center justify-center mb-4">
             <Search className="w-7 h-7 text-muted-foreground/40" />
@@ -131,15 +133,22 @@ export default function History() {
           <p className="text-sm text-muted-foreground">
             {search ? `No hay incidentes que coincidan con "${search}"` : "No hay incidentes en esta categoría."}
           </p>
-          {(search || category !== "all") && (
-            <button
-              onClick={() => { setSearch(""); setCategory("all"); }}
-              className="mt-4 text-xs text-primary hover:text-blue-300 transition-colors"
-            >
-              Limpiar filtros
-            </button>
-          )}
+          <button
+            onClick={() => { setSearch(""); setCategory("all"); }}
+            className="mt-4 text-xs text-primary hover:text-blue-300 transition-colors"
+          >
+            Limpiar filtros
+          </button>
         </div>
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            title="Aún no hay incidentes"
+            message="Cuando tú o tus vecinos reporten algo en el distrito, aquí quedará el historial. ¿Viste algo? Sé el primero en avisar."
+            actionLabel="Reportar incidente"
+            actionHref="/reportar"
+          />
+        )
       ) : (
         <div
           style={{ maxHeight: 'calc(100dvh - 24rem)', overflowY: 'auto' }}

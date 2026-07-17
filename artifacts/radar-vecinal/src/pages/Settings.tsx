@@ -4,11 +4,12 @@ import {
   Settings as SettingsIcon, Bell, Volume2, Map, Shield, Lock,
   Smartphone, Globe, Trash2, Download, ChevronRight, AlertTriangle,
   Eye, EyeOff, Wifi, BellOff, Radius, SlidersHorizontal,
-  Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar,
+  Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar, HelpCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { playAlertSound } from "@/lib/alertSound";
+import { openWelcome } from "@/components/WelcomeModal";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
@@ -410,6 +411,16 @@ export default function Settings() {
       {/* ── Cuenta ── */}
       <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible">
         <SettingSection title="Cuenta" icon={Smartphone} iconColor="text-muted-foreground">
+          <SettingRow
+            label="Ver introducción"
+            sub="Repasa cómo funciona Radar Vecinal"
+            onClick={openWelcome}
+          >
+            <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-white">
+              <HelpCircle className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </SettingRow>
           <SettingRow
             label="Exportar mis datos"
             sub="Descarga un archivo con todos tus reportes y actividad"

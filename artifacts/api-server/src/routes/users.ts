@@ -47,7 +47,17 @@ router.get("/users", requireAuth, requireAdmin, async (req, res) => {
         ),
       );
     }
-    if (role && ["user", "viewer", "moderator", "municipal", "admin", "super_admin"].includes(role)) {
+    if (
+      role &&
+      [
+        "user",
+        "viewer",
+        "moderator",
+        "municipal",
+        "admin",
+        "super_admin",
+      ].includes(role)
+    ) {
       conditions.push(eq(usersTable.role, role as any));
     }
     if (status === "banned") {

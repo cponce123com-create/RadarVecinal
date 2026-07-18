@@ -38,28 +38,99 @@ describe.skipIf(!process.env.DATABASE_URL)("Filtros de moderación", () => {
 
     const [admin] = await db
       .insert(usersTable)
-      .values({ name: `${tag}_admin`, email: `${tag}_admin@t.pe`, role: "super_admin", sector: "T", district: "T", districtId, isActive: true })
+      .values({
+        name: `${tag}_admin`,
+        email: `${tag}_admin@t.pe`,
+        role: "super_admin",
+        sector: "T",
+        district: "T",
+        districtId,
+        isActive: true,
+      })
       .returning();
-    adminToken = jwt.sign({ sub: String(admin.id), role: "super_admin" }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+    adminToken = jwt.sign(
+      { sub: String(admin.id), role: "super_admin" },
+      process.env.JWT_SECRET!,
+      { expiresIn: "1h" },
+    );
 
     // Usuarios con distintos estados/roles
     await db.insert(usersTable).values([
-      { name: `${tag}_activo`, email: `${tag}_a@t.pe`, role: "user", sector: "T", district: "T", districtId, isActive: true },
-      { name: `${tag}_susp`, email: `${tag}_s@t.pe`, role: "user", sector: "T", district: "T", districtId, isActive: true, suspendedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000) },
-      { name: `${tag}_ban`, email: `${tag}_b@t.pe`, role: "user", sector: "T", district: "T", districtId, isActive: false },
-      { name: `${tag}_mod`, email: `${tag}_m@t.pe`, role: "moderator", sector: "T", district: "T", districtId, isActive: true },
+      {
+        name: `${tag}_activo`,
+        email: `${tag}_a@t.pe`,
+        role: "user",
+        sector: "T",
+        district: "T",
+        districtId,
+        isActive: true,
+      },
+      {
+        name: `${tag}_susp`,
+        email: `${tag}_s@t.pe`,
+        role: "user",
+        sector: "T",
+        district: "T",
+        districtId,
+        isActive: true,
+        suspendedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      },
+      {
+        name: `${tag}_ban`,
+        email: `${tag}_b@t.pe`,
+        role: "user",
+        sector: "T",
+        district: "T",
+        districtId,
+        isActive: false,
+      },
+      {
+        name: `${tag}_mod`,
+        email: `${tag}_m@t.pe`,
+        role: "moderator",
+        sector: "T",
+        district: "T",
+        districtId,
+        isActive: true,
+      },
     ]);
 
     // Reportes con títulos y fechas distintas
     await db.insert(reportsTable).values([
-      { title: `${tag} incendio grande`, description: "d", category: "fire", urgency: "high", latitude: -12, longitude: -76, sector: "Centro", districtId, district: "FILT", authorName: "x", createdAt: new Date("2020-01-01") },
-      { title: `${tag} robo esquina`, description: "d", category: "robbery", urgency: "high", latitude: -12, longitude: -76, sector: "Centro", districtId, district: "FILT", authorName: "x", createdAt: new Date() },
+      {
+        title: `${tag} incendio grande`,
+        description: "d",
+        category: "fire",
+        urgency: "high",
+        latitude: -12,
+        longitude: -76,
+        sector: "Centro",
+        districtId,
+        district: "FILT",
+        authorName: "x",
+        createdAt: new Date("2020-01-01"),
+      },
+      {
+        title: `${tag} robo esquina`,
+        description: "d",
+        category: "robbery",
+        urgency: "high",
+        latitude: -12,
+        longitude: -76,
+        sector: "Centro",
+        districtId,
+        district: "FILT",
+        authorName: "x",
+        createdAt: new Date(),
+      },
     ]);
   });
 
   afterAll(async () => {
     if (!db) return;
-    await db.execute(sql`DELETE FROM "reports" WHERE "title" LIKE ${tag + "%"}`);
+    await db.execute(
+      sql`DELETE FROM "reports" WHERE "title" LIKE ${tag + "%"}`,
+    );
     await db.execute(sql`DELETE FROM "users" WHERE "name" LIKE ${tag + "%"}`);
     await db.execute(sql`DELETE FROM "districts" WHERE "slug" = ${tag}`);
   });
@@ -74,7 +145,9 @@ describe.skipIf(!process.env.DATABASE_URL)("Filtros de moderación", () => {
     expect(names).toContain(`${tag}_susp`);
     expect(names).not.toContain(`${tag}_ban`);
     expect(names).not.toContain(`${tag}_activo`);
-    expect(res.body.users.every((u: any) => u.status === "suspended")).toBe(true);
+    expect(res.body.users.every((u: any) => u.status === "suspended")).toBe(
+      true,
+    );
   });
 
   it("GET /users?status=banned devuelve solo baneados", async () => {
@@ -106,9 +179,13 @@ describe.skipIf(!process.env.DATABASE_URL)("Filtros de moderación", () => {
   });
 
   it("GET /reports?from filtra por fecha (excluye los antiguos)", async () => {
-    const res = await get(`/api/reports?districtId=${districtId}&from=2021-01-01`);
+    const res = await get(
+      `/api/reports?districtId=${districtId}&from=2021-01-01`,
+    );
     const titles = res.body.reports.map((r: any) => r.title);
     expect(titles.some((t: string) => t.includes("robo"))).toBe(true);
-    expect(titles.some((t: string) => t.includes("incendio grande"))).toBe(false);
+    expect(titles.some((t: string) => t.includes("incendio grande"))).toBe(
+      false,
+    );
   });
 });

@@ -657,7 +657,9 @@ export default function ReportForm() {
                 {/* Share button */}
                 <button
                   onClick={async () => {
-                    const shareUrl = `${window.location.origin}/reporte/${reportSuccess.id}`;
+                    // La ruta /reporte/:id no existe (aún no hay página de
+                    // detalle); se comparte el mapa, donde el reporte es visible.
+                    const shareUrl = `${window.location.origin}/mapa`;
                     if (navigator.share) {
                       try { await navigator.share({ title: "Reporte RadarVecinal", text: reportSuccess.title, url: shareUrl }); } catch { /* user cancelled */ }
                     } else {

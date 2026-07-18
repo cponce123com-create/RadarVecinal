@@ -230,7 +230,10 @@ export async function sendProximityPush(data: {
     });
     return true;
   } catch (err) {
-    logger.error({ err }, "[FCM] Error al enviar push de proximidad (best-effort)");
+    logger.error(
+      { err },
+      "[FCM] Error al enviar push de proximidad (best-effort)",
+    );
     return false;
   }
 }

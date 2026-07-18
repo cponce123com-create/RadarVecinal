@@ -283,7 +283,9 @@ export const liveProvidersTable = pgTable("live_providers", {
   // Si la transmisión proviene de un dispositivo oficial registrado (camión
   // recolector con celular montado o GPS vehicular), se enlaza aquí y se marca
   // como verificada (distintivo "Oficial" en el mapa).
-  deviceId: integer("device_id").references((): AnyPgColumn => liveDevicesTable.id),
+  deviceId: integer("device_id").references(
+    (): AnyPgColumn => liveDevicesTable.id,
+  ),
   verified: boolean("verified").notNull().default(false),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   // Cada ping actualiza `updatedAt`; sirve de "última vez visto" (lastSeen).

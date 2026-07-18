@@ -36,9 +36,13 @@ describe.skipIf(!process.env.DATABASE_URL)("Sanciones aplicadas", () => {
         reportsCount: 0,
       })
       .returning();
-    const token = jwt.sign({ sub: String(u.id), role: "user" }, process.env.JWT_SECRET!, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { sub: String(u.id), role: "user" },
+      process.env.JWT_SECRET!,
+      {
+        expiresIn: "1h",
+      },
+    );
     return { id: u.id, token };
   }
 
@@ -68,14 +72,21 @@ describe.skipIf(!process.env.DATABASE_URL)("Sanciones aplicadas", () => {
 
     const [d] = await db
       .insert(districtsTable)
-      .values({ slug: `sanc-${Date.now()}`, name: "SANC", province: "T", department: "T" })
+      .values({
+        slug: `sanc-${Date.now()}`,
+        name: "SANC",
+        province: "T",
+        department: "T",
+      })
       .returning();
     districtId = d.id;
   });
 
   afterAll(async () => {
     if (!db) return;
-    await db.execute(sql`DELETE FROM "reports" WHERE "title" = 'Prueba sanción'`);
+    await db.execute(
+      sql`DELETE FROM "reports" WHERE "title" = 'Prueba sanción'`,
+    );
     await db.execute(sql`DELETE FROM "users" WHERE "name" LIKE 'sanc_%'`);
     await db.execute(sql`DELETE FROM "districts" WHERE "slug" LIKE 'sanc-%'`);
   });

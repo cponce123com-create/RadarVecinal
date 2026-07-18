@@ -20,7 +20,7 @@ RadarVecinal tiene una base UX sólida: navegación mobile-first con bottom-nav,
 |---|---|---|---|---|
 | UX-NAV1 | **Bottom-nav + sidebar + drawer** usando 3 patrones de navegación distintos | Medio | P3 | Unificar: en mobile solo bottom-nav, en desktop sidebar + topbar. El drawer es redundante. |
 | UX-NAV2 | Subtítulo del topbar tenía `"GEOLOCALIZACIÓN · SAN RAMÓN"` hardcodeado | Medio | P1 | ✅ **Corregido** — ahora muestra el distrito activo dinámicamente |
-| UX-NAV3 | Botón "Nuevo Reporte" FAB (flotante) visible siempre, incluso sin sesión | Bajo | P2 | Mostrarlo solo si el usuario está autenticado, o redirigir a login con mensaje claro |
+| UX-NAV3 | Botón "Nuevo Reporte" FAB (flotante) visible siempre, incluso sin sesión | Bajo | P2 | ✅ **Corregido** — si no hay sesión, abre el modal de inicio de sesión en vez de navegar |
 | UX-NAV4 | Sin indicador de página actual en títulos del `<title>` del navegador | Bajo | P2 | ✅ **Corregido** (parte de mejoras SEO) |
 | UX-NAV5 | En el menú de navegación no se indica visualmente la ruta activa en todos los menús | Medio | P1 | ✅ **Corregido** — `aria-current="page"` añadido en sidebar, drawer y bottom-nav |
 
@@ -44,7 +44,7 @@ RadarVecinal tiene una base UX sólida: navegación mobile-first con bottom-nav,
 |---|---|---|---|---|
 | UX-RP1 | Formulario de reporte largo sin indicador de progreso | Medio | P2 | Agregar steps o secciones colapsables (ubicación → categoría → descripción → foto) |
 | UX-RP2 | Subida de fotos sin preview clara ni feedback de progreso | Medio | P1 | ✅ **Corregido** (subida a Cloudinary con `useUpload`) — verificar que incluya barra de progreso |
-| UX-RP3 | Sin confirmación visual post-reporte exitoso | Alto | P1 | Pantalla de éxito con: "Reporte enviado ✓", tiempo estimado de revisión, opción de compartir |
+| UX-RP3 | Sin confirmación visual post-reporte exitoso | Alto | P1 | ✅ **Corregido** — pantalla de éxito con código de reporte, tiempo estimado, compartir y volver al inicio |
 | UX-RP4 | Categorías de reporte sin íconos que las identifiquen rápido | Bajo | P3 | Asignar íconos (`lucide-react`) a cada categoría para facilitar el escaneo visual |
 | UX-RP5 | Sin feedback háptico ni sonoro al confirmar un reporte en mobile | Bajo | P3 | Vibración nativa (`navigator.vibrate`) en dispositivos compatibles |
 
@@ -66,7 +66,7 @@ RadarVecinal tiene una base UX sólida: navegación mobile-first con bottom-nav,
 
 | # | Hallazgo | Impacto | Prioridad | Recomendación |
 |---|---|---|---|---|
-| UX-AL1 | Sin indicador visual de alertas activas no leídas en el icono de campana | Alto | P1 | Badge numérico con contador de alertas no leídas |
+| UX-AL1 | Sin indicador visual de alertas activas no leídas en el icono de campana | Alto | P1 | ✅ **Corregido** — badge numérico con conteo real de alertas activas (>9 muestra "9+") |
 | UX-AL2 | Alertas de pánico no priorizadas visualmente sobre otros reportes | Medio | P2 | Tarjetas de alerta con borde rojo/anaranjado + ribbon "URGENTE" |
 | UX-AL3 | Sin sonidos de alerta por proximidad (arquitectura preparada, sin implementar) | Medio | P3 | Depende de funcionalidad de producto; la arquitectura está lista |
 | UX-AL4 | Toast de nueva alerta sin vibración ni persistencia en mobile | Bajo | P3 | Usar notificaciones push reales en producción |
@@ -159,9 +159,10 @@ RadarVecinal tiene una base UX sólida: navegación mobile-first con bottom-nav,
 | Prioridad | Ítem | Esfuerzo |
 |---|---|---|
 | **P1** | ✅ Empty states en todas las pantallas sin datos | Medio |
-| **P1** | ⚠️ Feedback claro post-reporte (pantalla de éxito con ID) | Bajo |
-| **P1** | ✅ Badge de alertas no leídas en campana | Bajo |
+| **P1** | ✅ Feedback claro post-reporte (pantalla de éxito con ID) | Bajo |
+| **P1** | ✅ Badge numérico de alertas activas en campana | Bajo |
 | **P1** | ✅ Confirmación visual en acciones destructivas (modal propio, no `confirm()`) | Bajo |
+| **P2** | ✅ FAB "Nuevo Reporte" condicional según sesión | Bajo |
 | **P2** | Pantalla offline funcional (no solo banner) | Alto |
 | **P2** | Skeletons loader en vez de spinners genéricos | Medio |
 | **P2** | Filtros en admin panel | Medio |

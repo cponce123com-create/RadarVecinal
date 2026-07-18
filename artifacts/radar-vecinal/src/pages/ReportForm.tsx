@@ -221,6 +221,7 @@ export default function ReportForm() {
     setFormData(prev => ({ ...prev, category: "" as ReportCategory | "" }));
 
   const [showErrors, setShowErrors] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState<{ id: string; title: string } | null>(null);
   const titleTrimmed = formData.title.trim();
   const descTrimmed  = formData.description.trim();
   const titleErr  = !titleTrimmed ? "El título es obligatorio" : titleTrimmed.length < 5 ? "Mínimo 5 caracteres" : null;
@@ -263,9 +264,10 @@ export default function ReportForm() {
         audioUrl: audioUrl ?? null,
       } as any
     }, {
-      onSuccess: () => {
-        toast({ title: "✓ Reporte enviado", description: "Gracias por colaborar con la seguridad del distrito." });
-        setLocation("/home");
+      onSuccess: (data: any) => {
+        const reportId = data?.id ?? `RV-${Date.now().toString(36).toUpperCase()}`;
+        setReportSuccess({ id: reportId, title: formData.title });
+        setStep(4);
       },
       onError: () => {
         toast({ title: "Error al enviar", description: "Intenta de nuevo.", variant: "destructive" });
@@ -619,28 +621,93 @@ export default function ReportForm() {
                   </p>
                 </div>
               </motion.div>
-            )}
+              )}
+
+              {/* ── STEP 4: ÉXITO ── */}
+              {step === 4 && reportSuccess && (
+              <motion.div key="step4" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} className="p-6 md:p-8 flex flex-col items-center text-center gap-5">
+                {/* Check icon */}
+                <div className="w-20 h-20 rounded-full bg-success/15 border border-success/30 flex items-center justify-center shadow-[0_0_30px_hsl(142_71%_55%_/_0.2)]">
+                  <svg className="w-10 h-10 text-success" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-1">¡Reporte enviado con éxito!</h3>
+                  <p className="text-sm text-muted-foreground">Gracias por ayudar a mantener tu distrito seguro.</p>
+                </div>
+
+                {/* Ticket ID */}
+                <div className="w-full max-w-xs p-3.5 rounded-xl bg-white/[0.03] border border-white/8">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Código de reporte</p>
+                  <p className="text-base font-mono font-bold text-primary tracking-wider">{reportSuccess.id}</p>
+                </div>
+
+                {/* Info */}
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-primary/8 border border-primary/20 text-left w-full max-w-xs">
+                  <svg className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs text-primary/80 leading-relaxed">
+                    Tu reporte será visible para los vecinos del distrito en los próximos minutos. Recibirás actualizaciones cuando haya novedades.
+                  </p>
+                </div>
+
+                {/* Share button */}
+                <button
+                  onClick={async () => {
+                    const shareUrl = `${window.location.origin}/reporte/${reportSuccess.id}`;
+                    if (navigator.share) {
+                      try { await navigator.share({ title: "Reporte RadarVecinal", text: reportSuccess.title, url: shareUrl }); } catch { /* user cancelled */ }
+                    } else {
+                      try { await navigator.clipboard.writeText(shareUrl); toast({ title: "Enlace copiado", description: "Puedes compartir este reporte con otros vecinos." }); } catch { /* fallback */ }
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 w-full max-w-xs py-3 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                  </svg>
+                  Compartir reporte
+                </button>
+
+                {/* Back to home */}
+                <button
+                  onClick={() => setLocation("/home")}
+                  className="flex items-center justify-center gap-2 w-full max-w-xs py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-[0_0_16px_hsl(217_100%_55%_/_0.3)]"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                  </svg>
+                  Volver al inicio
+                </button>
+              </motion.div>
+              )}
+
           </AnimatePresence>
 
           {/* Navigation */}
           <div className="px-5 md:px-6 py-4 border-t border-white/5 flex items-center justify-between gap-3 bg-black/10">
-            {step > 1 ? (
+            {step > 1 && step < 4 ? (
               <button type="button" onClick={() => setStep(s => s - 1)}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
                 <ChevronLeft className="w-4 h-4" /> Atrás
               </button>
             ) : <div />}
 
-            <button type="submit" disabled={createReport.isPending}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-[0_0_16px_hsl(217_100%_55%_/_0.3)] disabled:opacity-50 disabled:cursor-not-allowed">
-              {createReport.isPending ? (
-                <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Enviando...</>
-              ) : step === 3 ? (
-                <><CheckCircle2 className="w-4 h-4" /> Enviar Reporte</>
-              ) : (
-                <>Siguiente <ChevronRight className="w-4 h-4" /></>
-              )}
-            </button>
+            {step < 4 && (
+              <button type="submit" disabled={createReport.isPending}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-[0_0_16px_hsl(217_100%_55%_/_0.3)] disabled:opacity-50 disabled:cursor-not-allowed">
+                {createReport.isPending ? (
+                  <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Enviando...</>
+                ) : step === 3 ? (
+                  <><CheckCircle2 className="w-4 h-4" /> Enviar Reporte</>
+                ) : (
+                  <>Siguiente <ChevronRight className="w-4 h-4" /></>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </form>

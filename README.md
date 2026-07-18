@@ -11,7 +11,8 @@
     <a href="#-requisitos"><img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square&logo=node.js" alt="Node" /></a>
     <a href="#-stack-tecnológico"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React" /></a>
     <a href="#-stack-tecnológico"><img src="https://img.shields.io/badge/Express-5-000000?style=flat-square&logo=express" alt="Express" /></a>
-    <a href="#-stack-tecnológico"><img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" /></a>
+    <a href="#-stack-tecnológico"><img src="https://img.shields.io/badge/
+    TypeScript-5-3178C6?style=flat-square&logo=typescript" alt="TypeScript" /></a>
     <a href="#-licencia"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" /></a>
     <a href="https://github.com/cponce123com-create/RadarVecinal/pulls"><img src="https://img.shields.io/badge/PRs-welcome-orange?style=flat-square" alt="PRs" /></a>
   </p>

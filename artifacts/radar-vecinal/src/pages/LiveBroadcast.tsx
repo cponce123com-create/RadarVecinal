@@ -46,6 +46,7 @@ import {
   type LiveSession,
   type DeviceInfo,
 } from "@/lib/liveProviders";
+import { getHome, getVoicePrefs } from "@/lib/voiceAlerts";
 
 const PING_MIN_MS = 8000; // no enviar pings más seguido que esto
 
@@ -432,6 +433,15 @@ function BroadcasterUI() {
   // ── Vista transmitiendo ─────────────────────────────────────────────────────
   if (session) {
     const meta = providerMeta(session.type);
+    // Modo prueba: ¿está listo para OÍR el aviso? (casa + activado + este tipo)
+    const vPrefs = getVoicePrefs();
+    const homeSet = !!getHome();
+    const typeSelected = vPrefs.types.includes(session.type);
+    const voiceReady = homeSet && vPrefs.enabled && typeSelected;
+    const missing: string[] = [];
+    if (!homeSet) missing.push("marca tu casa");
+    if (!vPrefs.enabled) missing.push("activa los avisos por voz");
+    if (!typeSelected) missing.push(`marca «${meta.label}» en los servicios`);
     return (
       <div className="rv-in max-w-xl mx-auto flex flex-col gap-4">
         <motion.div
@@ -511,10 +521,22 @@ function BroadcasterUI() {
               </button>
             </div>
             <SimControlMap pos={{ lat: coords.lat, lng: coords.lng }} onMove={(la, ln) => moveSimTo(la, ln)} recenter={recenter} emoji={meta.emoji} color={meta.color} />
-            <p className="text-[10.5px] text-muted-foreground leading-relaxed">
-              Arrastra el {meta.emoji}, <b className="text-white/80">toca el mapa</b> donde quieras, o pulsa “Traer a mi ubicación” para disparar el aviso.
-              En <b className="text-white/80">Ajustes → Avisos por voz</b>: marca tu casa, actívalos y asegúrate de que
-              <b className="text-white/80"> {meta.label.toLowerCase()}</b> esté entre los servicios seleccionados.
+            {voiceReady ? (
+              <p className="text-[10.5px] text-muted-foreground leading-relaxed">
+                Arrastra el {meta.emoji}, <b className="text-white/80">toca el mapa</b> donde quieras, o pulsa “Traer a mi ubicación”.
+                Al entrar en el radio verás un aviso en pantalla y lo escucharás. Puede tardar hasta ~15 s (refresco).
+              </p>
+            ) : (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[10.5px] text-amber-100 leading-relaxed">
+                  Para recibir el aviso, ve a <b>Ajustes → Avisos por voz</b> y: {missing.join(", ")}.
+                  {" "}<button className="underline text-amber-200" onClick={() => setLocation("/configuracion")}>Ir a Ajustes</button>
+                </p>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground/60">
+              Nota: en la web el aviso es visual y por voz. La notificación del sistema con la app cerrada es solo en la app instalada (Android).
             </p>
           </div>
         )}

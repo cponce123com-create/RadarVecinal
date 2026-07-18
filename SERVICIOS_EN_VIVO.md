@@ -223,6 +223,14 @@ Para probar la función sin salir a la calle, un **superadmin** ve en
 Para verlo moverse: activa el toggle **"En vivo"** en el mapa (esquina superior
 derecha) — el marcador 🧪 avanza cada ~12 s (intervalo de refresco del mapa).
 
+**Control manual del punto (probar avisos rápido):** en modo prueba, la pantalla
+de transmisión muestra un mini-mapa con el 🚛 **arrastrable** y un botón **"Traer
+a mi ubicación"**. Así el superadmin coloca el recolector justo al lado de su
+casa y dispara el aviso al instante, sin esperar. Cada movimiento reemite la
+posición (`startManualSim`), el hook de proximidad la reevalúa y —con los avisos
+de voz activados y la casa marcada— suena el anuncio (o llega el push si Firebase
+está configurado).
+
 ### Panel de diagnóstico (superadmin)
 
 Al final de `/en-vivo`, el superadmin ve **"Transmisiones activas (todos los

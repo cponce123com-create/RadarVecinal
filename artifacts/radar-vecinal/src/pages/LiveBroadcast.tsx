@@ -24,8 +24,10 @@ import { es } from "date-fns/locale";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
 import { startLocationWatch, isNativeTracking, type GeoWatcher } from "@/lib/backgroundGeo";
-import { startSimulatedWatch } from "@/lib/simulateRoute";
+import { startManualSim, type ManualSim } from "@/lib/simulateRoute";
 import {
   PROVIDER_META,
   providerMeta,
@@ -52,6 +54,8 @@ const PING_MIN_MS = 8000; // no enviar pings más seguido que esto
 // crea un segundo watcher al re-montar la página.
 let moduleWatcher: GeoWatcher | null = null;
 let moduleWatcherSession: string | null = null;
+// En modo prueba, control del punto simulado (mover a mano).
+let moduleSimControl: ManualSim | null = null;
 
 interface PendingStart {
   type: LiveProviderType;
@@ -116,6 +120,39 @@ function SuperAdminLivePanel({ currentDistrictId }: { currentDistrictId: number 
   );
 }
 
+// Recentra el mini-mapa cuando cambia `trigger` (ej: "traer a mi ubicación").
+function SimRecenter({ pos, trigger }: { pos: { lat: number; lng: number }; trigger: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([pos.lat, pos.lng], Math.max(map.getZoom() || 16, 16));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger]);
+  return null;
+}
+
+// Mapa de control del punto simulado: arrastra el marcador donde quieras probar.
+function SimControlMap({
+  pos, onMove, recenter, emoji = "🚛", color = "#22c55e",
+}: { pos: { lat: number; lng: number }; onMove: (lat: number, lng: number) => void; recenter: number; emoji?: string; color?: string }) {
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    html: `<div style="width:38px;height:38px;border-radius:50%;background:rgba(9,12,20,0.92);border:3px solid ${color};display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 14px ${color}aa;cursor:grab;">${emoji}</div>`,
+  });
+  return (
+    <div className="rounded-2xl overflow-hidden border border-white/10" style={{ height: 220 }}>
+      <MapContainer center={[pos.lat, pos.lng]} zoom={16} attributionControl={false}
+        style={{ width: "100%", height: "100%", background: "#0d1117" }}>
+        <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        <Marker draggable position={[pos.lat, pos.lng]} icon={icon}
+          eventHandlers={{ dragend: (e: any) => { const ll = e.target.getLatLng(); onMove(ll.lat, ll.lng); } }} />
+        <SimRecenter pos={pos} trigger={recenter} />
+      </MapContainer>
+    </div>
+  );
+}
+
 function useElapsed(startedAt: number | null): string {
   const [, force] = useState(0);
   useEffect(() => {
@@ -155,6 +192,22 @@ function BroadcasterUI() {
   const [starting, setStarting] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number; acc?: number } | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [recenter, setRecenter] = useState(0);
+
+  // Modo prueba: mover el punto simulado (arrastrar en el mapa o traer a mí).
+  const moveSimTo = (lat: number, lng: number, recenterMap = false) => {
+    moduleSimControl?.setPosition(lat, lng);
+    setCoords({ lat, lng, acc: 6 });
+    if (recenterMap) setRecenter((n) => n + 1);
+  };
+  const bringSimToMe = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => moveSimTo(p.coords.latitude, p.coords.longitude, true),
+      () => toast({ title: "Sin ubicación", description: "No se pudo obtener tu GPS.", variant: "destructive" }),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  };
 
   const wakeLockRef = useRef<any>(null);
   const lastPingRef = useRef(0);
@@ -185,6 +238,7 @@ function BroadcasterUI() {
       try { await moduleWatcher.stop(); } catch { /* ignore */ }
       moduleWatcher = null;
       moduleWatcherSession = null;
+      moduleSimControl = null;
     }
     if (wakeLockRef.current) {
       try { await wakeLockRef.current.release(); } catch { /* ignore */ }
@@ -259,16 +313,20 @@ function BroadcasterUI() {
     if (moduleWatcher) {
       try { await moduleWatcher.stop(); } catch { /* ignore */ }
       moduleWatcher = null;
+      moduleSimControl = null;
     }
     moduleWatcherSession = sessionKey;
     const isSim = sessionRef.current?.simulate ?? pendingStartRef.current?.simulate ?? false;
     try {
       if (isSim) {
-        // Recorrido simulado (superadmin): no usa GPS real, se mueve solo.
-        moduleWatcher = startSimulatedWatch(
+        // Modo prueba (superadmin): punto controlable a mano (arrastrar / traer
+        // a mi ubicación), sin GPS real. Arranca en el centro del distrito.
+        const sim = startManualSim(
           { lat: centerRef.current.lat, lng: centerRef.current.lng },
           onFix,
         );
+        moduleSimControl = sim;
+        moduleWatcher = sim;
       } else {
         moduleWatcher = await startLocationWatch(
           onFix,
@@ -406,6 +464,27 @@ function BroadcasterUI() {
             ? "Sigues transmitiendo aunque bloquees la pantalla. Verás una notificación mientras compartes tu ubicación."
             : "Mantén esta pantalla abierta para seguir compartiendo tu ubicación. En la app instalada se transmite también con la pantalla apagada."}
         </p>
+
+        {/* Control del punto simulado (solo modo prueba) */}
+        {session.simulate && coords && (
+          <div className="flex flex-col gap-2 p-3 rounded-2xl bg-amber-500/[0.06] border border-amber-500/25">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[12px] font-semibold text-amber-200 flex items-center gap-1.5">
+                <FlaskConical className="w-3.5 h-3.5" /> Mueve {meta.emoji} {meta.label.toLowerCase()} para probar
+              </p>
+              <button onClick={bringSimToMe}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-semibold hover:bg-emerald-500/25 transition-colors">
+                <MapPin className="w-3.5 h-3.5" /> Traer a mi ubicación
+              </button>
+            </div>
+            <SimControlMap pos={{ lat: coords.lat, lng: coords.lng }} onMove={(la, ln) => moveSimTo(la, ln)} recenter={recenter} emoji={meta.emoji} color={meta.color} />
+            <p className="text-[10.5px] text-muted-foreground leading-relaxed">
+              Arrastra el {meta.emoji} cerca de tu casa (o pulsa “Traer a mi ubicación”) para disparar el aviso.
+              En <b className="text-white/80">Ajustes → Avisos por voz</b>: marca tu casa, actívalos y asegúrate de que
+              <b className="text-white/80"> {meta.label.toLowerCase()}</b> esté entre los servicios seleccionados.
+            </p>
+          </div>
+        )}
 
         <button
           onClick={() => setLocation("/mapa")}

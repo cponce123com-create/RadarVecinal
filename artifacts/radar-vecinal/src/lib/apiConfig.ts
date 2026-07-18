@@ -28,10 +28,10 @@ export function initApiBaseUrl(): void {
     // Modo APK nativo: la web vive en https://localhost,
     // necesita URL absoluta del backend en Render
     setBaseUrl(RENDER_URL);
-    console.log("[API] Modo Capacitor nativo → base URL:", RENDER_URL);
+    if (import.meta.env.DEV) console.log("[API] Modo Capacitor nativo → base URL:", RENDER_URL);
   } else {
     // Modo web: mismo origen (Express sirve frontend + API)
     setBaseUrl(null);
-    console.log("[API] Modo web → ruta relativa /api");
+    if (import.meta.env.DEV) console.log("[API] Modo web → ruta relativa /api");
   }
 }

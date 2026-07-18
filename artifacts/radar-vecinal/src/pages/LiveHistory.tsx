@@ -23,6 +23,7 @@ import {
   type TrackPoint,
 } from "@/lib/liveProviders";
 import { format } from "date-fns";
+import { distanceMeters } from "@/lib/voiceAlerts";
 
 function todayStr(): string {
   const d = new Date();
@@ -46,12 +47,7 @@ function durationLabel(startISO: string, endISO: string): string {
 function trackMeters(points: TrackPoint[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    const R = 6371000;
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const a = points[i - 1], b = points[i];
-    const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
-    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-    total += 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+    total += distanceMeters(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
   }
   return total;
 }

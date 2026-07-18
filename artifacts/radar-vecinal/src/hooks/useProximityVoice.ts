@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDistrict } from "@/contexts/DistrictContext";
+import { useToast } from "@/hooks/use-toast";
 import { listLiveProviders, providerMeta, type LiveProviderType } from "@/lib/liveProviders";
 import { listVoiceClips } from "@/lib/voiceClips";
 import {
@@ -25,6 +26,9 @@ function announceText(typeLabel: string, meters: number): string {
 
 export function useProximityVoice() {
   const { currentDistrictId } = useDistrict();
+  const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   // Releer prefs/casa cuando cambian (evento en la misma pestaña + storage).
   const [tick, setTick] = useState(0);
   const [prefs, setPrefs] = useState<VoicePrefs>(() => getVoicePrefs());
@@ -85,6 +89,8 @@ export function useProximityVoice() {
 
       let lastAnnounced = prev?.lastAnnounced ?? 0;
       if (entering && approaching && cooldownOk) {
+        const meta = providerMeta(p.type);
+        const label = p.type === "recolector" ? "El camión recolector" : `El ${meta.label.toLowerCase()}`;
         const clip = clipRef.current.get(p.type);
         if (clip?.audioUrl) {
           // Voz grabada por la municipalidad (acento local).
@@ -93,10 +99,13 @@ export function useProximityVoice() {
           // Frase personalizada por TTS.
           speak(clip.phrase);
         } else {
-          const meta = providerMeta(p.type);
-          const label = p.type === "recolector" ? "El camión recolector" : `El ${meta.label.toLowerCase()}`;
           speak(announceText(label, d));
         }
+        // Aviso visual (funciona aunque el audio esté bloqueado o en web).
+        toastRef.current({
+          title: `${meta.emoji} ${meta.label} cerca`,
+          description: `${label} está a unos ${Math.max(50, Math.round(d / 50) * 50)} m de tu casa.`,
+        });
         lastAnnounced = now;
       }
       stateRef.current.set(p.id, { lastDist: d, lastAnnounced });

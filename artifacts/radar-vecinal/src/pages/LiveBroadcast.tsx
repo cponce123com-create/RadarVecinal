@@ -14,7 +14,7 @@
  * por la app y no se duplica al re-montar la página. La sesión (id+clave) se
  * guarda en localStorage para poder reanudar/detener tras recargar.
  */
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -131,26 +131,59 @@ function SimRecenter({ pos, trigger }: { pos: { lat: number; lng: number }; trig
 }
 
 // Mapa de control del punto simulado: arrastra el marcador donde quieras probar.
+// El marcador maneja su PROPIA posición (no la del re-ping cada 5s, que lo
+// reseteaba y cancelaba el arrastre). Solo se re-sincroniza con `recenter`
+// (al pulsar "Traer a mi ubicación"). Se puede arrastrar o tocar el mapa.
 function SimControlMap({
   pos, onMove, recenter, emoji = "🚛", color = "#22c55e",
 }: { pos: { lat: number; lng: number }; onMove: (lat: number, lng: number) => void; recenter: number; emoji?: string; color?: string }) {
-  const icon = L.divIcon({
+  const [mpos, setMpos] = useState(pos);
+  const markerRef = useRef<any>(null);
+
+  // Re-sincronizar solo cuando cambia `recenter` (traer a mi ubicación).
+  useEffect(() => { setMpos(pos); /* eslint-disable-next-line */ }, [recenter]);
+
+  const icon = useMemo(() => L.divIcon({
     className: "",
-    iconSize: [38, 38],
-    iconAnchor: [19, 19],
-    html: `<div style="width:38px;height:38px;border-radius:50%;background:rgba(9,12,20,0.92);border:3px solid ${color};display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 14px ${color}aa;cursor:grab;">${emoji}</div>`,
-  });
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    html: `<div style="width:40px;height:40px;border-radius:50%;background:rgba(9,12,20,0.92);border:3px solid ${color};display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 0 14px ${color}aa;cursor:grab;touch-action:none;">${emoji}</div>`,
+  }), [emoji, color]);
+
   return (
     <div className="rounded-2xl overflow-hidden border border-white/10" style={{ height: 220 }}>
-      <MapContainer center={[pos.lat, pos.lng]} zoom={16} attributionControl={false}
+      <MapContainer center={[mpos.lat, mpos.lng]} zoom={16} attributionControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117" }}>
         <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
-        <Marker draggable position={[pos.lat, pos.lng]} icon={icon}
-          eventHandlers={{ dragend: (e: any) => { const ll = e.target.getLatLng(); onMove(ll.lat, ll.lng); } }} />
-        <SimRecenter pos={pos} trigger={recenter} />
+        <Marker
+          draggable
+          ref={markerRef}
+          position={[mpos.lat, mpos.lng]}
+          icon={icon}
+          eventHandlers={{
+            dragend: () => {
+              const ll = markerRef.current?.getLatLng?.();
+              if (ll) { setMpos({ lat: ll.lat, lng: ll.lng }); onMove(ll.lat, ll.lng); }
+            },
+          }}
+        />
+        {/* Tocar el mapa también mueve el marcador ahí. */}
+        <SimTapToMove onTap={(la, ln) => { setMpos({ lat: la, lng: ln }); onMove(la, ln); }} />
+        <SimRecenter pos={mpos} trigger={recenter} />
       </MapContainer>
     </div>
   );
+}
+
+// Mueve el punto al tocar/click en el mapa (alternativa al arrastre).
+function SimTapToMove({ onTap }: { onTap: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const handler = (e: any) => onTap(e.latlng.lat, e.latlng.lng);
+    map.on("click", handler);
+    return () => { map.off("click", handler); };
+  }, [map, onTap]);
+  return null;
 }
 
 function useElapsed(startedAt: number | null): string {
@@ -479,7 +512,7 @@ function BroadcasterUI() {
             </div>
             <SimControlMap pos={{ lat: coords.lat, lng: coords.lng }} onMove={(la, ln) => moveSimTo(la, ln)} recenter={recenter} emoji={meta.emoji} color={meta.color} />
             <p className="text-[10.5px] text-muted-foreground leading-relaxed">
-              Arrastra el {meta.emoji} cerca de tu casa (o pulsa “Traer a mi ubicación”) para disparar el aviso.
+              Arrastra el {meta.emoji}, <b className="text-white/80">toca el mapa</b> donde quieras, o pulsa “Traer a mi ubicación” para disparar el aviso.
               En <b className="text-white/80">Ajustes → Avisos por voz</b>: marca tu casa, actívalos y asegúrate de que
               <b className="text-white/80"> {meta.label.toLowerCase()}</b> esté entre los servicios seleccionados.
             </p>

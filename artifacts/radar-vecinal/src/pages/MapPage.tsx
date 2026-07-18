@@ -11,7 +11,7 @@ import { listLiveProviders } from "@/lib/liveProviders";
 import { useQuery } from "@tanstack/react-query";
 import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
-import { CAT_HEX, CATEGORY_CONFIG, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
+import { CAT_HEX, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -279,94 +279,48 @@ export default function MapPage() {
           )}
         </AnimatePresence>
 
-        {/* Category filter pills with grouping */}
-        <div className="flex flex-col gap-1">
-          {/* Items de seguridad */}
-          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
-            {ALL_CATEGORY_FILTERS.filter(f => f.id === "all" || SAFETY_CATEGORIES.includes(f.id)).map(f => {
-              const active = activeCategory === f.id;
-              const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
-              const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
-              const Icon = catConf?.icon;
-              return (
-                <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                    active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
-                  }`}
-                  style={active ? {
-                    background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
-                    borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
-                    color: color ?? "hsl(217 100% 75%)",
-                  } : {}}>
-                  {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
-                  {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
-                  {f.label}
-                </motion.button>
-              );
-            })}
+        {/* Filtro de categoría: lista desplegable agrupada (antes eran 3 filas
+            de ~15 píldoras — demasiadas opciones a la vista). El select nativo
+            abre el picker del sistema en móvil: más simple e intuitivo. */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:max-w-xs">
+            <span
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full pointer-events-none"
+              style={{ background: activeCategory === "all" ? "hsl(217 100% 60%)" : (CAT_HEX[activeCategory] ?? "#6b7280") }}
+            />
+            <select
+              value={activeCategory}
+              onChange={e => setActiveCategory(e.target.value)}
+              aria-label="Filtrar por categoría"
+              className="w-full appearance-none pl-8 pr-8 h-10 rounded-xl bg-card border border-white/10 text-sm text-white focus:outline-none focus:border-primary/50 [color-scheme:dark]"
+            >
+              <option value="all">Todas las categorías</option>
+              <optgroup label="Seguridad">
+                {ALL_CATEGORY_FILTERS.filter(f => SAFETY_CATEGORIES.includes(f.id)).map(f => (
+                  <option key={f.id} value={f.id}>{f.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Servicios públicos">
+                {ALL_CATEGORY_FILTERS.filter(f => SERVICE_CATEGORIES.includes(f.id)).map(f => (
+                  <option key={f.id} value={f.id}>{f.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Otros">
+                {ALL_CATEGORY_FILTERS.filter(f => f.id !== "all" && !SAFETY_CATEGORIES.includes(f.id) && !SERVICE_CATEGORIES.includes(f.id)).map(f => (
+                  <option key={f.id} value={f.id}>{f.label}</option>
+                ))}
+              </optgroup>
+            </select>
+            <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </div>
-
-          {/* Separator visual entre seguridad y servicios */}
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider px-1">
-            <span>Servicios Públicos</span>
-            <div className="flex-1 h-px bg-white/5" />
-          </div>
-
-          {/* Items de servicios públicos */}
-          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
-            {ALL_CATEGORY_FILTERS.filter(f => SERVICE_CATEGORIES.includes(f.id)).map(f => {
-              const active = activeCategory === f.id;
-              const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
-              const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
-              const Icon = catConf?.icon;
-              return (
-                <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                    active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
-                  }`}
-                  style={active ? {
-                    background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
-                    borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
-                    color: color ?? "hsl(217 100% 75%)",
-                  } : {}}>
-                  {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
-                  {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
-                  {f.label}
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* Otras categorías */}
-          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
-            {ALL_CATEGORY_FILTERS.filter(f => f.id !== "all" && !SAFETY_CATEGORIES.includes(f.id) && !SERVICE_CATEGORIES.includes(f.id)).map(f => {
-              const active = activeCategory === f.id;
-              const color = f.id !== "all" ? (CAT_HEX[f.id] ?? undefined) : undefined;
-              const catConf = f.id !== "all" ? CATEGORY_CONFIG[f.id as ReportCategory] : null;
-              const Icon = catConf?.icon;
-              return (
-                <motion.button key={f.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(f.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${
-                    active ? "text-white border-transparent" : "bg-white/[0.04] border-white/8 text-muted-foreground hover:text-white"
-                  }`}
-                  style={active ? {
-                    background: color ? `${color}22` : "hsl(217 100% 55% / 0.2)",
-                    borderColor: color ? `${color}55` : "hsl(217 100% 55% / 0.5)",
-                    color: color ?? "hsl(217 100% 75%)",
-                  } : {}}>
-                  {Icon && active && <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />}
-                  {!Icon && color && active && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
-                  {f.label}
-                </motion.button>
-              );
-            })}
-            {activeCategory !== "all" && (
-              <button onClick={() => setActiveCategory("all")}
-                className="p-1.5 rounded-full text-muted-foreground hover:text-white hover:bg-white/8 transition-all">
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          {activeCategory !== "all" && (
+            <button onClick={() => setActiveCategory("all")} title="Quitar filtro"
+              className="flex items-center gap-1.5 px-3 h-10 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-muted-foreground hover:text-white transition-all flex-shrink-0">
+              <RotateCcw className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Todos</span>
+            </button>
+          )}
         </div>
       </div>
 

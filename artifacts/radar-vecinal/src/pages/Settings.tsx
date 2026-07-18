@@ -311,32 +311,27 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Category filters */}
+          {/* Categorías que generan alerta — chips compactos (marca/desmarca) */}
           <div className="px-4 pb-4">
-            <p className="text-xs font-semibold text-white/60 mb-3 uppercase tracking-wide">Categorías que generan alerta</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs font-semibold text-white/60 uppercase tracking-wide">Categorías que generan alerta</p>
+              <span className="text-[10px] text-muted-foreground">{alertCategories.length} de {INCIDENT_CATEGORIES.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
               {INCIDENT_CATEGORIES.map(cat => {
                 const active = alertCategories.includes(cat.id);
                 return (
                   <button
                     key={cat.id}
                     onClick={() => toggleCategory(cat.id)}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      active ? "border-white/15 bg-white/[0.04]" : "border-white/5 opacity-50 hover:opacity-75"
+                    aria-pressed={active}
+                    className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-full text-[12px] font-medium border transition-all ${
+                      active ? "text-white" : "bg-white/[0.03] border-white/10 text-muted-foreground hover:text-white"
                     }`}
+                    style={active ? { background: cat.color + "1f", borderColor: cat.color + "55" } : {}}
                   >
-                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${
-                      active ? "border-transparent" : "border-white/20 bg-transparent"
-                    }`} style={active ? { background: cat.color + "33", borderColor: cat.color + "66" } : {}}>
-                      {active && <div className="w-2 h-2 rounded-sm" style={{ background: cat.color }} />}
-                    </div>
-                    <span className={`text-xs font-medium ${active ? "text-white" : "text-muted-foreground"}`}>
-                      {cat.label}
-                    </span>
-                    <div
-                      className="w-1.5 h-1.5 rounded-full ml-auto flex-shrink-0"
-                      style={{ background: active ? cat.color : "transparent" }}
-                    />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: active ? cat.color : "rgba(255,255,255,0.2)" }} />
+                    {cat.label}
                   </button>
                 );
               })}

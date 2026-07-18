@@ -11,7 +11,7 @@ import {
   licensesTable,
   userStrikesTable,
 } from "@workspace/db/schema";
-import { desc, eq, and, or, ilike, gt, sql, count } from "drizzle-orm";
+import { desc, eq, and, or, ilike, gt, sql, count, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
 import { isMunicipalityLevel } from "../lib/roles";
 import bcrypt from "bcryptjs";
@@ -881,33 +881,37 @@ router.get(
         .orderBy(desc(userStrikesTable.createdAt))
         .limit(50);
 
-      // Enriquecer con nombre del admin que aplicó el strike y título del reporte
-      const enriched = await Promise.all(
-        strikes.map(async (s) => {
-          const [admin] = await db
-            .select({ name: usersTable.name })
+      // Enriquecer con nombre del admin y título del reporte en 2 consultas
+      // con IN (antes: 2 consultas POR strike — N+1).
+      const adminIds = [...new Set(strikes.map((s) => s.adminId))];
+      const reportIds = [...new Set(strikes.map((s) => s.reportId))];
+      const admins = adminIds.length
+        ? await db
+            .select({ id: usersTable.id, name: usersTable.name })
             .from(usersTable)
-            .where(eq(usersTable.id, s.adminId))
-            .limit(1);
-          const [report] = await db
-            .select({ title: reportsTable.title })
+            .where(inArray(usersTable.id, adminIds))
+        : [];
+      const reports = reportIds.length
+        ? await db
+            .select({ id: reportsTable.id, title: reportsTable.title })
             .from(reportsTable)
-            .where(eq(reportsTable.id, s.reportId))
-            .limit(1);
-          return {
-            id: String(s.id),
-            userId: String(s.userId),
-            reportId: String(s.reportId),
-            reportTitle: report?.title ?? "Reporte eliminado",
-            motivo: s.motivo,
-            adminName: admin?.name ?? "Desconocido",
-            adminId: String(s.adminId),
-            activo: s.activo,
-            createdAt: s.createdAt.toISOString(),
-            expiresAt: s.expiresAt?.toISOString() ?? null,
-          };
-        }),
-      );
+            .where(inArray(reportsTable.id, reportIds))
+        : [];
+      const adminName = new Map(admins.map((a) => [a.id, a.name]));
+      const reportTitle = new Map(reports.map((r) => [r.id, r.title]));
+
+      const enriched = strikes.map((s) => ({
+        id: String(s.id),
+        userId: String(s.userId),
+        reportId: String(s.reportId),
+        reportTitle: reportTitle.get(s.reportId) ?? "Reporte eliminado",
+        motivo: s.motivo,
+        adminName: adminName.get(s.adminId) ?? "Desconocido",
+        adminId: String(s.adminId),
+        activo: s.activo,
+        createdAt: s.createdAt.toISOString(),
+        expiresAt: s.expiresAt?.toISOString() ?? null,
+      }));
 
       return res.json({ strikes: enriched });
     } catch (err) {

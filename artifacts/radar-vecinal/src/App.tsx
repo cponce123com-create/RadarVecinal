@@ -12,6 +12,7 @@ import { initApiBaseUrl } from "@/lib/apiConfig";
 initApiBaseUrl();
 
 import { lazy, Suspense } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import BrandingWrapper from "@/components/BrandingWrapper";
 import Home from "@/pages/Home";
@@ -150,6 +151,7 @@ function Router() {
 
 function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
@@ -164,6 +166,7 @@ function App() {
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

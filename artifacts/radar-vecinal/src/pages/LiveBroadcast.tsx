@@ -130,15 +130,15 @@ function SimRecenter({ pos, trigger }: { pos: { lat: number; lng: number }; trig
   return null;
 }
 
-// Mapa de control del punto simulado: arrastra el 🚛 donde quieras probar.
+// Mapa de control del punto simulado: arrastra el marcador donde quieras probar.
 function SimControlMap({
-  pos, onMove, recenter,
-}: { pos: { lat: number; lng: number }; onMove: (lat: number, lng: number) => void; recenter: number }) {
+  pos, onMove, recenter, emoji = "🚛", color = "#22c55e",
+}: { pos: { lat: number; lng: number }; onMove: (lat: number, lng: number) => void; recenter: number; emoji?: string; color?: string }) {
   const icon = L.divIcon({
     className: "",
     iconSize: [38, 38],
     iconAnchor: [19, 19],
-    html: `<div style="width:38px;height:38px;border-radius:50%;background:rgba(9,12,20,0.92);border:3px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 14px #22c55eaa;cursor:grab;">🚛</div>`,
+    html: `<div style="width:38px;height:38px;border-radius:50%;background:rgba(9,12,20,0.92);border:3px solid ${color};display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 14px ${color}aa;cursor:grab;">${emoji}</div>`,
   });
   return (
     <div className="rounded-2xl overflow-hidden border border-white/10" style={{ height: 220 }}>
@@ -470,17 +470,18 @@ function BroadcasterUI() {
           <div className="flex flex-col gap-2 p-3 rounded-2xl bg-amber-500/[0.06] border border-amber-500/25">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[12px] font-semibold text-amber-200 flex items-center gap-1.5">
-                <FlaskConical className="w-3.5 h-3.5" /> Mueve el recolector para probar
+                <FlaskConical className="w-3.5 h-3.5" /> Mueve {meta.emoji} {meta.label.toLowerCase()} para probar
               </p>
               <button onClick={bringSimToMe}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-semibold hover:bg-emerald-500/25 transition-colors">
                 <MapPin className="w-3.5 h-3.5" /> Traer a mi ubicación
               </button>
             </div>
-            <SimControlMap pos={{ lat: coords.lat, lng: coords.lng }} onMove={(la, ln) => moveSimTo(la, ln)} recenter={recenter} />
+            <SimControlMap pos={{ lat: coords.lat, lng: coords.lng }} onMove={(la, ln) => moveSimTo(la, ln)} recenter={recenter} emoji={meta.emoji} color={meta.color} />
             <p className="text-[10.5px] text-muted-foreground leading-relaxed">
-              Arrastra el 🚛 cerca de tu casa (o pulsa “Traer a mi ubicación”) para disparar el aviso.
-              Necesitas tener activados los <b className="text-white/80">Avisos por voz</b> y tu casa marcada en Ajustes.
+              Arrastra el {meta.emoji} cerca de tu casa (o pulsa “Traer a mi ubicación”) para disparar el aviso.
+              En <b className="text-white/80">Ajustes → Avisos por voz</b>: marca tu casa, actívalos y asegúrate de que
+              <b className="text-white/80"> {meta.label.toLowerCase()}</b> esté entre los servicios seleccionados.
             </p>
           </div>
         )}

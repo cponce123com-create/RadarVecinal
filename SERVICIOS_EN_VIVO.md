@@ -133,9 +133,27 @@ voz del propio dispositivo (Web Speech API `speechSynthesis`).
   el aviso se desbloquea con un mensaje de confirmación.
 
 **Limitación (honesta):** los navegadores suspenden el audio en segundo plano,
-así que la voz suena **con la app abierta**. Para avisos con la app cerrada
-(como Maps) haría falta **push FCM** (infraestructura ya existente, fase 2) o el
-**APK nativo con servicio + TTS nativo** (fase 3).
+así que la **voz** suena **con la app abierta**. Con la app cerrada llega un
+**push** (fase 2, abajo); leerlo en voz alta en segundo plano requiere el APK
+nativo (fase 3).
+
+### Fase 2 — Push con la app cerrada
+
+La detección de cercanía también corre **en el servidor**, así el aviso llega
+aunque la app esté cerrada (push FCM, como el pánico).
+
+- El vecino, al activar los avisos y marcar su casa, registra en el servidor su
+  **casa + token push** (`lib/proximityPush.ts`, solo en el APK nativo; en web
+  es no-op). `PUT/DELETE /live/proximity-subscription` (tabla
+  `proximity_subscriptions`, migración `0033`).
+- Cuando un proveedor se mueve (`/live/:id/ping` y `/live/device/:key/ping`), el
+  servidor ejecuta `notifyProximity`: busca las casas del distrito dentro del
+  radio que siguen ese tipo y, respetando un **enfriamiento de 8 min por
+  (vecino, tipo)**, envía el push (`lib/fcm.ts#sendProximityPush`). El texto usa
+  la **frase del clip de voz** si existe, si no una por defecto.
+- **Nota nativa (al compilar el APK):** requiere `FCM_SERVICE_ACCOUNT` en el
+  servidor y crear el canal de notificación Android `live-services` (como
+  `panic-alerts`). En web no hay push (haría falta Web Push + service worker).
 
 ### Voz propia grabada (acento local) — panel admin → "Audios"
 

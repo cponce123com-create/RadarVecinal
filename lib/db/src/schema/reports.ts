@@ -347,6 +347,27 @@ export const liveVoiceClipsTable = pgTable("live_voice_clips", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// ── Suscripción de proximidad: aviso push cuando un servicio se acerca a casa ─
+// Guarda (en el servidor) la casa del vecino + su token push, para que el aviso
+// llegue AUNQUE la app esté cerrada. La detección de cercanía la hace el
+// servidor cuando un proveedor se mueve.
+export const proximitySubscriptionsTable = pgTable("proximity_subscriptions", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  pushToken: text("push_token").notNull().unique(),
+  homeLat: real("home_lat").notNull(),
+  homeLng: real("home_lng").notNull(),
+  radiusM: integer("radius_m").notNull().default(300),
+  types: jsonb("types").notNull().default(["recolector"]), // qué servicios avisar
+  enabled: boolean("enabled").notNull().default(true),
+  // Último aviso por tipo (epoch ms) para no repetir: { recolector: 172... }.
+  cooldowns: jsonb("cooldowns").notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
 export const adSlotsTable = pgTable("ad_slots", {
   id: serial("id").primaryKey(),

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Settings as SettingsIcon, Bell, Volume2, Map, Shield, Lock,
@@ -16,6 +16,7 @@ import {
   isVoiceSupported, unlockAndTestVoice, speak,
 } from "@/lib/voiceAlerts";
 import { PROVIDER_META, type LiveProviderType } from "@/lib/liveProviders";
+import { syncProximitySubscription } from "@/lib/proximityPush";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
@@ -191,6 +192,22 @@ export default function Settings() {
 
   // Servicios que se pueden anunciar (los ambulantes que recorren el distrito).
   const VOICE_TYPES: LiveProviderType[] = ["recolector", "panadero", "lechero", "tamalero", "gasero", "agua"];
+
+  // Sincroniza la suscripción de proximidad (avisos push con la app cerrada).
+  // Solo hace algo en el APK nativo; en web es un no-op silencioso.
+  useEffect(() => {
+    const districtId = districtInfo?.id;
+    if (!districtId) return;
+    const enabled = voiceEnabled && !!home;
+    syncProximitySubscription({
+      districtId,
+      homeLat: home?.lat ?? 0,
+      homeLng: home?.lng ?? 0,
+      radiusM: voiceDistance,
+      types: voiceTypes,
+      enabled,
+    }).catch(() => {});
+  }, [voiceEnabled, home, voiceDistance, voiceTypes, districtInfo?.id]);
 
   const save = () => toast({ title: "✓ Configuración guardada", description: "Tus preferencias fueron actualizadas." });
 
@@ -423,7 +440,7 @@ export default function Settings() {
                 })}
               </div>
               <div className="flex items-center justify-between mt-3">
-                <p className="text-[11px] text-muted-foreground">Suena solo con la app abierta.</p>
+                <p className="text-[11px] text-muted-foreground">Con la app instalada (Android) también te avisa con la app cerrada.</p>
                 <button onClick={() => speak("Prueba de voz. El camión recolector está a 300 metros de tu casa.")}
                   className="text-[11px] text-primary hover:underline">Probar voz</button>
               </div>

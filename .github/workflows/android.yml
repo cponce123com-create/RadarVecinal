@@ -43,6 +43,32 @@ jobs:
       - name: Sincronizar Capacitor
         run: npx cap sync android
 
+      # Firebase (push): si el secreto GOOGLE_SERVICES_JSON está configurado,
+      # escribe google-services.json y aplica el plugin de Google Services en el
+      # proyecto Android recién generado. Sin el secreto, el APK se compila igual
+      # pero sin push (best-effort).
+      - name: Configurar Firebase para push (si hay secreto)
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GS" ]; then
+            echo "⚠️  GOOGLE_SERVICES_JSON no configurado — APK sin notificaciones push."
+            exit 0
+          fi
+          printf '%s' "$GS" > android/app/google-services.json
+          echo "✅ google-services.json escrito."
+
+          # classpath del plugin en el build.gradle del proyecto (idempotente).
+          if ! grep -q "com.google.gms:google-services" android/build.gradle; then
+            perl -0pi -e "s/(classpath 'com\.android\.tools\.build:gradle[^']*')/\$1\n        classpath 'com.google.gms:google-services:4.4.2'/" android/build.gradle
+          fi
+
+          # aplicar el plugin en el build.gradle de la app (idempotente).
+          if ! grep -q "com.google.gms.google-services" android/app/build.gradle; then
+            echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+          fi
+          echo "✅ Plugin Google Services aplicado."
+
       - name: Build del APK (assembleDebug)
         run: ./gradlew assembleDebug --no-daemon
         working-directory: android

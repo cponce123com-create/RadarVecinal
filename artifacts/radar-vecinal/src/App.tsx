@@ -5,12 +5,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DistrictProvider } from "@/contexts/DistrictContext";
 import { usePanicAlertStream } from "@/lib/usePanicAlertStream";
+import { useProximityVoice } from "@/hooks/useProximityVoice";
 import { initApiBaseUrl } from "@/lib/apiConfig";
 
 // Inicializar URL base de la API (detecta Capacitor vs web automáticamente)
 initApiBaseUrl();
 
 import { lazy, Suspense } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import BrandingWrapper from "@/components/BrandingWrapper";
 import Home from "@/pages/Home";
@@ -27,6 +29,8 @@ const History = lazy(() => import("@/pages/History"));
 const Stats = lazy(() => import("@/pages/Stats"));
 const MissingPerson = lazy(() => import("@/pages/MissingPerson"));
 const Admin = lazy(() => import("@/pages/Admin"));
+const LiveBroadcast = lazy(() => import("@/pages/LiveBroadcast"));
+const LiveHistory = lazy(() => import("@/pages/LiveHistory"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
@@ -79,6 +83,12 @@ function GlobalPanicStream() {
   return null;
 }
 
+// Aviso por voz cuando un servicio en vivo se acerca a tu casa (app abierta).
+function ProximityVoiceWatcher() {
+  useProximityVoice();
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -109,6 +119,12 @@ function Router() {
       <Route path="/menor-perdido">
         {() => <Layout><BrandingWrapper><SuspenseWrapper><MissingPerson /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
+      <Route path="/en-vivo">
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><LiveBroadcast /></SuspenseWrapper></BrandingWrapper></Layout>}
+      </Route>
+      <Route path="/rutas">
+        {() => <Layout><BrandingWrapper><SuspenseWrapper><LiveHistory /></SuspenseWrapper></BrandingWrapper></Layout>}
+      </Route>
       <Route path="/admin">
         {() => <Layout><BrandingWrapper><SuspenseWrapper><Admin /></SuspenseWrapper></BrandingWrapper></Layout>}
       </Route>
@@ -135,6 +151,7 @@ function Router() {
 
 function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
@@ -143,11 +160,13 @@ function App() {
               <Router />
             </WouterRouter>
             <GlobalPanicStream />
+            <ProximityVoiceWatcher />
             <Toaster />
           </DistrictProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

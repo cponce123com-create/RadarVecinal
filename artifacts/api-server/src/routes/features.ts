@@ -4,16 +4,25 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import {
-  reportsTable,
-  votesTable,
-  districtResourcesTable,
-} from "@workspace/db/schema";
-import { eq, and, sql } from "drizzle-orm";
-import { optionalAuth } from "./auth";
-import { getDistrictId, checkTenant } from "./tenant";
+import { districtResourcesTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
+import { getDistrictId } from "./tenant";
+import { MemoryCache } from "../lib/memoryCache";
 
 const router: IRouter = Router();
+
+// ── Geocodificación (Nominatim/OSM) ─────────────────────────────────────────
+// Nominatim exige ≤1 req/s y cachear los resultados, o bloquean la IP. Cacheamos
+// en memoria (TTL 1h) y ponemos timeout para no colgar la petición.
+const geocodeCache = new MemoryCache<unknown>();
+const GEOCODE_TTL = 60 * 60 * 1000; // 1 hora
+
+async function fetchNominatim(url: string): Promise<Response> {
+  return fetch(url, {
+    headers: { "User-Agent": "RadarVecinal/1.0 (civictech; contacto@radarvecinal.pe)" },
+    signal: AbortSignal.timeout(6000),
+  });
+}
 
 // ── GET /geocode — convertir dirección a coordenadas (OpenStreetMap Nominatim) ─
 router.get("/geocode", async (req, res) => {
@@ -24,11 +33,13 @@ router.get("/geocode", async (req, res) => {
       .json({ error: "Escribe al menos 3 caracteres de la dirección." });
   }
 
+  const cacheKey = `s:${q.trim().toLowerCase()}`;
+  const cached = geocodeCache.get(cacheKey);
+  if (cached) return res.json({ results: cached });
+
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&countrycodes=pe`;
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "RadarVecinal/1.0 (civictech)" },
-    });
+    const resp = await fetchNominatim(url);
     const data = (await resp.json()) as Array<{
       lat: string;
       lon: string;
@@ -41,6 +52,7 @@ router.get("/geocode", async (req, res) => {
       label: d.display_name,
     }));
 
+    geocodeCache.set(cacheKey, results, GEOCODE_TTL);
     return res.json({ results });
   } catch (err) {
     req.log.error({ err }, "Geocode failed");
@@ -61,11 +73,14 @@ router.get("/geocode/reverse", async (req, res) => {
       .json({ error: "lat y lng deben ser números válidos." });
   }
 
+  // Cachear por coords redondeadas a ~11 m: arrastres cercanos reusan el caché.
+  const cacheKey = `r:${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const cachedRev = geocodeCache.get(cacheKey);
+  if (cachedRev) return res.json(cachedRev);
+
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=16`;
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "RadarVecinal/1.0 (civictech)" },
-    });
+    const resp = await fetchNominatim(url);
     const data = (await resp.json()) as {
       display_name?: string;
       address?: {
@@ -110,132 +125,21 @@ router.get("/geocode/reverse", async (req, res) => {
     const region = addr.state ?? "";
     const postcode = addr.postcode ?? "";
 
-    return res.json({
+    const payload = {
       displayName: data.display_name,
       road: addr.road ?? "",
       zone,
       district,
       region,
       postcode,
-    });
+    };
+    geocodeCache.set(cacheKey, payload, GEOCODE_TTL);
+    return res.json(payload);
   } catch (err) {
     req.log.error({ err }, "Reverse geocode failed");
     return res
       .status(502)
       .json({ error: "No se pudo geocodificar la ubicación." });
-  }
-});
-
-// ── POST /reports/:id/vote — votar (upvote) un reporte ─────────────────────
-router.post("/reports/:id/vote", optionalAuth, async (req, res) => {
-  const reportId = parseInt(req.params.id as string);
-  const user = (req as any).jwtUser;
-  const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
-
-  try {
-    // Verificar que el reporte existe
-    const [report] = await db
-      .select({ id: reportsTable.id })
-      .from(reportsTable)
-      .where(eq(reportsTable.id, reportId))
-      .limit(1);
-    if (!report)
-      return res.status(404).json({ error: "Reporte no encontrado." });
-
-    // Verificar que el usuario no haya votado ya (por userId si autenticado, o por IP si anónimo)
-    const existingVote = user?.sub
-      ? await db
-          .select()
-          .from(votesTable)
-          .where(
-            and(
-              eq(votesTable.reportId, reportId),
-              eq(votesTable.userId, Number(user.sub)),
-            ),
-          )
-          .limit(1)
-      : await db
-          .select()
-          .from(votesTable)
-          .where(
-            and(eq(votesTable.reportId, reportId), eq(votesTable.userIp, ip)),
-          )
-          .limit(1);
-
-    if (existingVote.length > 0) {
-      // Ya votó → quitar voto (toggle)
-      await db.delete(votesTable).where(eq(votesTable.id, existingVote[0].id));
-      await db
-        .update(reportsTable)
-        .set({
-          confirmedCount: sql`${reportsTable.confirmedCount} - 1`,
-        })
-        .where(eq(reportsTable.id, reportId));
-
-      const [updated] = await db
-        .select({ confirmedCount: reportsTable.confirmedCount })
-        .from(reportsTable)
-        .where(eq(reportsTable.id, reportId))
-        .limit(1);
-      return res.json({ voted: false, confirmedCount: updated.confirmedCount });
-    }
-
-    // Nuevo voto
-    await db.insert(votesTable).values({
-      reportId,
-      userId: user?.sub ? Number(user.sub) : undefined,
-      userIp: user?.sub ? undefined : ip,
-    });
-
-    await db
-      .update(reportsTable)
-      .set({
-        confirmedCount: sql`${reportsTable.confirmedCount} + 1`,
-      })
-      .where(eq(reportsTable.id, reportId));
-
-    const [updated] = await db
-      .select({ confirmedCount: reportsTable.confirmedCount })
-      .from(reportsTable)
-      .where(eq(reportsTable.id, reportId))
-      .limit(1);
-    return res.json({ voted: true, confirmedCount: updated.confirmedCount });
-  } catch (err) {
-    req.log.error({ err }, "Vote failed");
-    return res.status(500).json({ error: "Error al procesar el voto." });
-  }
-});
-
-// ── GET /reports/:id/vote — saber si el usuario ya votó ────────────────────
-router.get("/reports/:id/vote", optionalAuth, async (req, res) => {
-  const reportId = parseInt(req.params.id as string);
-  const user = (req as any).jwtUser;
-  const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
-
-  try {
-    const existingVote = user?.sub
-      ? await db
-          .select()
-          .from(votesTable)
-          .where(
-            and(
-              eq(votesTable.reportId, reportId),
-              eq(votesTable.userId, Number(user.sub)),
-            ),
-          )
-          .limit(1)
-      : await db
-          .select()
-          .from(votesTable)
-          .where(
-            and(eq(votesTable.reportId, reportId), eq(votesTable.userIp, ip)),
-          )
-          .limit(1);
-
-    return res.json({ voted: existingVote.length > 0 });
-  } catch (err) {
-    req.log.error({ err }, "Check vote failed");
-    return res.status(500).json({ error: "Error al consultar voto." });
   }
 });
 

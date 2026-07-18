@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Settings as SettingsIcon, Bell, Volume2, Map, Shield, Lock,
   Smartphone, Globe, Trash2, Download, ChevronRight, AlertTriangle,
   Eye, EyeOff, Wifi, BellOff, Radius, SlidersHorizontal,
-  Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar,
+  Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar, HelpCircle,
+  Home as HomeIcon, Volume2 as VoiceIcon, Loader2, CheckCircle2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { playAlertSound } from "@/lib/alertSound";
+import { openWelcome } from "@/components/WelcomeModal";
+import {
+  getHome, setHome as saveHome, clearHome, getVoicePrefs, setVoicePrefs,
+  isVoiceSupported, unlockAndTestVoice, speak,
+} from "@/lib/voiceAlerts";
+import { PROVIDER_META, type LiveProviderType } from "@/lib/liveProviders";
+import { syncProximitySubscription } from "@/lib/proximityPush";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
@@ -139,6 +147,68 @@ export default function Settings() {
     );
   };
 
+  // ── Avisos por voz (v1) ──
+  const [voiceEnabled, setVoiceEnabled]   = useState(() => getVoicePrefs().enabled);
+  const [voiceDistance, setVoiceDistance] = useState(() => getVoicePrefs().distanceM);
+  const [voiceTypes, setVoiceTypes]       = useState<LiveProviderType[]>(() => getVoicePrefs().types);
+  const [home, setHomeState]              = useState(() => getHome());
+  const [locatingHome, setLocatingHome]   = useState(false);
+
+  const toggleVoice = (v: boolean) => {
+    if (v && !isVoiceSupported()) {
+      toast({ title: "Voz no disponible", description: "Tu dispositivo no soporta avisos por voz.", variant: "destructive" });
+      return;
+    }
+    setVoiceEnabled(v);
+    setVoicePrefs({ enabled: v });
+    if (v) {
+      unlockAndTestVoice("Avisos por voz activados.");
+      if (!home) toast({ title: "Marca tu casa", description: "Para avisarte, primero marca la ubicación de tu casa abajo." });
+    }
+  };
+  const changeVoiceDistance = (m: number) => { setVoiceDistance(m); setVoicePrefs({ distanceM: m }); };
+  const toggleVoiceType = (t: LiveProviderType) => {
+    const next = voiceTypes.includes(t) ? voiceTypes.filter(x => x !== t) : [...voiceTypes, t];
+    setVoiceTypes(next);
+    setVoicePrefs({ types: next });
+  };
+  const markHome = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Sin GPS", description: "Tu dispositivo no permite geolocalización.", variant: "destructive" });
+      return;
+    }
+    setLocatingHome(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setHomeState(saveHome(pos.coords.latitude, pos.coords.longitude));
+        setLocatingHome(false);
+        toast({ title: "🏠 Casa guardada", description: "Te avisaremos cuando un servicio se acerque." });
+      },
+      () => { setLocatingHome(false); toast({ title: "No se pudo ubicar", description: "Revisa el permiso de ubicación.", variant: "destructive" }); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
+  const removeHome = () => { clearHome(); setHomeState(null); toast({ title: "Casa eliminada" }); };
+
+  // Servicios que se pueden anunciar (los ambulantes que recorren el distrito).
+  const VOICE_TYPES: LiveProviderType[] = ["recolector", "panadero", "lechero", "tamalero", "gasero", "agua"];
+
+  // Sincroniza la suscripción de proximidad (avisos push con la app cerrada).
+  // Solo hace algo en el APK nativo; en web es un no-op silencioso.
+  useEffect(() => {
+    const districtId = districtInfo?.id;
+    if (!districtId) return;
+    const enabled = voiceEnabled && !!home;
+    syncProximitySubscription({
+      districtId,
+      homeLat: home?.lat ?? 0,
+      homeLng: home?.lng ?? 0,
+      radiusM: voiceDistance,
+      types: voiceTypes,
+      enabled,
+    }).catch(() => {});
+  }, [voiceEnabled, home, voiceDistance, voiceTypes, districtInfo?.id]);
+
   const save = () => toast({ title: "✓ Configuración guardada", description: "Tus preferencias fueron actualizadas." });
 
   const cardVariants = { hidden: { opacity: 0, y: 16 }, visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07 } }) };
@@ -241,32 +311,27 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Category filters */}
+          {/* Categorías que generan alerta — chips compactos (marca/desmarca) */}
           <div className="px-4 pb-4">
-            <p className="text-xs font-semibold text-white/60 mb-3 uppercase tracking-wide">Categorías que generan alerta</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs font-semibold text-white/60 uppercase tracking-wide">Categorías que generan alerta</p>
+              <span className="text-[10px] text-muted-foreground">{alertCategories.length} de {INCIDENT_CATEGORIES.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
               {INCIDENT_CATEGORIES.map(cat => {
                 const active = alertCategories.includes(cat.id);
                 return (
                   <button
                     key={cat.id}
                     onClick={() => toggleCategory(cat.id)}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      active ? "border-white/15 bg-white/[0.04]" : "border-white/5 opacity-50 hover:opacity-75"
+                    aria-pressed={active}
+                    className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-full text-[12px] font-medium border transition-all ${
+                      active ? "text-white" : "bg-white/[0.03] border-white/10 text-muted-foreground hover:text-white"
                     }`}
+                    style={active ? { background: cat.color + "1f", borderColor: cat.color + "55" } : {}}
                   >
-                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${
-                      active ? "border-transparent" : "border-white/20 bg-transparent"
-                    }`} style={active ? { background: cat.color + "33", borderColor: cat.color + "66" } : {}}>
-                      {active && <div className="w-2 h-2 rounded-sm" style={{ background: cat.color }} />}
-                    </div>
-                    <span className={`text-xs font-medium ${active ? "text-white" : "text-muted-foreground"}`}>
-                      {cat.label}
-                    </span>
-                    <div
-                      className="w-1.5 h-1.5 rounded-full ml-auto flex-shrink-0"
-                      style={{ background: active ? cat.color : "transparent" }}
-                    />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: active ? cat.color : "rgba(255,255,255,0.2)" }} />
+                    {cat.label}
                   </button>
                 );
               })}
@@ -300,6 +365,79 @@ export default function Settings() {
                   onChange={e => setQuietEnd(e.target.value)}
                   className="w-full bg-background border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors"
                 />
+              </div>
+            </div>
+          )}
+        </SettingSection>
+      </motion.div>
+
+      {/* ── Avisos por voz ── */}
+      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible">
+        <SettingSection title="Avisos por voz" icon={VoiceIcon} iconColor="text-emerald-400">
+          <SettingRow
+            label="Avisar cuando un servicio se acerque"
+            sub="Con la app abierta, te anuncia en voz alta (ej: “El camión recolector está a 300 metros de tu casa”)."
+          >
+            <Toggle checked={voiceEnabled} onChange={toggleVoice} />
+          </SettingRow>
+
+          {/* Marcar la casa */}
+          <SettingRow
+            label="Mi casa"
+            sub={home ? `Guardada (${home.lat.toFixed(4)}, ${home.lng.toFixed(4)})` : "Marca tu casa para recibir los avisos."}
+          >
+            <div className="flex items-center gap-1.5">
+              {home && (
+                <button onClick={removeHome} className="text-[11px] text-muted-foreground hover:text-red-400 px-2 py-1.5">Quitar</button>
+              )}
+              <button
+                onClick={markHome} disabled={locatingHome}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[12px] font-semibold hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+              >
+                {locatingHome ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : home ? <CheckCircle2 className="w-3.5 h-3.5" /> : <HomeIcon className="w-3.5 h-3.5" />}
+                {home ? "Actualizar" : "Marcar mi casa"}
+              </button>
+            </div>
+          </SettingRow>
+
+          {/* Distancia del aviso */}
+          {voiceEnabled && (
+            <SettingRow label="Avisar cuando esté a" sub="Distancia a tu casa para lanzar el aviso.">
+              <div className="flex items-center gap-1">
+                {[200, 300, 500].map(m => (
+                  <button key={m} onClick={() => changeVoiceDistance(m)}
+                    className={`px-3 py-2 min-h-[38px] rounded-lg text-[12px] font-semibold transition-all border ${
+                      voiceDistance === m ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
+                    }`}>
+                    {m} m
+                  </button>
+                ))}
+              </div>
+            </SettingRow>
+          )}
+
+          {/* Qué servicios anunciar */}
+          {voiceEnabled && (
+            <div className="px-4 py-3.5">
+              <p className="text-sm font-medium text-white mb-2">¿Qué servicios anunciar?</p>
+              <div className="flex flex-wrap gap-1.5">
+                {VOICE_TYPES.map(t => {
+                  const meta = PROVIDER_META.find(m => m.type === t)!;
+                  const on = voiceTypes.includes(t);
+                  return (
+                    <button key={t} onClick={() => toggleVoiceType(t)}
+                      className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-full text-[12px] font-medium border transition-all ${
+                        on ? "bg-emerald-500/15 border-emerald-500/45 text-emerald-200" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
+                      }`}>
+                      <span>{meta.emoji}</span> {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-[11px] text-muted-foreground">Con la app instalada (Android) también te avisa con la app cerrada.</p>
+                <button onClick={() => speak("Prueba de voz. El camión recolector está a 300 metros de tu casa.")}
+                  className="text-[11px] text-primary hover:underline">Probar voz</button>
               </div>
             </div>
           )}
@@ -410,6 +548,16 @@ export default function Settings() {
       {/* ── Cuenta ── */}
       <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible">
         <SettingSection title="Cuenta" icon={Smartphone} iconColor="text-muted-foreground">
+          <SettingRow
+            label="Ver introducción"
+            sub="Repasa cómo funciona Radar Vecinal"
+            onClick={openWelcome}
+          >
+            <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-white">
+              <HelpCircle className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </SettingRow>
           <SettingRow
             label="Exportar mis datos"
             sub="Descarga un archivo con todos tus reportes y actividad"

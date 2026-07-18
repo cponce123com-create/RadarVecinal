@@ -36,6 +36,34 @@ export type PushRegistrationResult =
  * Solicita permiso y registra el dispositivo para recibir push.
  * Retorna el token FCM si tiene éxito.
  */
+/**
+ * Crea los canales de notificación Android (obligatorio en Android 8+: sin el
+ * canal, el push con ese channelId no se muestra). Idempotente y best-effort.
+ */
+export async function ensureNotificationChannels(): Promise<void> {
+  const available = await ensurePushPlugin();
+  if (!available || typeof PushNotifications.createChannel !== "function") return;
+  const channels = [
+    { id: "panic-alerts", name: "Alertas de pánico", description: "Emergencias de vecinos cercanos" },
+    { id: "live-services", name: "Servicios en vivo", description: "Avisos cuando un servicio se acerca a tu casa" },
+  ];
+  for (const ch of channels) {
+    try {
+      await PushNotifications.createChannel({
+        id: ch.id,
+        name: ch.name,
+        description: ch.description,
+        importance: 4, // HIGH → aparece como aviso emergente
+        visibility: 1, // PUBLIC
+        sound: "default",
+        vibration: true,
+      });
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
 export async function registerForPush(): Promise<PushRegistrationResult> {
   const available = await ensurePushPlugin();
   if (!available) return { ok: false, error: "Capacitor push not available" };
@@ -46,6 +74,9 @@ export async function registerForPush(): Promise<PushRegistrationResult> {
     if (permResult.receive !== "granted") {
       return { ok: false, error: "Permiso de notificaciones denegado" };
     }
+
+    // Crear los canales de notificación (Android 8+).
+    await ensureNotificationChannels();
 
     // Registrar en FCM
     await PushNotifications.register();

@@ -16,7 +16,7 @@ import {
   communityFlagsTable,
   reportMessagesTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, or, ilike, sql, isNull, gte, lte } from "drizzle-orm";
+import { eq, desc, and, or, ilike, sql, isNull, gte, lte, inArray } from "drizzle-orm";
 import {
   requireAuth,
   requireAdmin,
@@ -65,6 +65,7 @@ const createReportSchema = z.object({
   districtId: z.number().optional(),
   district: z.string().optional(),
   imageUrl: z.string().optional().nullable(),
+  audioUrl: z.string().url().optional().nullable(),
   authorName: z.string().optional(),
   contactPhone: z
     .string()
@@ -182,6 +183,7 @@ router.get("/reports", optionalAuth, async (req, res) => {
         district: reportsTable.district,
         districtId: reportsTable.districtId,
         imageUrl: reportsTable.imageUrl,
+        audioUrl: reportsTable.audioUrl,
         authorName: reportsTable.authorName,
         authorUserId: reportsTable.authorUserId,
         confirmedCount: reportsTable.confirmedCount,
@@ -341,6 +343,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
         authorUserId: authorUserId ?? undefined,
         contactPhone: isAnonymous ? null : (data.contactPhone ?? null),
         imageUrl: data.imageUrl ?? null,
+        audioUrl: data.audioUrl ?? null,
       })
       .returning();
 
@@ -420,6 +423,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
           authorName: report.authorName,
           isAnonymous: report.isAnonymous,
           imageUrl: report.imageUrl,
+          audioUrl: report.audioUrl,
           createdAt: report.createdAt,
         },
         d?.chatId ?? null,
@@ -553,6 +557,7 @@ router.get("/reports/:id", optionalAuth, async (req, res) => {
         district: reportsTable.district,
         districtId: reportsTable.districtId,
         imageUrl: reportsTable.imageUrl,
+        audioUrl: reportsTable.audioUrl,
         authorName: reportsTable.authorName,
         authorUserId: reportsTable.authorUserId,
         contactPhone: reportsTable.contactPhone,
@@ -761,16 +766,19 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
       req.socket?.remoteAddress ||
       null;
 
-    // Deduplicación: verificar si ya confirmó este reporte
+    // Deduplicación: verificar si ya confirmó la VALIDEZ de este reporte
+    // (kind="validity"; independiente de la confirmación de resolución)
     const dupConditions = userId
       ? and(
           eq(resolutionConfirmationsTable.reportId, reportId),
           eq(resolutionConfirmationsTable.userId, userId),
+          eq(resolutionConfirmationsTable.kind, "validity"),
         )
       : and(
           eq(resolutionConfirmationsTable.reportId, reportId),
           isNull(resolutionConfirmationsTable.userId),
           eq(resolutionConfirmationsTable.userIp, userIp ?? ""),
+          eq(resolutionConfirmationsTable.kind, "validity"),
         );
     const [existing] = await db
       .select({ id: resolutionConfirmationsTable.id })
@@ -783,12 +791,13 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
         .json({ error: "Ya confirmaste este reporte. ¡Gracias!" });
     }
 
-    // Registrar confirmación
+    // Registrar confirmación de validez
     try {
       await db.insert(resolutionConfirmationsTable).values({
         reportId,
         userId: userId ?? null,
         userIp,
+        kind: "validity",
       });
     } catch (insertErr: any) {
       // Violación de unique = confirmación duplicada concurrente
@@ -797,11 +806,16 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
         .json({ error: "Ya confirmaste este reporte. ¡Gracias!" });
     }
 
-    // Recontar desde la tabla (fuente de verdad)
+    // Recontar desde la tabla (fuente de verdad), solo confirmaciones de validez
     const [{ count: confCount }] = await db
       .select({ count: sql<number>`count(*)` })
       .from(resolutionConfirmationsTable)
-      .where(eq(resolutionConfirmationsTable.reportId, reportId));
+      .where(
+        and(
+          eq(resolutionConfirmationsTable.reportId, reportId),
+          eq(resolutionConfirmationsTable.kind, "validity"),
+        ),
+      );
 
     const totalConfirmed = Number(confCount);
 
@@ -883,16 +897,19 @@ router.post(
         req.socket?.remoteAddress ||
         null;
 
-      // Verificar si ya confirmó (por usuario autenticado o por IP anónima)
+      // Verificar si ya confirmó la RESOLUCIÓN (kind="resolution"; separado de
+      // la confirmación de validez)
       const dupConditions = userId
         ? and(
             eq(resolutionConfirmationsTable.reportId, reportId),
             eq(resolutionConfirmationsTable.userId, userId),
+            eq(resolutionConfirmationsTable.kind, "resolution"),
           )
         : and(
             eq(resolutionConfirmationsTable.reportId, reportId),
             isNull(resolutionConfirmationsTable.userId),
             eq(resolutionConfirmationsTable.userIp, userIp ?? ""),
+            eq(resolutionConfirmationsTable.kind, "resolution"),
           );
 
       const [existing] = await db
@@ -909,12 +926,13 @@ router.post(
         });
       }
 
-      // Registrar la confirmación (los índices únicos de BD protegen contra carreras)
+      // Registrar la confirmación de resolución (los índices únicos protegen carreras)
       try {
         await db.insert(resolutionConfirmationsTable).values({
           reportId,
           userId: userId ?? null,
           userIp,
+          kind: "resolution",
         });
       } catch (insertErr: any) {
         // Violación de índice único = confirmación duplicada concurrente
@@ -925,11 +943,16 @@ router.post(
         });
       }
 
-      // Recontar desde la tabla (fuente de verdad) para evitar desincronización
+      // Recontar solo confirmaciones de RESOLUCIÓN (fuente de verdad)
       const [{ count: confCount }] = await db
         .select({ count: sql<number>`count(*)` })
         .from(resolutionConfirmationsTable)
-        .where(eq(resolutionConfirmationsTable.reportId, reportId));
+        .where(
+          and(
+            eq(resolutionConfirmationsTable.reportId, reportId),
+            eq(resolutionConfirmationsTable.kind, "resolution"),
+          ),
+        );
 
       const total = Number(confCount);
       const reachedThreshold = total >= RESOLUTION_THRESHOLD;
@@ -1695,63 +1718,59 @@ router.get(
         .orderBy(desc(reportsTable.updatedAt))
         .limit(50);
 
-      // Enriquecer con datos de strikes y trustScore del autor
-      const enriched = await Promise.all(
-        reports.map(async (r) => {
-          let strikeCount = 0;
-          let trustScore = 50;
-          let authorName = r.authorName;
-          if (r.authorUserId) {
-            const [author] = await db
-              .select({
-                trustScore: usersTable.trustScore,
-                name: usersTable.name,
-              })
-              .from(usersTable)
-              .where(eq(usersTable.id, r.authorUserId))
-              .limit(1);
-            if (author) {
-              trustScore = author.trustScore ?? 50;
-              authorName = author.name;
+      // Enriquecer con autor, strikes activos y flags en 3 consultas agrupadas
+      // (antes: hasta 3 consultas POR reporte — N+1).
+      const authorIds = [
+        ...new Set(reports.map((r) => r.authorUserId).filter((x): x is number => x != null)),
+      ];
+      const reportIds = reports.map((r) => r.id);
 
-              const [{ count }] = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(userStrikesTable)
-                .where(
-                  and(
-                    eq(userStrikesTable.userId, r.authorUserId),
-                    eq(userStrikesTable.activo, true),
-                  ),
-                );
-              strikeCount = Number(count);
-            }
-          }
-          // Contar community flags
-          const [{ count: flagCount }] = await db
-            .select({ count: sql<number>`count(*)` })
+      const authors = authorIds.length
+        ? await db
+            .select({ id: usersTable.id, trustScore: usersTable.trustScore, name: usersTable.name })
+            .from(usersTable)
+            .where(inArray(usersTable.id, authorIds))
+        : [];
+      const strikeRows = authorIds.length
+        ? await db
+            .select({ userId: userStrikesTable.userId, count: sql<number>`count(*)` })
+            .from(userStrikesTable)
+            .where(and(inArray(userStrikesTable.userId, authorIds), eq(userStrikesTable.activo, true)))
+            .groupBy(userStrikesTable.userId)
+        : [];
+      const flagRows = reportIds.length
+        ? await db
+            .select({ reportId: communityFlagsTable.reportId, count: sql<number>`count(*)` })
             .from(communityFlagsTable)
-            .where(eq(communityFlagsTable.reportId, r.id));
+            .where(inArray(communityFlagsTable.reportId, reportIds))
+            .groupBy(communityFlagsTable.reportId)
+        : [];
 
-          return {
-            id: String(r.id),
-            title: r.title,
-            description: r.description,
-            category: r.category,
-            urgency: r.urgency,
-            status: r.status,
-            sector: r.sector,
-            district: r.district,
-            districtId: r.districtId,
-            authorName,
-            authorUserId: r.authorUserId ? String(r.authorUserId) : null,
-            strikeCount,
-            trustScore,
-            communityFlagCount: Number(flagCount),
-            createdAt: r.createdAt.toISOString(),
-            updatedAt: r.updatedAt.toISOString(),
-          };
-        }),
-      );
+      const authorById = new Map(authors.map((a) => [a.id, a]));
+      const strikesByUser = new Map(strikeRows.map((s) => [s.userId, Number(s.count)]));
+      const flagsByReport = new Map(flagRows.map((f) => [f.reportId, Number(f.count)]));
+
+      const enriched = reports.map((r) => {
+        const author = r.authorUserId ? authorById.get(r.authorUserId) : undefined;
+        return {
+          id: String(r.id),
+          title: r.title,
+          description: r.description,
+          category: r.category,
+          urgency: r.urgency,
+          status: r.status,
+          sector: r.sector,
+          district: r.district,
+          districtId: r.districtId,
+          authorName: author?.name ?? r.authorName,
+          authorUserId: r.authorUserId ? String(r.authorUserId) : null,
+          strikeCount: author ? (strikesByUser.get(r.authorUserId!) ?? 0) : 0,
+          trustScore: author?.trustScore ?? 50,
+          communityFlagCount: flagsByReport.get(r.id) ?? 0,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        };
+      });
 
       return res.json({ reports: enriched });
     } catch (err) {

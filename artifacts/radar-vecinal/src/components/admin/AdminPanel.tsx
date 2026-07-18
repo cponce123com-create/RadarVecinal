@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Siren, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown } from "lucide-react";
+import { Shield, Siren, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown, Truck, Volume2 } from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,8 @@ import DistrictSwitcher from "./DistrictSwitcher";
 import AnalyticsTab from "./AnalyticsTab";
 import SuperAdminTab from "./SuperAdminTab";
 import AlertsTab from "./AlertsTab";
+import DevicesTab from "./DevicesTab";
+import AudioClipsTab from "./AudioClipsTab";
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>("reports");
   const [search, setSearch] = useState("");
@@ -28,6 +30,8 @@ export default function AdminPanel() {
     { id: "analytics" as Tab, label: "Analítica", icon: BarChart3 },
     { id: "alerts" as Tab,  label: "Alertas",    icon: Siren },
     { id: "users" as Tab,   label: "Usuarios",   icon: UsersIcon },
+    { id: "devices" as Tab, label: "Recolector", icon: Truck },
+    { id: "audios" as Tab,  label: "Audios",     icon: Volume2 },
     { id: "ads" as Tab,     label: "Publicidad", icon: Megaphone },
   ];
 
@@ -85,7 +89,7 @@ export default function AdminPanel() {
           })}
         </div>
 
-        {tab !== "ads" && tab !== "analytics" && (
+        {tab !== "ads" && tab !== "analytics" && tab !== "devices" && tab !== "audios" && (
           <div className="relative flex-1 max-w-sm ml-auto">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -103,6 +107,8 @@ export default function AdminPanel() {
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "alerts" && <AlertsTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "devices" && <DevicesTab />}
+      {tab === "audios" && <AudioClipsTab />}
       {tab === "ads" && <AdSlotsTab />}
       {tab === "superadmin" && <SuperAdminTab />}
     </div>

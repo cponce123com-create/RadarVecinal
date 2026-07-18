@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Info, Loader2, X, ImageIcon, Search } from "lucide-react";
+import { Camera, MapPin, CheckCircle2, ChevronRight, ChevronLeft, AlertTriangle, ShieldOff, Loader2, X, ImageIcon, Search, Pencil, Mic } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -13,7 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
-import { REPORT_TEMPLATES, type ReportTemplate } from "@/lib/reportTemplates";
+import IncidentPicker, { type IncidentPick } from "@/components/IncidentPicker";
+import VoiceNoteRecorder from "@/components/VoiceNoteRecorder";
 
 
 const URGENCY_CFG: Record<ReportUrgency, { label: string; color: string; dot: string }> = {
@@ -21,23 +22,6 @@ const URGENCY_CFG: Record<ReportUrgency, { label: string; color: string; dot: st
   [ReportUrgency.medium]:   { label: "Media",   color: "border-yellow-500/50 text-yellow-400 bg-yellow-500/10", dot: "bg-yellow-400" },
   [ReportUrgency.high]:     { label: "Alta",    color: "border-orange-500/50 text-orange-400 bg-orange-500/10", dot: "bg-orange-400" },
   [ReportUrgency.critical]: { label: "Crítica", color: "border-red-500/50 text-red-400 bg-red-500/10",          dot: "bg-red-400" },
-};
-
-const CATEGORY_COLORS: Record<string, { icon: string; ring: string; bg: string }> = {
-  robbery:           { icon: "#ef4444", ring: "#ef444455", bg: "rgba(239,68,68,0.12)" },
-  fight:             { icon: "#f97316", ring: "#f9731655", bg: "rgba(249,115,22,0.12)" },
-  suspicious:        { icon: "#eab308", ring: "#eab30855", bg: "rgba(234,179,8,0.12)" },
-  water_cut:         { icon: "#3b82f6", ring: "#3b82f655", bg: "rgba(59,130,246,0.12)" },
-  garbage:           { icon: "#6b7280", ring: "#6b728055", bg: "rgba(107,114,128,0.12)" },
-  informal_commerce: { icon: "#a855f7", ring: "#a855f755", bg: "rgba(168,85,247,0.12)" },
-  noise:             { icon: "#f59e0b", ring: "#f59e0b55", bg: "rgba(245,158,11,0.12)" },
-  missing_person:    { icon: "#f59e0b", ring: "#f59e0b55", bg: "rgba(245,158,11,0.12)" },
-  fire:              { icon: "#ef4444", ring: "#ef444455", bg: "rgba(239,68,68,0.12)" },
-  medical_emergency: { icon: "#ef4444", ring: "#ef444455", bg: "rgba(239,68,68,0.12)" },
-  prostitution:      { icon: "#ec4899", ring: "#ec489955", bg: "rgba(236,72,153,0.12)" },
-  drug_point:        { icon: "#84cc16", ring: "#84cc1655", bg: "rgba(132,204,22,0.12)" },
-  bar_trouble:       { icon: "#f59e0b", ring: "#f59e0b55", bg: "rgba(245,158,11,0.12)" },
-  other:             { icon: "#6b7280", ring: "#6b728055", bg: "rgba(107,114,128,0.12)" },
 };
 
 // ── FixMyStreet-inspired wizard: Ubicación → Descripción → Confirmar ───────
@@ -115,26 +99,32 @@ export default function ReportForm() {
   // ── GPS + Reverse Geocode: detectar ubicación real del vecino ───────────
   const [detectingLocation, setDetectingLocation] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [addrLoading, setAddrLoading] = useState(false);
+  // El usuario ya no escribe barrio/dirección: se autocompletan del mapa. Si
+  // decide ajustar la dirección a mano, este ref evita que el geocoder la pise.
+  const addressManualRef = useRef(false);
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    setAddrLoading(true);
     try {
       const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
       if (!res.ok) return;
       const data = await res.json();
-      if (data.zone) {
-        setFormData(prev => ({ ...prev, sector: data.zone }));
-      }
-      if (data.displayName && !formData.address) {
-        // Tomar la calle + zona como dirección base si no hay una
-        const roadZone = [data.road, data.zone].filter(Boolean).join(", ");
-        if (roadZone) {
-          setFormData(prev => ({ ...prev, address: roadZone }));
-        }
-      }
+      const zone: string = data.zone || "";
+      const roadZone = [data.road, data.zone].filter(Boolean).join(", ") || data.displayName || "";
+      setFormData(prev => ({
+        ...prev,
+        // sector siempre con valor (el backend lo exige): zona › distrito › "Centro"
+        sector: zone || prev.sector || currentDistrict || "Centro",
+        address: addressManualRef.current ? prev.address : roadZone || prev.address,
+      }));
     } catch {
-      // silencio - el usuario puede escribir manualmente
+      // silencio - se mantiene el valor anterior; el distrito cubre el sector
+      setFormData(prev => ({ ...prev, sector: prev.sector || currentDistrict || "Centro" }));
+    } finally {
+      setAddrLoading(false);
     }
-  }, []);
+  }, [currentDistrict]);
 
   useEffect(() => {
     if (fromMap) {
@@ -188,6 +178,7 @@ export default function ReportForm() {
       toast({ title: "❌ Error al subir foto", description: err.message, variant: "destructive" });
     },
   });
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -197,7 +188,7 @@ export default function ReportForm() {
 
     setImagePreview(URL.createObjectURL(file));
     await uploadFile(file);
-  }, [uploadFile]);
+  }, [uploadFile, toast]);
 
   const isSensitive = formData.category !== "" && SENSITIVE_CATEGORIES.has(formData.category as ReportCategory);
 
@@ -207,27 +198,27 @@ export default function ReportForm() {
     : "Vecino";
   const publishAs = isSensitive ? "Anónimo" : codeName;
 
+  const [addressEditing, setAddressEditing] = useState(false);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCategorySelect = (key: ReportCategory) => {
-    setFormData(prev => ({ ...prev, category: key }));
-  };
-
-  // ── Plantillas de problemas frecuentes del distrito ──
-  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
-  const applyTemplate = (tpl: ReportTemplate) => {
-    setActiveTemplate(tpl.id);
+  // ── Buscador inteligente de "¿Qué está pasando?" ──
+  // Al elegir un subtipo del catálogo se fija categoría + urgencia y se
+  // prellena el título (editable). El usuario solo escribe la descripción.
+  const handleIncidentPick = (pick: IncidentPick) => {
     setFormData(prev => ({
       ...prev,
-      category: tpl.category,
-      title: tpl.title,
-      description: tpl.description,
-      urgency: tpl.urgency,
+      category: pick.category,
+      urgency: pick.urgency,
+      // Prellena el título solo si estaba vacío o venía de otra selección
+      title: prev.title.trim() ? prev.title : pick.label,
     }));
   };
+  const clearIncident = () =>
+    setFormData(prev => ({ ...prev, category: "" as ReportCategory | "" }));
 
   const [showErrors, setShowErrors] = useState(false);
   const titleTrimmed = formData.title.trim();
@@ -268,7 +259,9 @@ export default function ReportForm() {
         // FIX: sin districtId el backend rechaza reportes de usuarios anónimos (400)
         districtId: currentDistrictId ?? undefined,
         imageUrl: imageUrl ?? null,
-      }
+        // audioUrl aún no está en el contrato generado; el backend sí lo acepta.
+        audioUrl: audioUrl ?? null,
+      } as any
     }, {
       onSuccess: () => {
         toast({ title: "✓ Reporte enviado", description: "Gracias por colaborar con la seguridad del distrito." });
@@ -340,8 +333,10 @@ export default function ReportForm() {
                     Buscar dirección
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">Escribe una dirección y el mapa se posicionará automáticamente.</p>
-                  <GeocoderInput onSelect={(lat, lng, address) => {
-                    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, address }));
+                  <GeocoderInput onSelect={(lat, lng) => {
+                    addressManualRef.current = false;
+                    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+                    reverseGeocode(lat, lng);
                   }} />
                 </div>
 
@@ -363,7 +358,11 @@ export default function ReportForm() {
                       <MapCenterUpdater center={[formData.latitude, formData.longitude]} />
                       <DraggableMarker
                         position={{ lat: formData.latitude, lng: formData.longitude }}
-                        onDrag={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}
+                        onDrag={(lat, lng) => {
+                          addressManualRef.current = false;
+                          setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+                          reverseGeocode(lat, lng);
+                        }}
                       />
                     </MapContainer>
                   </div>
@@ -372,39 +371,38 @@ export default function ReportForm() {
                   </p>
                 </div>
 
-                {/* Zona / Barrio (auto-detectado por GPS, editable) */}
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Zona / Barrio</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground" />
-                    <input type="text" name="sector" value={formData.sector} onChange={handleChange}
-                      placeholder={detectingLocation ? "Detectando zona..." : "Ej: Pampa del Carmen, San Ramón Centro..."}
-                      className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
-                    />
-                    {detectingLocation && (
-                      <Loader2 className="absolute right-3.5 top-3.5 w-4 h-4 text-primary animate-spin" />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1">
-                    {detectingLocation
-                      ? "Obteniendo tu ubicación por GPS..."
-                      : locationError
-                        ? locationError
-                        : formData.sector
-                          ? "Detectado automáticamente por tu GPS. Puedes editarlo."
-                          : "Escribe el barrio, zona o código postal donde ocurrió."}
-                  </p>
-                </div>
-
-                {/* Address */}
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-2">Dirección o referencia</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-muted-foreground" />
-                    <input type="text" name="address" value={formData.address} onChange={handleChange}
-                      placeholder="Jr. Tarma cdra. 3, frente al mercado..."
-                      className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
-                    />
+                {/* Dirección auto-detectada del marcador (sin cajas manuales) */}
+                <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3.5">
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">
+                        Dirección detectada
+                      </p>
+                      {addrLoading || detectingLocation ? (
+                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Obteniendo dirección…
+                        </span>
+                      ) : addressEditing ? (
+                        <input
+                          autoFocus type="text" name="address" value={formData.address}
+                          onChange={(e) => { addressManualRef.current = true; handleChange(e); }}
+                          placeholder="Escribe la dirección o una referencia…"
+                          className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                        />
+                      ) : (
+                        <p className="text-sm text-white font-medium break-words">
+                          {formData.address || (locationError ? "Ajusta el marcador o busca la dirección" : "Mueve el marcador para detectar la dirección")}
+                        </p>
+                      )}
+                      {!!formData.sector && !addressEditing && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Zona: {formData.sector}</p>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => setAddressEditing(v => !v)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-muted-foreground hover:text-white hover:bg-white/8 transition-colors flex-shrink-0">
+                      <Pencil className="w-3 h-3" /> {addressEditing ? "Listo" : "Ajustar"}
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -414,56 +412,25 @@ export default function ReportForm() {
             {step === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="p-5 md:p-6 space-y-5">
 
-                {/* Plantillas de problemas frecuentes */}
+                {/* ¿Qué está pasando? — buscador inteligente */}
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-1">Problemas frecuentes del distrito</label>
-                  <p className="text-[11px] text-muted-foreground mb-2.5">Toca uno para prellenar el reporte y solo ajusta los detalles entre [corchetes].</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1.5 hide-scrollbar">
-                    {REPORT_TEMPLATES.map(tpl => (
-                      <button key={tpl.id} type="button" onClick={() => applyTemplate(tpl)}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
-                          activeTemplate === tpl.id
-                            ? "bg-primary/15 text-primary border-primary/40"
-                            : "bg-white/[0.04] text-muted-foreground border-white/8 hover:text-white hover:border-white/20"
-                        }`}>
-                        <span className="text-sm">{tpl.emoji}</span>
-                        {tpl.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Categoría */}
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-3">¿Qué está sucediendo? <span className="text-destructive">*</span></label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {(Object.entries(CATEGORY_CONFIG) as [ReportCategory, any][]).map(([key, config]) => {
-                      const Icon = config.icon;
-                      const isSelected = formData.category === key;
-                      const colors = CATEGORY_COLORS[key] ?? CATEGORY_COLORS.other;
-                      return (
-                        <motion.button
-                          key={key} type="button" whileTap={{ scale: 0.97 }}
-                          onClick={() => handleCategorySelect(key)}
-                          className="flex flex-col items-center gap-2 p-3.5 rounded-xl border transition-all text-center"
-                          style={{
-                            background: isSelected ? colors.bg : "transparent",
-                            borderColor: isSelected ? colors.ring : "rgba(255,255,255,0.06)",
-                          }}
-                        >
-                          <Icon className="w-5 h-5" style={{ color: isSelected ? colors.icon : "#6b7280" }} />
-                          <span className="text-[11px] font-medium leading-tight" style={{ color: isSelected ? "#fff" : "#6b7280" }}>
-                            {config.label}
-                          </span>
-                          {SENSITIVE_CATEGORIES.has(key) && (
-                            <span className="text-[9px] font-semibold text-purple-400/70 flex items-center gap-0.5">
-                              <ShieldOff className="w-2.5 h-2.5" /> Anónimo
-                            </span>
-                          )}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
+                  <label className="block text-sm font-semibold text-white mb-1">
+                    ¿Qué está pasando? <span className="text-destructive">*</span>
+                  </label>
+                  <p className="text-[11px] text-muted-foreground mb-2.5">
+                    Escribe y elige el tipo (ej. “robo” → robo a mano armada, hurto de celular…).
+                  </p>
+                  <IncidentPicker
+                    category={formData.category}
+                    title={formData.title}
+                    onPick={handleIncidentPick}
+                    onClear={clearIncident}
+                  />
+                  {isSensitive && (
+                    <p className="text-[11px] text-purple-300/80 mt-2 flex items-center gap-1.5">
+                      <ShieldOff className="w-3.5 h-3.5" /> Categoría delicada: se publicará de forma anónima.
+                    </p>
+                  )}
                 </div>
 
                 {/* Urgencia */}
@@ -553,7 +520,7 @@ export default function ReportForm() {
                       <img src={imagePreview} alt="Vista previa" className="w-full object-cover" style={{ maxHeight: 200 }} />
                       {uploading && <div className="absolute inset-0 flex items-center justify-center bg-black/50"><Loader2 className="w-6 h-6 text-white animate-spin" /><span className="text-white text-sm ml-2">Subiendo...</span></div>}
                       {!uploading && (
-                        <button type="button" onClick={() => { setImagePreview(null); setImageUrl(null); setUploadErr(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                        <button type="button" onClick={() => { setImagePreview(null); setImageUrl(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center hover:bg-black/90"><X className="w-4 h-4 text-white" /></button>
                       )}
                     </div>
@@ -566,6 +533,14 @@ export default function ReportForm() {
                     </button>
                   )}
                   {uploadErr && <p className="text-xs text-red-400 mt-1">{uploadErr.message}</p>}
+                </div>
+
+                {/* Nota de voz (opcional, máx. 20s) */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Nota de voz <span className="text-muted-foreground font-normal">(opcional)</span>
+                  </label>
+                  <VoiceNoteRecorder onChange={setAudioUrl} />
                 </div>
               </motion.div>
             )}
@@ -585,7 +560,7 @@ export default function ReportForm() {
                   </div>
                   <div className="p-3 rounded-xl bg-card border border-white/5">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Categoría</p>
-                    <p className="text-xs text-white font-medium capitalize">{formData.category}</p>
+                    <p className="text-xs text-white font-medium">{(CATEGORY_CONFIG as any)[formData.category]?.label ?? formData.category}</p>
                     <p className="text-[10px] text-muted-foreground/60">Urgencia {URGENCY_CFG[formData.urgency]?.label}</p>
                   </div>
                 </div>
@@ -604,6 +579,13 @@ export default function ReportForm() {
                   <div className="p-3 rounded-xl bg-card border border-white/5 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-green-400" />
                     <span className="text-xs text-green-400">Foto adjunta</span>
+                  </div>
+                )}
+
+                {audioUrl && (
+                  <div className="p-3 rounded-xl bg-card border border-white/5 flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-green-400" />
+                    <span className="text-xs text-green-400">Nota de voz adjunta</span>
                   </div>
                 )}
 

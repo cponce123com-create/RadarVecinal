@@ -1,31 +1,88 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="mbg" x1="40" y1="20" x2="480" y2="500" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3C7BFF"/>
-      <stop offset="1" stop-color="#1740C4"/>
-    </linearGradient>
-    <radialGradient id="mglow" cx="0.32" cy="0.26" r="0.95">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    <radialGradient id="mbg" cx="0.5" cy="0.42" r="0.75">
+      <stop offset="0" stop-color="#122f6e"/>
+      <stop offset="1" stop-color="#0a1836"/>
     </radialGradient>
-    <linearGradient id="msweep" x1="399" y1="156" x2="196" y2="92" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+  </defs>
+  <rect width="512" height="512" fill="url(#mbg)"/>
+  <g transform="translate(41,41) scale(0.84)">
+    
+  <defs>
+    <radialGradient id="face" cx="0.44" cy="0.42" r="0.72">
+      <stop offset="0" stop-color="#2f7bff"/>
+      <stop offset="0.55" stop-color="#1a4fd0"/>
+      <stop offset="1" stop-color="#0e2f7e"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="456" y1="150" x2="300" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a3d84f" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#8bc34a" stop-opacity="0.05"/>
     </linearGradient>
+    <linearGradient id="bluehouse" x1="90" y1="392" x2="150" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3f8bff"/>
+      <stop offset="1" stop-color="#1f5fe0"/>
+    </linearGradient>
+    <clipPath id="face-clip"><circle cx="256" cy="256" r="212"/></clipPath>
+    <clipPath id="badge-clip"><circle cx="256" cy="256" r="250"/></clipPath>
   </defs>
 
-  <!-- Full-bleed: los sistemas aplican su propia máscara (círculo/squircle) -->
-  <rect width="512" height="512" fill="url(#mbg)"/>
-  <rect width="512" height="512" fill="url(#mglow)"/>
+  <!-- Anillo navy exterior -->
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#0c1f4c" stroke-width="28"/>
+  <!-- Cara del radar -->
+  <circle cx="256" cy="256" r="212" fill="url(#face)"/>
 
-  <!-- Marca dentro de la zona segura (central 80%) -->
-  <g transform="translate(51.2,51.2) scale(0.8)" stroke-linecap="round">
-    <circle cx="256" cy="256" r="168" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="13"/>
-    <circle cx="256" cy="256" r="102" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="13"/>
-    <path d="M256 256 L399.3 155.6 A175 175 0 0 0 196.1 91.6 Z" fill="url(#msweep)"/>
-    <line x1="256" y1="256" x2="399.3" y2="155.6" stroke="#ffffff" stroke-opacity="0.95" stroke-width="12"/>
-    <circle cx="372" cy="224" r="31" fill="#ffffff" fill-opacity="0.18"/>
-    <circle cx="372" cy="224" r="17" fill="#ffffff"/>
-    <circle cx="256" cy="256" r="16" fill="#ffffff"/>
+  <!-- Radar (clip a la cara) -->
+  <g clip-path="url(#face-clip)">
+    <g stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-opacity="0.9">
+      <line x1="256" y1="70" x2="256" y2="200"/>
+      <line x1="256" y1="312" x2="256" y2="442"/>
+      <line x1="70" y1="256" x2="200" y2="256"/>
+      <line x1="312" y1="256" x2="442" y2="256"/>
+      <line x1="238" y1="86" x2="274" y2="86"/>
+      <line x1="238" y1="426" x2="274" y2="426"/>
+      <line x1="86" y1="238" x2="86" y2="274"/>
+      <line x1="426" y1="238" x2="426" y2="274"/>
+    </g>
+    <g fill="none" stroke="#ffffff" stroke-opacity="0.85">
+      <circle cx="256" cy="256" r="186" stroke-width="4"/>
+      <circle cx="256" cy="256" r="128" stroke-width="5"/>
+      <circle cx="256" cy="256" r="70" stroke-width="5"/>
+    </g>
+    <path d="M256 256 L456 256 A200 200 0 0 0 379 98 Z" fill="url(#sweep)"/>
+    <circle cx="372" cy="150" r="20" fill="#a3d84f" fill-opacity="0.25"/>
+    <circle cx="372" cy="150" r="9" fill="#a8e05a"/>
+    <!-- Punto central -->
+    <circle cx="256" cy="256" r="13" fill="#ffffff"/>
+  </g>
+
+  <!-- Escena comunidad (clip al badge, sigue la curva inferior) -->
+  <g clip-path="url(#badge-clip)">
+    <!-- Casa izquierda (azul) -->
+    <path d="M92 476 L92 404 L126 376 L160 404 L160 476 Z" fill="url(#bluehouse)" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/>
+    <rect x="114" y="420" width="24" height="30" rx="3" fill="#0c1f4c"/>
+
+    <!-- Casa derecha (navy alta) -->
+    <path d="M320 470 L320 382 L362 350 L404 382 L404 470 Z" fill="#0c1f4c" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/>
+    <rect x="336" y="398" width="20" height="22" rx="2" fill="#ffffff"/>
+    <rect x="368" y="398" width="20" height="22" rx="2" fill="#ffffff"/>
+    <rect x="352" y="434" width="20" height="36" rx="2" fill="#ffffff"/>
+
+    <!-- Árbol -->
+    <rect x="425" y="418" width="11" height="42" rx="4" fill="#5f8f2e"/>
+    <circle cx="430" cy="404" r="27" fill="#7cb342"/>
+    <circle cx="412" cy="418" r="19" fill="#7cb342"/>
+    <circle cx="448" cy="418" r="19" fill="#7cb342"/>
+
+    <!-- Personas -->
+    <g stroke="#ffffff" stroke-width="5" stroke-linejoin="round">
+      <path d="M192 486 a36 36 0 0 1 72 0 Z" fill="#2f7bff"/>
+      <circle cx="228" cy="410" r="23" fill="#2f7bff"/>
+      <path d="M286 486 a36 36 0 0 1 72 0 Z" fill="#2f7bff"/>
+      <circle cx="322" cy="410" r="23" fill="#2f7bff"/>
+      <path d="M206 490 a50 50 0 0 1 100 0 Z" fill="#0c1f4c"/>
+      <circle cx="256" cy="396" r="32" fill="#0c1f4c"/>
+    </g>
+  </g>
+
   </g>
 </svg>

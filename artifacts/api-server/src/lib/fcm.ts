@@ -192,3 +192,45 @@ export async function sendMunicipalPushToUser(data: {
     );
   }
 }
+
+/**
+ * Envía un aviso push a un token individual (proximidad de servicios en vivo).
+ * Best-effort: si FCM no está configurado o el token es inválido, solo loggea.
+ * Devuelve true si se envió (para poder limpiar tokens muertos aguas arriba).
+ */
+export async function sendProximityPush(data: {
+  token: string;
+  title: string;
+  body: string;
+  districtId: number;
+  providerType: string;
+}): Promise<boolean> {
+  try {
+    if (!initFcm()) return false;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const admin = require("firebase-admin");
+
+    await admin.messaging().send({
+      notification: { title: data.title, body: data.body },
+      token: data.token,
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "live-services",
+          priority: "high",
+          visibility: "public",
+          tag: `live-${data.providerType}`,
+        },
+      },
+      data: {
+        type: "live_proximity",
+        providerType: data.providerType,
+        districtId: String(data.districtId),
+      },
+    });
+    return true;
+  } catch (err) {
+    logger.error({ err }, "[FCM] Error al enviar push de proximidad (best-effort)");
+    return false;
+  }
+}

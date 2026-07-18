@@ -167,6 +167,8 @@ export const reportsTable = pgTable("reports", {
   province: text("province").notNull().default("Chanchamayo"),
   department: text("department").notNull().default("Junín"),
   imageUrl: text("image_url"),
+  // Nota de voz opcional (≤20s), URL de Cloudinary (resource_type video/audio).
+  audioUrl: text("audio_url"),
   authorName: text("author_name").notNull(),
   contactPhone: text("contact_phone"),
   // Bugfix 1: Email real del vecino (no inferido de contactPhone)
@@ -242,6 +244,128 @@ export const missingPersonsTable = pgTable("missing_persons", {
   deletedAt: timestamp("deleted_at", { mode: "string" }),
   deletedBy: text("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Servicios en vivo: rastreo GPS de camión recolector y vendedores ────────
+// Un "transmisor" (camión recolector, panadero, lechero, tamalero, gasero,
+// aguatero o un vendedor de comida dominical) comparte su ubicación en vivo;
+// los vecinos lo ven moverse por el mapa del distrito. Puede transmitir sin
+// sesión (muchos son ambulantes), por eso la autorización de ping/stop usa
+// una `broadcastKey` secreta devuelta al iniciar la transmisión.
+export const liveProviderTypeEnum = pgEnum("live_provider_type", [
+  "recolector", // camión de basura
+  "panadero",
+  "lechero",
+  "tamalero",
+  "gasero",
+  "agua", // reparto de agua
+  "vendedor", // vendedor de comida (pollada, patasca, tamales…) con etiqueta libre
+  "otro",
+]);
+
+export const liveProvidersTable = pgTable("live_providers", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  // Opcional: si el transmisor tiene cuenta, se enlaza (para límites/moderación).
+  userId: integer("user_id").references((): AnyPgColumn => usersTable.id),
+  type: liveProviderTypeEnum("type").notNull(),
+  // Etiqueta libre para "vendedor"/"otro" (ej: "Vendo patasca y pollada hoy").
+  label: text("label").notNull().default(""),
+  // Nombre visible de quien transmite (ej: "Panadería San José").
+  displayName: text("display_name").notNull().default(""),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  // Clave secreta para autorizar ping/stop sin sesión iniciada.
+  broadcastKey: text("broadcast_key").notNull(),
+  // Si la transmisión proviene de un dispositivo oficial registrado (camión
+  // recolector con celular montado o GPS vehicular), se enlaza aquí y se marca
+  // como verificada (distintivo "Oficial" en el mapa).
+  deviceId: integer("device_id").references((): AnyPgColumn => liveDevicesTable.id),
+  verified: boolean("verified").notNull().default(false),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  // Cada ping actualiza `updatedAt`; sirve de "última vez visto" (lastSeen).
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ── Dispositivos oficiales de rastreo (registrados desde el panel admin) ─────
+// La municipalidad da de alta un camión/servicio y obtiene una `deviceKey`
+// secreta. El celular montado (o un GPS vehicular) reporta su ubicación con esa
+// clave, sin login ni operador: aparece como transmisión "Oficial" con su ruta
+// e historial. La misma clave sirve para el modo dispositivo del app y para un
+// endpoint de ingesta HTTP (GPS vehicular vía Traccar/HTTP).
+export const liveDevicesTable = pgTable("live_devices", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  type: liveProviderTypeEnum("type").notNull().default("recolector"),
+  label: text("label").notNull().default(""),
+  deviceKey: text("device_key").notNull().unique(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdById: integer("created_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Ruta recorrida por una transmisión (breadcrumbs) ────────────────────────
+// Cada punto es una posición por la que pasó el transmisor. Se guardan
+// submuestreados (solo si avanzó ≥ ~12 m) para dibujar la línea de la ruta en
+// vivo y conservarla en el historial sin inflar la base de datos.
+export const liveTracksTable = pgTable("live_tracks", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id")
+    .notNull()
+    .references(() => liveProvidersTable.id),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+});
+
+// ── Clips de voz para los avisos ("Vecino, la tamalera está cerca") ─────────
+// El superadmin/municipalidad graba o sube un audio por tipo de servicio y
+// distrito, para que el aviso suene con la voz y el acento locales en vez del
+// TTS robótico. Si no hay clip, la app usa el TTS como respaldo.
+export const liveVoiceClipsTable = pgTable("live_voice_clips", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  type: liveProviderTypeEnum("type").notNull(),
+  audioUrl: text("audio_url"), // URL de Cloudinary (null = solo frase para TTS)
+  phrase: text("phrase").notNull().default(""), // texto del aviso (respaldo TTS)
+  enabled: boolean("enabled").notNull().default(true),
+  updatedById: integer("updated_by_id").references(
+    (): AnyPgColumn => usersTable.id,
+  ),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ── Suscripción de proximidad: aviso push cuando un servicio se acerca a casa ─
+// Guarda (en el servidor) la casa del vecino + su token push, para que el aviso
+// llegue AUNQUE la app esté cerrada. La detección de cercanía la hace el
+// servidor cuando un proveedor se mueve.
+export const proximitySubscriptionsTable = pgTable("proximity_subscriptions", {
+  id: serial("id").primaryKey(),
+  districtId: integer("district_id")
+    .notNull()
+    .references(() => districtsTable.id),
+  pushToken: text("push_token").notNull().unique(),
+  homeLat: real("home_lat").notNull(),
+  homeLng: real("home_lng").notNull(),
+  radiusM: integer("radius_m").notNull().default(300),
+  types: jsonb("types").notNull().default(["recolector"]), // qué servicios avisar
+  enabled: boolean("enabled").notNull().default(true),
+  // Último aviso por tipo (epoch ms) para no repetir: { recolector: 172... }.
+  cooldowns: jsonb("cooldowns").notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
@@ -477,6 +601,8 @@ export const resolutionConfirmationsTable = pgTable(
       .references(() => reportsTable.id),
     userId: integer("user_id").references(() => usersTable.id),
     userIp: text("user_ip"),
+    // "validity" = el reporte es real · "resolution" = la solución es real
+    kind: text("kind").notNull().default("validity"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
 );

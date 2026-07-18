@@ -19,6 +19,7 @@ import clearDemoRouter from "./clearDemo";
 import licensesRouter from "./licenses";
 import adminRouter from "./admin";
 import telegramRouter from "./telegram";
+import liveRouter from "./live";
 
 const router: IRouter = Router();
 
@@ -41,5 +42,6 @@ router.use(messagesRouter);
 router.use(licensesRouter);
 router.use(adminRouter);
 router.use(telegramRouter);
+router.use(liveRouter);
 
 export default router;

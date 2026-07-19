@@ -13,6 +13,7 @@ initApiBaseUrl();
 
 import { lazy, Suspense } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { PageSkeleton } from "@/components/Skeleton";
 import { Layout } from "@/components/Layout";
 import BrandingWrapper from "@/components/BrandingWrapper";
 import Home from "@/pages/Home";
@@ -37,14 +38,7 @@ const Terms = lazy(() => import("@/pages/Terms"));
 
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Cargando...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div className="py-2"><PageSkeleton /></div>}>
       {children}
     </Suspense>
   );

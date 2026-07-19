@@ -22,6 +22,7 @@ import {
   isMunicipalityLevel,
   isModeratorLevel,
 } from "../lib/roles";
+import { sendPasswordResetEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -362,6 +363,130 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return res.json({ token, user: formatUser(user) });
   } catch (err) {
     req.log.error({ err }, "login failed");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ── Recuperación de contraseña (token JWT firmado, sin tabla) ──────────────
+// El token se liga a un fragmento del hash de la contraseña actual: al cambiarla,
+// el hash cambia y el token deja de validar (uso único). Vence en 30 min.
+const RESET_TTL = "30m";
+function pwBinding(passwordHash: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(passwordHash)
+    .digest("hex")
+    .slice(0, 16);
+}
+
+// ── POST /auth/forgot-password — Solicitar enlace de restablecimiento ───────
+const forgotSchema = z.object({ email: z.string().email("Email inválido") });
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  const parsed = forgotSchema.safeParse(req.body);
+  // Respuesta genérica siempre (no revelar si el correo existe).
+  const generic = {
+    ok: true,
+    message:
+      "Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña.",
+  };
+  if (!parsed.success) return res.json(generic);
+
+  try {
+    const email = parsed.data.email.toLowerCase().trim();
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1);
+
+    if (user?.passwordHash) {
+      const token = jwt.sign(
+        {
+          sub: String(user.id),
+          purpose: "pwreset",
+          v: pwBinding(user.passwordHash),
+        },
+        JWT_SECRET,
+        { expiresIn: RESET_TTL },
+      );
+      const base = (process.env.APP_URL || "https://radarvecinal.pe").replace(
+        /\/$/,
+        "",
+      );
+      const resetUrl = `${base}/restablecer?token=${token}`;
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl,
+      });
+    }
+    return res.json(generic);
+  } catch (err) {
+    req.log.error({ err }, "forgot-password failed");
+    return res.json(generic); // seguir sin filtrar información
+  }
+});
+
+// ── POST /auth/reset-password — Fijar nueva contraseña con el token ─────────
+const resetSchema = z.object({
+  token: z.string().min(10),
+  password: z
+    .string()
+    .min(8, "Mínimo 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+    .regex(/[a-z]/, "Debe contener al menos una minúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número"),
+});
+router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  const parsed = resetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+  }
+  const { token, password } = parsed.data;
+
+  let payload: any;
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res
+      .status(400)
+      .json({
+        error: "El enlace no es válido o ya venció. Solicita uno nuevo.",
+      });
+  }
+  if (payload?.purpose !== "pwreset" || !payload?.sub) {
+    return res.status(400).json({ error: "Enlace inválido." });
+  }
+
+  try {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, Number(payload.sub)))
+      .limit(1);
+    // Uso único: si el hash cambió (o no hay), el token ya no sirve.
+    if (!user?.passwordHash || pwBinding(user.passwordHash) !== payload.v) {
+      return res
+        .status(400)
+        .json({
+          error: "El enlace ya fue usado o venció. Solicita uno nuevo.",
+        });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await db
+      .update(usersTable)
+      .set({ passwordHash, loginAttempts: 0, lockedUntil: null })
+      .where(eq(usersTable.id, user.id));
+
+    return res.json({
+      ok: true,
+      message: "Contraseña actualizada. Ya puedes iniciar sesión.",
+    });
+  } catch (err) {
+    req.log.error({ err }, "reset-password failed");
     return res.status(500).json({ error: "Error interno del servidor." });
   }
 });

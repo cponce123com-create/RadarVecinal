@@ -453,6 +453,71 @@ router.post("/reports", optionalAuth, async (req, res) => {
   }
 });
 
+// ── GET /reports/mine — reportes del vecino autenticado (perfil) ────────────
+// Debe ir antes de "/reports/:id" para que "mine" no se tome como un id.
+router.get("/reports/mine", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).jwtUser;
+    const userId = user?.sub ? parseInt(user.sub) : null;
+    if (!userId) return res.status(401).json({ error: "No autenticado." });
+
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(reportsTable)
+      .where(
+        and(
+          eq(reportsTable.authorUserId, userId),
+          isNull(reportsTable.deletedAt),
+        ),
+      );
+
+    const rows = await db
+      .select({
+        id: reportsTable.id,
+        title: reportsTable.title,
+        category: reportsTable.category,
+        urgency: reportsTable.urgency,
+        status: reportsTable.status,
+        sector: reportsTable.sector,
+        district: reportsTable.district,
+        districtId: reportsTable.districtId,
+        imageUrl: reportsTable.imageUrl,
+        confirmedCount: reportsTable.confirmedCount,
+        resolutionConfirmedCount: reportsTable.resolutionConfirmedCount,
+        createdAt: reportsTable.createdAt,
+        updatedAt: reportsTable.updatedAt,
+      })
+      .from(reportsTable)
+      .where(
+        and(
+          eq(reportsTable.authorUserId, userId),
+          isNull(reportsTable.deletedAt),
+        ),
+      )
+      .orderBy(desc(reportsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return res.json({
+      total: Number(count),
+      limit,
+      offset,
+      reports: rows.map((r) => ({
+        ...r,
+        id: String(r.id),
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get own reports");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── GET /reports/nearby — M-08: bounding box pre-filtro + districtId ────────
 router.get("/reports/nearby", optionalAuth, async (req, res) => {
   const nearbySchema = z.object({

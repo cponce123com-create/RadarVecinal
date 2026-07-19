@@ -184,3 +184,52 @@ export async function sendCustomMessageEmail(
     );
   }
 }
+
+/**
+ * Envía el correo de recuperación de contraseña con el enlace de restablecimiento.
+ * Best-effort: si SMTP no está configurado, loggea el enlace (útil en desarrollo)
+ * y no lanza. Devuelve true si se envió por correo.
+ */
+export async function sendPasswordResetEmail(data: {
+  to: string;
+  name: string;
+  resetUrl: string;
+}): Promise<boolean> {
+  const t = getTransporter();
+  if (!t) {
+    logger.warn(
+      { to: data.to, resetUrl: data.resetUrl },
+      "[Email] SMTP no configurado — enlace de reset no enviado (ver resetUrl en el log).",
+    );
+    return false;
+  }
+  try {
+    await t.sendMail({
+      from: process.env.SMTP_FROM || "noreply@radarvecinal.pe",
+      to: data.to,
+      subject: "Restablece tu contraseña — Radar Vecinal",
+      html: `
+        <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#0f1219;border-radius:12px;color:#e2e8f0">
+          <h2 style="color:#fff;margin:0 0 12px">Restablece tu contraseña</h2>
+          <p style="color:#94a3b8;font-size:14px;line-height:1.6">
+            Hola ${escapeHtml(data.name || "vecino")}, recibimos una solicitud para restablecer tu contraseña.
+            Toca el botón para crear una nueva. El enlace vence en 30 minutos.
+          </p>
+          <a href="${data.resetUrl}" style="display:inline-block;margin:16px 0;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">
+            Crear nueva contraseña
+          </a>
+          <p style="color:#64748b;font-size:12px;line-height:1.6">
+            Si no fuiste tú, ignora este correo: tu contraseña seguirá igual.
+          </p>
+        </div>`,
+    });
+    logger.info({ to: data.to }, "[Email] Correo de reset enviado.");
+    return true;
+  } catch (err) {
+    logger.error(
+      { err },
+      "[Email] Error al enviar el correo de reset (best-effort).",
+    );
+    return false;
+  }
+}

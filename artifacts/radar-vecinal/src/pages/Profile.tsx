@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import MyReports from "@/components/MyReports";
 import {
   Shield,
   Bell,
@@ -317,6 +318,9 @@ export default function Profile() {
           </span>
         </div>
       </motion.div>
+
+      {/* Mis reportes (UX-AU4) */}
+      <MyReports />
 
       {/* Menu Items */}
       <div className="flex flex-col gap-2">

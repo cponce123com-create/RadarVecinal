@@ -35,6 +35,8 @@ const LiveHistory = lazy(() => import("@/pages/LiveHistory"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
+const PasswordRecovery = lazy(() => import("@/pages/PasswordRecovery"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -206,6 +208,20 @@ function Router() {
               </SuspenseWrapper>
             </BrandingWrapper>
           </Layout>
+        )}
+      </Route>
+      <Route path="/recuperar">
+        {() => (
+          <SuspenseWrapper>
+            <PasswordRecovery />
+          </SuspenseWrapper>
+        )}
+      </Route>
+      <Route path="/restablecer">
+        {() => (
+          <SuspenseWrapper>
+            <ResetPassword />
+          </SuspenseWrapper>
         )}
       </Route>
       <Route path="/notificaciones">

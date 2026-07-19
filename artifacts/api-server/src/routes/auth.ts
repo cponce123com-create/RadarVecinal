@@ -15,7 +15,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import jwt, { type JwtPayload } from "jsonwebtoken";
+import jwt, { JsonWebTokenError, type JwtPayload } from "jsonwebtoken";
 import { z } from "zod";
 import {
   isSuperAdmin,
@@ -25,6 +25,7 @@ import {
 import { isValidClaimSecret } from "../lib/claimSecret";
 import { getDistrictTerritory } from "../lib/district";
 import type { JwtUser } from "../lib/authTypes";
+import { sendPasswordResetEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
@@ -111,10 +112,45 @@ function signToken(user: {
       role: user.role,
       district: user.district,
       districtId: user.districtId,
+      // Marca explícita: distingue un token de sesión de un token de
+      // recuperación de contraseña. Ver verifyAccessToken().
+      purpose: "access",
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES },
   );
+}
+
+/**
+ * Payload de un *access token* (token de sesión).
+ *
+ * `purpose` es opcional por compatibilidad con tokens ya emitidos antes de
+ * que existiera el campo: si está ausente se acepta.
+ */
+interface AccessTokenPayload extends JwtPayload {
+  sub: string;
+  purpose?: string;
+}
+
+/**
+ * Verifica un token y exige que sea de sesión.
+ *
+ * Todos los tokens (sesión y recuperación de contraseña) se firman con el
+ * mismo `JWT_SECRET`. Sin esta comprobación, un enlace de restablecimiento
+ * —que viaja por correo y, si SMTP no está configurado, se escribe en el
+ * log— serviría como credencial de sesión durante sus 30 minutos de vida,
+ * incluso después de haberlo usado, porque el vínculo al hash solo lo
+ * comprueba `POST /auth/reset-password`.
+ */
+function verifyAccessToken(token: string): AccessTokenPayload {
+  const payload = jwt.verify(token, JWT_SECRET) as AccessTokenPayload;
+  if (payload.purpose !== undefined && payload.purpose !== "access") {
+    throw new JsonWebTokenError("Token con propósito distinto al de sesión");
+  }
+  if (!payload.sub) {
+    throw new JsonWebTokenError("Token sin sujeto");
+  }
+  return payload;
 }
 
 async function signRefreshToken(userId: number): Promise<string> {
@@ -402,6 +438,154 @@ router.post("/auth/login", async (req: Request, res: Response) => {
   }
 });
 
+// ── Recuperación de contraseña (token JWT firmado, sin tabla) ──────────────
+// El token se liga a un fragmento del hash de la contraseña actual: al cambiarla,
+// el hash cambia y el token deja de validar (uso único). Vence en 30 min.
+const RESET_TTL = "30m";
+function pwBinding(passwordHash: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(passwordHash)
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/**
+ * Payload del token de recuperación de contraseña.
+ *
+ * `v` es el vínculo al hash actual: al cambiar la contraseña el hash cambia y
+ * el token deja de validar (uso único sin necesidad de tabla).
+ */
+interface PasswordResetPayload extends JwtPayload {
+  sub: string;
+  purpose: "pwreset";
+  v: string;
+}
+
+// ── POST /auth/forgot-password — Solicitar enlace de restablecimiento ───────
+const forgotSchema = z.object({ email: z.string().email("Email inválido") });
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  const parsed = forgotSchema.safeParse(req.body);
+  // Respuesta genérica siempre (no revelar si el correo existe).
+  const generic = {
+    ok: true,
+    message:
+      "Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña.",
+  };
+  if (!parsed.success) return res.json(generic);
+
+  try {
+    const email = parsed.data.email.toLowerCase().trim();
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1);
+
+    if (user?.passwordHash) {
+      const token = jwt.sign(
+        {
+          sub: String(user.id),
+          purpose: "pwreset",
+          v: pwBinding(user.passwordHash),
+        },
+        JWT_SECRET,
+        { expiresIn: RESET_TTL },
+      );
+      const base = (process.env.APP_URL || "https://radarvecinal.pe").replace(
+        /\/$/,
+        "",
+      );
+      const resetUrl = `${base}/restablecer?token=${token}`;
+      // No se espera el envío: el tiempo de respuesta no debe depender de si
+      // el correo existe ni de lo que tarde el SMTP (sería un oráculo de
+      // temporización que permitiría enumerar cuentas). `sendPasswordResetEmail`
+      // captura sus propios errores, así que no deja promesas rechazadas.
+      void sendPasswordResetEmail({
+        to: user.email,
+        name: user.name ?? "",
+        resetUrl,
+      });
+    }
+    return res.json(generic);
+  } catch (err) {
+    req.log.error({ err }, "forgot-password failed");
+    return res.json(generic); // seguir sin filtrar información
+  }
+});
+
+// ── POST /auth/reset-password — Fijar nueva contraseña con el token ─────────
+const resetSchema = z.object({
+  token: z.string().min(10),
+  password: z
+    .string()
+    .min(8, "Mínimo 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+    .regex(/[a-z]/, "Debe contener al menos una minúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número"),
+});
+router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  const parsed = resetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+  }
+  const { token, password } = parsed.data;
+
+  let payload: PasswordResetPayload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET) as PasswordResetPayload;
+  } catch {
+    return res
+      .status(400)
+      .json({
+        error: "El enlace no es válido o ya venció. Solicita uno nuevo.",
+      });
+  }
+  if (
+    payload?.purpose !== "pwreset" ||
+    typeof payload?.v !== "string" ||
+    !payload?.sub
+  ) {
+    return res.status(400).json({ error: "Enlace inválido." });
+  }
+  const userId = Number(payload.sub);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "Enlace inválido." });
+  }
+
+  try {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    // Uso único: si el hash cambió (o no hay), el token ya no sirve.
+    if (!user?.passwordHash || pwBinding(user.passwordHash) !== payload.v) {
+      return res
+        .status(400)
+        .json({
+          error: "El enlace ya fue usado o venció. Solicita uno nuevo.",
+        });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await db
+      .update(usersTable)
+      .set({ passwordHash, loginAttempts: 0, lockedUntil: null })
+      .where(eq(usersTable.id, user.id));
+
+    return res.json({
+      ok: true,
+      message: "Contraseña actualizada. Ya puedes iniciar sesión.",
+    });
+  } catch (err) {
+    req.log.error({ err }, "reset-password failed");
+    return res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 // ── POST /auth/refresh — Renovar access token con refresh token ─────────────
 router.post("/auth/refresh", async (req: Request, res: Response) => {
   const parsed = refreshSchema.safeParse(req.body);
@@ -479,9 +663,7 @@ router.get("/auth/me", async (req: Request, res: Response) => {
   }
 
   try {
-    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as {
-      sub: string;
-    };
+    const payload = verifyAccessToken(authHeader.slice(7));
     const [user] = await db
       .select()
       .from(usersTable)
@@ -509,7 +691,16 @@ export function verifyToken(token: string): {
   districtId: number;
 } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as any;
+    // verifyAccessToken descarta los tokens de recuperación de contraseña:
+    // un enlace de reset no es una credencial de sesión.
+    const payload = verifyAccessToken(token);
+    return {
+      sub: payload.sub,
+      email: String(payload.email ?? ""),
+      role: String(payload.role ?? "user"),
+      district: String(payload.district ?? ""),
+      districtId: Number(payload.districtId ?? 0),
+    };
   } catch {
     return null;
   }
@@ -538,12 +729,9 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     try {
-      const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as JwtPayload;
-      if (typeof payload !== "object" || !payload.sub) {
-        return next();
-      }
+      const payload = verifyAccessToken(authHeader.slice(7));
       req.jwtUser = {
-        sub: String(payload.sub),
+        sub: payload.sub,
         email: String(payload.email ?? ""),
         role: String(payload.role ?? "user"),
         district: String(payload.district ?? ""),
@@ -568,9 +756,7 @@ export async function requireAuth(
   }
 
   try {
-    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as {
-      sub: string;
-    };
+    const payload = verifyAccessToken(authHeader.slice(7));
 
     // Verify user still exists and is active in the database
     const [user] = await db

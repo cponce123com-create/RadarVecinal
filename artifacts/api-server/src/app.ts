@@ -214,6 +214,50 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/auth", authLimiter);
+
+// ── Recuperación de contraseña: doble límite ────────────────────────────────
+// El limitador de /api/auth usa como clave email+IP, así que rotar el email
+// esquiva el límite: eso permite usar el formulario como amplificador para
+// inundar de correos a terceros ("email bombing") y para enumerar cuentas.
+// Por eso aquí se limita por IP *y* por correo destino, de forma independiente.
+const forgotPasswordIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error:
+      "Demasiadas solicitudes de recuperación. Intenta de nuevo en 15 minutos.",
+  },
+  keyGenerator: (req) =>
+    ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? ""),
+});
+
+const forgotPasswordEmailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error:
+      "Ya se solicitaron varios enlaces para este correo. Intenta de nuevo en una hora.",
+  },
+  keyGenerator: (req) => {
+    const email =
+      typeof req.body?.email === "string"
+        ? req.body.email.toLowerCase().trim()
+        : "";
+    // Sin email válido se cae a la IP para no agrupar a todos los clientes
+    // inválidos en un mismo contador compartido.
+    return email
+      ? `pwreset_${email}`
+      : `pwreset_ip_${ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "")}`;
+  },
+});
+
+app.use("/api/auth/forgot-password", forgotPasswordIpLimiter);
+app.use("/api/auth/forgot-password", forgotPasswordEmailLimiter);
+
 app.use("/api/panic-alerts/stream", sseLimiter);
 app.use("/api/panic-alerts", panicLimiter);
 app.use("/api/reports", reportLimiter);

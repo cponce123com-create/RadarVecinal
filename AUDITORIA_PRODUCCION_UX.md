@@ -20,7 +20,7 @@ RadarVecinal tiene una base UX sólida: navegación mobile-first con bottom-nav,
 |---|---|---|---|---|
 | UX-NAV1 | **Bottom-nav + sidebar + drawer** usando 3 patrones de navegación distintos | Medio | P3 | Unificar: en mobile solo bottom-nav, en desktop sidebar + topbar. El drawer es redundante. |
 | UX-NAV2 | Subtítulo del topbar tenía `"GEOLOCALIZACIÓN · SAN RAMÓN"` hardcodeado | Medio | P1 | ✅ **Corregido** — ahora muestra el distrito activo dinámicamente |
-| UX-NAV3 | Botón "Nuevo Reporte" FAB (flotante) visible siempre, incluso sin sesión | Bajo | P2 | ✅ **Corregido** — si no hay sesión, abre el modal de inicio de sesión en vez de navegar |
+| UX-NAV3 | Botón "Nuevo Reporte" con gate de login inconsistente (el FAB abría login, pero el toque en el mapa y `/reportar` directo sí permitían reportar) | Bajo | P2 | ✅ **Resuelto (reporte anónimo)** — se quitó el gate: cualquiera puede reportar sin sesión, consistente en todos los accesos (el backend soporta reporte anónimo por diseño) |
 | UX-NAV4 | Sin indicador de página actual en títulos del `<title>` del navegador | Bajo | P2 | ✅ **Corregido** (parte de mejoras SEO) |
 | UX-NAV5 | En el menú de navegación no se indica visualmente la ruta activa en todos los menús | Medio | P1 | ✅ **Corregido** — `aria-current="page"` añadido en sidebar, drawer y bottom-nav |
 

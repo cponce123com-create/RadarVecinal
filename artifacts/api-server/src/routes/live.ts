@@ -48,7 +48,12 @@ const TRACK_MIN_METERS = 12;
 const TRACK_MAX_POINTS = 5000;
 
 // Distancia aproximada en metros entre dos coordenadas (haversine).
-function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function distanceMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -99,7 +104,10 @@ async function notifyProximity(p: {
 
     // Frase personalizada (voz grabada) si el distrito la definió.
     const [clip] = await db
-      .select({ phrase: liveVoiceClipsTable.phrase, enabled: liveVoiceClipsTable.enabled })
+      .select({
+        phrase: liveVoiceClipsTable.phrase,
+        enabled: liveVoiceClipsTable.enabled,
+      })
       .from(liveVoiceClipsTable)
       .where(
         and(
@@ -119,8 +127,11 @@ async function notifyProximity(p: {
       const d = distanceMeters(s.homeLat, s.homeLng, p.latitude, p.longitude);
       if (d > s.radiusM) continue;
 
-      const cooldowns = (s.cooldowns && typeof s.cooldowns === "object" ? s.cooldowns : {}) as Record<string, number>;
-      if (cooldowns[p.type] && now - cooldowns[p.type] < PUSH_COOLDOWN_MS) continue;
+      const cooldowns = (
+        s.cooldowns && typeof s.cooldowns === "object" ? s.cooldowns : {}
+      ) as Record<string, number>;
+      if (cooldowns[p.type] && now - cooldowns[p.type] < PUSH_COOLDOWN_MS)
+        continue;
 
       const body =
         clip?.enabled && clip.phrase
@@ -218,7 +229,10 @@ router.get("/live/all", requireAuth, async (req, res) => {
         updatedAt: liveProvidersTable.updatedAt,
       })
       .from(liveProvidersTable)
-      .leftJoin(districtsTable, eq(liveProvidersTable.districtId, districtsTable.id))
+      .leftJoin(
+        districtsTable,
+        eq(liveProvidersTable.districtId, districtsTable.id),
+      )
       .where(
         and(
           eq(liveProvidersTable.isActive, true),
@@ -249,7 +263,9 @@ router.get("/live", optionalAuth, async (req, res) => {
 
     const districtId = getDistrictId(req);
     if (!districtId) {
-      return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+      return res
+        .status(400)
+        .json({ error: "Se requiere distrito (districtId)." });
     }
 
     const fresh = new Date(Date.now() - FRESH_MS);
@@ -308,7 +324,9 @@ router.post("/live/start", optionalAuth, async (req, res) => {
   } else if (data.districtId) {
     districtId = Number(data.districtId);
   } else {
-    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    return res
+      .status(400)
+      .json({ error: "Se requiere distrito (districtId)." });
   }
 
   try {
@@ -385,7 +403,8 @@ router.post("/live/:id/ping", async (req, res) => {
       .where(eq(liveProvidersTable.id, id))
       .limit(1);
 
-    if (!row) return res.status(404).json({ error: "Transmisión no encontrada." });
+    if (!row)
+      return res.status(404).json({ error: "Transmisión no encontrada." });
     if (row.broadcastKey !== parsed.data.broadcastKey) {
       return res.status(403).json({ error: "Clave de transmisión inválida." });
     }
@@ -400,7 +419,12 @@ router.post("/live/:id/ping", async (req, res) => {
     // Guardar punto de ruta solo si avanzó ≥ TRACK_MIN_METERS (submuestreo),
     // respetando un tope de puntos por transmisión. Best-effort: si falla, el
     // ping igual se considera exitoso.
-    const moved = distanceMeters(row.latitude, row.longitude, latitude, longitude);
+    const moved = distanceMeters(
+      row.latitude,
+      row.longitude,
+      latitude,
+      longitude,
+    );
     if (moved >= TRACK_MIN_METERS) {
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
@@ -409,13 +433,23 @@ router.post("/live/:id/ping", async (req, res) => {
       if (Number(count) < TRACK_MAX_POINTS) {
         await db
           .insert(liveTracksTable)
-          .values({ providerId: id, districtId: row.districtId, latitude, longitude })
+          .values({
+            providerId: id,
+            districtId: row.districtId,
+            latitude,
+            longitude,
+          })
           .catch(() => {});
       }
     }
 
     // Aviso push a vecinos cercanos (best-effort, no bloquea el ping).
-    void notifyProximity({ districtId: row.districtId, type: row.type, latitude, longitude });
+    void notifyProximity({
+      districtId: row.districtId,
+      type: row.type,
+      latitude,
+      longitude,
+    });
 
     return res.json({ ok: true });
   } catch (err) {
@@ -442,7 +476,8 @@ router.post("/live/:id/stop", async (req, res) => {
       .where(eq(liveProvidersTable.id, id))
       .limit(1);
 
-    if (!row) return res.status(404).json({ error: "Transmisión no encontrada." });
+    if (!row)
+      return res.status(404).json({ error: "Transmisión no encontrada." });
     if (row.broadcastKey !== parsed.data.broadcastKey) {
       return res.status(403).json({ error: "Clave de transmisión inválida." });
     }
@@ -498,12 +533,16 @@ router.get("/live/:id/track", async (req, res) => {
 router.get("/live/history", optionalAuth, async (req, res) => {
   const districtId = getDistrictId(req);
   if (!districtId) {
-    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    return res
+      .status(400)
+      .json({ error: "Se requiere distrito (districtId)." });
   }
   const from = new Date(String(req.query.from ?? ""));
   const to = new Date(String(req.query.to ?? ""));
   if (isNaN(from.getTime()) || isNaN(to.getTime())) {
-    return res.status(400).json({ error: "Rango de fechas inválido (from/to)." });
+    return res
+      .status(400)
+      .json({ error: "Rango de fechas inválido (from/to)." });
   }
   const type = req.query.type ? String(req.query.type) : null;
 
@@ -529,7 +568,10 @@ router.get("/live/history", optionalAuth, async (req, res) => {
         points: sql<number>`count(${liveTracksTable.id})`,
       })
       .from(liveProvidersTable)
-      .leftJoin(liveTracksTable, eq(liveTracksTable.providerId, liveProvidersTable.id))
+      .leftJoin(
+        liveTracksTable,
+        eq(liveTracksTable.providerId, liveProvidersTable.id),
+      )
       .where(and(...conditions))
       .groupBy(liveProvidersTable.id)
       .orderBy(desc(liveProvidersTable.startedAt))
@@ -564,17 +606,23 @@ const PASSED_NEAR_METERS = 60; // umbral para considerar "sí pasó cerca"
 router.get("/live/passed", optionalAuth, async (req, res) => {
   const districtId = getDistrictId(req);
   if (!districtId) {
-    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    return res
+      .status(400)
+      .json({ error: "Se requiere distrito (districtId)." });
   }
   const lat = parseFloat(String(req.query.lat));
   const lng = parseFloat(String(req.query.lng));
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return res.status(400).json({ error: "lat y lng deben ser números válidos." });
+    return res
+      .status(400)
+      .json({ error: "lat y lng deben ser números válidos." });
   }
   const from = new Date(String(req.query.from ?? ""));
   const to = new Date(String(req.query.to ?? ""));
   if (isNaN(from.getTime()) || isNaN(to.getTime())) {
-    return res.status(400).json({ error: "Rango de fechas inválido (from/to)." });
+    return res
+      .status(400)
+      .json({ error: "Rango de fechas inválido (from/to)." });
   }
   const type = req.query.type ? String(req.query.type) : "recolector";
 
@@ -600,11 +648,18 @@ router.get("/live/passed", optionalAuth, async (req, res) => {
         providerId: liveTracksTable.providerId,
       })
       .from(liveTracksTable)
-      .innerJoin(liveProvidersTable, eq(liveTracksTable.providerId, liveProvidersTable.id))
+      .innerJoin(
+        liveProvidersTable,
+        eq(liveTracksTable.providerId, liveProvidersTable.id),
+      )
       .where(and(...conditions))
       .limit(20000);
 
-    let best: { distanceMeters: number; at: string; providerId: string } | null = null;
+    let best: {
+      distanceMeters: number;
+      at: string;
+      providerId: string;
+    } | null = null;
     for (const p of rows) {
       const d = distanceMeters(lat, lng, p.latitude, p.longitude);
       if (!best || d < best.distanceMeters) {
@@ -635,12 +690,16 @@ router.get("/live/passed", optionalAuth, async (req, res) => {
 function resolveAdminDistrict(req: any, res: any): number | null {
   const user = req.jwtUser;
   if (!user || !isMunicipalityLevel(user.role)) {
-    res.status(403).json({ error: "Solo la municipalidad puede gestionar dispositivos." });
+    res
+      .status(403)
+      .json({ error: "Solo la municipalidad puede gestionar dispositivos." });
     return null;
   }
   let districtId: number;
   if (user.role === "super_admin") {
-    districtId = Number(req.query.districtId ?? req.body?.districtId ?? user.districtId);
+    districtId = Number(
+      req.query.districtId ?? req.body?.districtId ?? user.districtId,
+    );
     if (!districtId) {
       res.status(400).json({ error: "Se requiere districtId." });
       return null;
@@ -676,7 +735,11 @@ router.get("/live/devices", requireAuth, async (req, res) => {
       .where(eq(liveDevicesTable.districtId, districtId))
       .orderBy(desc(liveDevicesTable.createdAt));
     return res.json({
-      devices: devices.map((d) => ({ ...d, id: String(d.id), createdAt: d.createdAt.toISOString() })),
+      devices: devices.map((d) => ({
+        ...d,
+        id: String(d.id),
+        createdAt: d.createdAt.toISOString(),
+      })),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to list devices");
@@ -695,7 +758,9 @@ router.post("/live/devices", requireAuth, async (req, res) => {
   if (districtId == null) return;
   const parsed = createDeviceSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
   try {
     const deviceKey = crypto.randomBytes(12).toString("hex");
@@ -706,10 +771,16 @@ router.post("/live/devices", requireAuth, async (req, res) => {
         type: parsed.data.type,
         label: parsed.data.label,
         deviceKey,
-        createdById: (req as any).jwtUser?.sub ? Number((req as any).jwtUser.sub) : null,
+        createdById: (req as any).jwtUser?.sub
+          ? Number((req as any).jwtUser.sub)
+          : null,
       })
       .returning();
-    return res.status(201).json({ ...device, id: String(device.id), createdAt: device.createdAt.toISOString() });
+    return res.status(201).json({
+      ...device,
+      id: String(device.id),
+      createdAt: device.createdAt.toISOString(),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to create device");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -723,28 +794,55 @@ router.patch("/live/devices/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Solo la municipalidad." });
   }
   const id = parseInt(req.params.id as string, 10);
-  if (!Number.isFinite(id)) return res.status(400).json({ error: "Id inválido." });
+  if (!Number.isFinite(id))
+    return res.status(400).json({ error: "Id inválido." });
   try {
-    const [device] = await db.select().from(liveDevicesTable).where(eq(liveDevicesTable.id, id)).limit(1);
-    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    const [device] = await db
+      .select()
+      .from(liveDevicesTable)
+      .where(eq(liveDevicesTable.id, id))
+      .limit(1);
+    if (!device)
+      return res.status(404).json({ error: "Dispositivo no encontrado." });
     if (!checkTenant(req, device.districtId)) {
-      return res.status(403).json({ error: "No puedes gestionar dispositivos de otro distrito." });
+      return res
+        .status(403)
+        .json({ error: "No puedes gestionar dispositivos de otro distrito." });
     }
     const patch: Record<string, unknown> = {};
-    if (typeof req.body?.label === "string" && req.body.label.trim().length >= 2) patch.label = req.body.label.trim();
-    if (typeof req.body?.enabled === "boolean") patch.enabled = req.body.enabled;
-    if (Object.keys(patch).length === 0) return res.status(400).json({ error: "Nada que actualizar." });
+    if (
+      typeof req.body?.label === "string" &&
+      req.body.label.trim().length >= 2
+    )
+      patch.label = req.body.label.trim();
+    if (typeof req.body?.enabled === "boolean")
+      patch.enabled = req.body.enabled;
+    if (Object.keys(patch).length === 0)
+      return res.status(400).json({ error: "Nada que actualizar." });
 
-    const [updated] = await db.update(liveDevicesTable).set(patch).where(eq(liveDevicesTable.id, id)).returning();
+    const [updated] = await db
+      .update(liveDevicesTable)
+      .set(patch)
+      .where(eq(liveDevicesTable.id, id))
+      .returning();
 
     // Al deshabilitar, cortar cualquier transmisión activa del dispositivo.
     if (patch.enabled === false) {
       await db
         .update(liveProvidersTable)
         .set({ isActive: false })
-        .where(and(eq(liveProvidersTable.deviceId, id), eq(liveProvidersTable.isActive, true)));
+        .where(
+          and(
+            eq(liveProvidersTable.deviceId, id),
+            eq(liveProvidersTable.isActive, true),
+          ),
+        );
     }
-    return res.json({ ...updated, id: String(updated.id), createdAt: updated.createdAt.toISOString() });
+    return res.json({
+      ...updated,
+      id: String(updated.id),
+      createdAt: updated.createdAt.toISOString(),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to update device");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -758,15 +856,26 @@ router.delete("/live/devices/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Solo la municipalidad." });
   }
   const id = parseInt(req.params.id as string, 10);
-  if (!Number.isFinite(id)) return res.status(400).json({ error: "Id inválido." });
+  if (!Number.isFinite(id))
+    return res.status(400).json({ error: "Id inválido." });
   try {
-    const [device] = await db.select().from(liveDevicesTable).where(eq(liveDevicesTable.id, id)).limit(1);
-    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    const [device] = await db
+      .select()
+      .from(liveDevicesTable)
+      .where(eq(liveDevicesTable.id, id))
+      .limit(1);
+    if (!device)
+      return res.status(404).json({ error: "Dispositivo no encontrado." });
     if (!checkTenant(req, device.districtId)) {
-      return res.status(403).json({ error: "No puedes gestionar dispositivos de otro distrito." });
+      return res
+        .status(403)
+        .json({ error: "No puedes gestionar dispositivos de otro distrito." });
     }
     // Desenlazar transmisiones históricas (mantienen su ruta) antes de borrar.
-    await db.update(liveProvidersTable).set({ deviceId: null, isActive: false }).where(eq(liveProvidersTable.deviceId, id));
+    await db
+      .update(liveProvidersTable)
+      .set({ deviceId: null, isActive: false })
+      .where(eq(liveProvidersTable.deviceId, id));
     await db.delete(liveDevicesTable).where(eq(liveDevicesTable.id, id));
     return res.json({ success: true, id: String(id) });
   } catch (err) {
@@ -788,11 +897,16 @@ router.get("/live/device/:deviceKey", async (req, res) => {
         enabled: liveDevicesTable.enabled,
       })
       .from(liveDevicesTable)
-      .leftJoin(districtsTable, eq(liveDevicesTable.districtId, districtsTable.id))
+      .leftJoin(
+        districtsTable,
+        eq(liveDevicesTable.districtId, districtsTable.id),
+      )
       .where(eq(liveDevicesTable.deviceKey, req.params.deviceKey))
       .limit(1);
-    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
-    if (!device.enabled) return res.status(403).json({ error: "Dispositivo deshabilitado." });
+    if (!device)
+      return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!device.enabled)
+      return res.status(403).json({ error: "Dispositivo deshabilitado." });
     return res.json({ ...device, id: String(device.id) });
   } catch (err) {
     req.log.error({ err }, "Failed to get device");
@@ -811,7 +925,9 @@ const devicePingSchema = z.object({
 router.post("/live/device/:deviceKey/ping", async (req, res) => {
   const parsed = devicePingSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
   const { latitude, longitude } = parsed.data;
   try {
@@ -820,8 +936,10 @@ router.post("/live/device/:deviceKey/ping", async (req, res) => {
       .from(liveDevicesTable)
       .where(eq(liveDevicesTable.deviceKey, req.params.deviceKey))
       .limit(1);
-    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
-    if (!device.enabled) return res.status(403).json({ error: "Dispositivo deshabilitado." });
+    if (!device)
+      return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!device.enabled)
+      return res.status(403).json({ error: "Dispositivo deshabilitado." });
 
     const fresh = new Date(Date.now() - FRESH_MS);
     const [active] = await db
@@ -848,7 +966,12 @@ router.post("/live/device/:deviceKey/ping", async (req, res) => {
         .update(liveProvidersTable)
         .set({ latitude, longitude, isActive: true, updatedAt: new Date() })
         .where(eq(liveProvidersTable.id, providerId));
-      const moved = distanceMeters(active.latitude, active.longitude, latitude, longitude);
+      const moved = distanceMeters(
+        active.latitude,
+        active.longitude,
+        latitude,
+        longitude,
+      );
       if (moved >= TRACK_MIN_METERS) {
         const [{ count }] = await db
           .select({ count: sql<number>`count(*)` })
@@ -857,7 +980,12 @@ router.post("/live/device/:deviceKey/ping", async (req, res) => {
         if (Number(count) < TRACK_MAX_POINTS) {
           await db
             .insert(liveTracksTable)
-            .values({ providerId, districtId: device.districtId, latitude, longitude })
+            .values({
+              providerId,
+              districtId: device.districtId,
+              latitude,
+              longitude,
+            })
             .catch(() => {});
         }
       }
@@ -879,12 +1007,22 @@ router.post("/live/device/:deviceKey/ping", async (req, res) => {
       providerId = created.id;
       await db
         .insert(liveTracksTable)
-        .values({ providerId, districtId: device.districtId, latitude, longitude })
+        .values({
+          providerId,
+          districtId: device.districtId,
+          latitude,
+          longitude,
+        })
         .catch(() => {});
     }
 
     // Aviso push a vecinos cercanos (best-effort).
-    void notifyProximity({ districtId: device.districtId, type: device.type, latitude, longitude });
+    void notifyProximity({
+      districtId: device.districtId,
+      type: device.type,
+      latitude,
+      longitude,
+    });
 
     return res.json({ ok: true, providerId: String(providerId) });
   } catch (err) {
@@ -901,11 +1039,17 @@ router.post("/live/device/:deviceKey/stop", async (req, res) => {
       .from(liveDevicesTable)
       .where(eq(liveDevicesTable.deviceKey, req.params.deviceKey))
       .limit(1);
-    if (!device) return res.status(404).json({ error: "Dispositivo no encontrado." });
+    if (!device)
+      return res.status(404).json({ error: "Dispositivo no encontrado." });
     await db
       .update(liveProvidersTable)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(and(eq(liveProvidersTable.deviceId, device.id), eq(liveProvidersTable.isActive, true)));
+      .where(
+        and(
+          eq(liveProvidersTable.deviceId, device.id),
+          eq(liveProvidersTable.isActive, true),
+        ),
+      );
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed device stop");
@@ -931,7 +1075,9 @@ const proxSubSchema = z.object({
 router.put("/live/proximity-subscription", optionalAuth, async (req, res) => {
   const parsed = proxSubSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
   const d = parsed.data;
   try {
@@ -945,14 +1091,24 @@ router.put("/live/proximity-subscription", optionalAuth, async (req, res) => {
       await db
         .update(proximitySubscriptionsTable)
         .set({
-          districtId: d.districtId, homeLat: d.homeLat, homeLng: d.homeLng,
-          radiusM: d.radiusM, types: d.types, enabled: d.enabled, updatedAt: new Date(),
+          districtId: d.districtId,
+          homeLat: d.homeLat,
+          homeLng: d.homeLng,
+          radiusM: d.radiusM,
+          types: d.types,
+          enabled: d.enabled,
+          updatedAt: new Date(),
         })
         .where(eq(proximitySubscriptionsTable.id, existing.id));
     } else {
       await db.insert(proximitySubscriptionsTable).values({
-        districtId: d.districtId, pushToken: d.pushToken, homeLat: d.homeLat, homeLng: d.homeLng,
-        radiusM: d.radiusM, types: d.types, enabled: d.enabled,
+        districtId: d.districtId,
+        pushToken: d.pushToken,
+        homeLat: d.homeLat,
+        homeLng: d.homeLng,
+        radiusM: d.radiusM,
+        types: d.types,
+        enabled: d.enabled,
       });
     }
     return res.json({ ok: true });
@@ -969,7 +1125,9 @@ router.delete("/live/proximity-subscription", async (req, res) => {
     return res.status(400).json({ error: "Se requiere pushToken." });
   }
   try {
-    await db.delete(proximitySubscriptionsTable).where(eq(proximitySubscriptionsTable.pushToken, token));
+    await db
+      .delete(proximitySubscriptionsTable)
+      .where(eq(proximitySubscriptionsTable.pushToken, token));
     return res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed to delete proximity subscription");
@@ -986,7 +1144,9 @@ router.delete("/live/proximity-subscription", async (req, res) => {
 router.get("/live/voice-clips", optionalAuth, async (req, res) => {
   const districtId = getDistrictId(req);
   if (!districtId) {
-    return res.status(400).json({ error: "Se requiere distrito (districtId)." });
+    return res
+      .status(400)
+      .json({ error: "Se requiere distrito (districtId)." });
   }
   try {
     const rows = await db
@@ -1001,7 +1161,11 @@ router.get("/live/voice-clips", optionalAuth, async (req, res) => {
       .from(liveVoiceClipsTable)
       .where(eq(liveVoiceClipsTable.districtId, districtId));
     return res.json({
-      clips: rows.map((r) => ({ ...r, id: String(r.id), updatedAt: r.updatedAt.toISOString() })),
+      clips: rows.map((r) => ({
+        ...r,
+        id: String(r.id),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
     });
   } catch (err) {
     req.log.error({ err }, "Failed to list voice clips");
@@ -1022,32 +1186,58 @@ router.put("/live/voice-clips", requireAuth, async (req, res) => {
   if (districtId == null) return;
   const parsed = voiceClipSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return res
+      .status(400)
+      .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
   const { type, audioUrl, phrase, enabled } = parsed.data;
-  const userId = (req as any).jwtUser?.sub ? Number((req as any).jwtUser.sub) : null;
+  const userId = (req as any).jwtUser?.sub
+    ? Number((req as any).jwtUser.sub)
+    : null;
   try {
     // Upsert manual (único por distrito+tipo).
     const [existing] = await db
       .select({ id: liveVoiceClipsTable.id })
       .from(liveVoiceClipsTable)
-      .where(and(eq(liveVoiceClipsTable.districtId, districtId), eq(liveVoiceClipsTable.type, type as any)))
+      .where(
+        and(
+          eq(liveVoiceClipsTable.districtId, districtId),
+          eq(liveVoiceClipsTable.type, type as any),
+        ),
+      )
       .limit(1);
 
     let row;
     if (existing) {
       [row] = await db
         .update(liveVoiceClipsTable)
-        .set({ audioUrl: audioUrl ?? null, phrase: phrase ?? "", enabled: enabled ?? true, updatedById: userId, updatedAt: new Date() })
+        .set({
+          audioUrl: audioUrl ?? null,
+          phrase: phrase ?? "",
+          enabled: enabled ?? true,
+          updatedById: userId,
+          updatedAt: new Date(),
+        })
         .where(eq(liveVoiceClipsTable.id, existing.id))
         .returning();
     } else {
       [row] = await db
         .insert(liveVoiceClipsTable)
-        .values({ districtId, type: type as any, audioUrl: audioUrl ?? null, phrase: phrase ?? "", enabled: enabled ?? true, updatedById: userId })
+        .values({
+          districtId,
+          type: type as any,
+          audioUrl: audioUrl ?? null,
+          phrase: phrase ?? "",
+          enabled: enabled ?? true,
+          updatedById: userId,
+        })
         .returning();
     }
-    return res.json({ ...row, id: String(row.id), updatedAt: row.updatedAt.toISOString() });
+    return res.json({
+      ...row,
+      id: String(row.id),
+      updatedAt: row.updatedAt.toISOString(),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to upsert voice clip");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -1061,12 +1251,19 @@ router.delete("/live/voice-clips/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Solo la municipalidad." });
   }
   const id = parseInt(req.params.id as string, 10);
-  if (!Number.isFinite(id)) return res.status(400).json({ error: "Id inválido." });
+  if (!Number.isFinite(id))
+    return res.status(400).json({ error: "Id inválido." });
   try {
-    const [clip] = await db.select().from(liveVoiceClipsTable).where(eq(liveVoiceClipsTable.id, id)).limit(1);
+    const [clip] = await db
+      .select()
+      .from(liveVoiceClipsTable)
+      .where(eq(liveVoiceClipsTable.id, id))
+      .limit(1);
     if (!clip) return res.status(404).json({ error: "Clip no encontrado." });
     if (!checkTenant(req, clip.districtId)) {
-      return res.status(403).json({ error: "No puedes gestionar clips de otro distrito." });
+      return res
+        .status(403)
+        .json({ error: "No puedes gestionar clips de otro distrito." });
     }
     await db.delete(liveVoiceClipsTable).where(eq(liveVoiceClipsTable.id, id));
     return res.json({ success: true, id: String(id) });

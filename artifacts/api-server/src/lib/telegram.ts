@@ -114,7 +114,10 @@ export interface ReportForTelegram {
  */
 export function telegramAudioUrl(url: string): string {
   if (/res\.cloudinary\.com/.test(url)) {
-    return url.replace(/\.(webm|mp4|m4a|ogg|oga|wav|aac|opus)(\?.*)?$/i, ".mp3");
+    return url.replace(
+      /\.(webm|mp4|m4a|ogg|oga|wav|aac|opus)(\?.*)?$/i,
+      ".mp3",
+    );
   }
   return url;
 }

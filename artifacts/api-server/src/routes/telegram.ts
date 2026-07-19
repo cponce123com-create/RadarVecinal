@@ -80,7 +80,8 @@ router.put(
       const raw = parsed.data.chatId?.trim() || null;
       if (raw && !/^(-?\d{5,20}|@[A-Za-z0-9_]{4,})$/.test(raw)) {
         return res.status(400).json({
-          error: "Formato de canal inválido. Usa el id (-100…) o @usuario del canal.",
+          error:
+            "Formato de canal inválido. Usa el id (-100…) o @usuario del canal.",
         });
       }
       const [updated] = await db
@@ -88,8 +89,12 @@ router.put(
         .set({ telegramChatId: raw })
         .where(eq(districtsTable.id, id))
         .returning({ chatId: districtsTable.telegramChatId });
-      if (!updated) return res.status(404).json({ error: "Distrito no encontrado." });
-      return res.json({ chatId: updated.chatId ?? null, linked: Boolean(updated.chatId) });
+      if (!updated)
+        return res.status(404).json({ error: "Distrito no encontrado." });
+      return res.json({
+        chatId: updated.chatId ?? null,
+        linked: Boolean(updated.chatId),
+      });
     } catch (err) {
       req.log.error({ err }, "telegram set channel failed");
       return res.status(500).json({ error: "Error interno del servidor." });
@@ -102,10 +107,7 @@ router.put(
 router.post("/telegram/webhook", async (req: Request, res: Response) => {
   try {
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-    if (
-      secret &&
-      req.header("X-Telegram-Bot-Api-Secret-Token") !== secret
-    ) {
+    if (secret && req.header("X-Telegram-Bot-Api-Secret-Token") !== secret) {
       return res.sendStatus(403);
     }
 

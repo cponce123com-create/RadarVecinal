@@ -16,7 +16,18 @@ import {
   communityFlagsTable,
   reportMessagesTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, or, ilike, sql, isNull, gte, lte, inArray } from "drizzle-orm";
+import {
+  eq,
+  desc,
+  and,
+  or,
+  ilike,
+  sql,
+  isNull,
+  gte,
+  lte,
+  inArray,
+} from "drizzle-orm";
 import {
   requireAuth,
   requireAdmin,
@@ -1721,37 +1732,62 @@ router.get(
       // Enriquecer con autor, strikes activos y flags en 3 consultas agrupadas
       // (antes: hasta 3 consultas POR reporte — N+1).
       const authorIds = [
-        ...new Set(reports.map((r) => r.authorUserId).filter((x): x is number => x != null)),
+        ...new Set(
+          reports
+            .map((r) => r.authorUserId)
+            .filter((x): x is number => x != null),
+        ),
       ];
       const reportIds = reports.map((r) => r.id);
 
       const authors = authorIds.length
         ? await db
-            .select({ id: usersTable.id, trustScore: usersTable.trustScore, name: usersTable.name })
+            .select({
+              id: usersTable.id,
+              trustScore: usersTable.trustScore,
+              name: usersTable.name,
+            })
             .from(usersTable)
             .where(inArray(usersTable.id, authorIds))
         : [];
       const strikeRows = authorIds.length
         ? await db
-            .select({ userId: userStrikesTable.userId, count: sql<number>`count(*)` })
+            .select({
+              userId: userStrikesTable.userId,
+              count: sql<number>`count(*)`,
+            })
             .from(userStrikesTable)
-            .where(and(inArray(userStrikesTable.userId, authorIds), eq(userStrikesTable.activo, true)))
+            .where(
+              and(
+                inArray(userStrikesTable.userId, authorIds),
+                eq(userStrikesTable.activo, true),
+              ),
+            )
             .groupBy(userStrikesTable.userId)
         : [];
       const flagRows = reportIds.length
         ? await db
-            .select({ reportId: communityFlagsTable.reportId, count: sql<number>`count(*)` })
+            .select({
+              reportId: communityFlagsTable.reportId,
+              count: sql<number>`count(*)`,
+            })
             .from(communityFlagsTable)
             .where(inArray(communityFlagsTable.reportId, reportIds))
             .groupBy(communityFlagsTable.reportId)
         : [];
 
       const authorById = new Map(authors.map((a) => [a.id, a]));
-      const strikesByUser = new Map(strikeRows.map((s) => [s.userId, Number(s.count)]));
-      const flagsByReport = new Map(flagRows.map((f) => [f.reportId, Number(f.count)]));
+      const strikesByUser = new Map(
+        strikeRows.map((s) => [s.userId, Number(s.count)]),
+      );
+      const flagsByReport = new Map(
+        flagRows.map((f) => [f.reportId, Number(f.count)]),
+      );
 
       const enriched = reports.map((r) => {
-        const author = r.authorUserId ? authorById.get(r.authorUserId) : undefined;
+        const author = r.authorUserId
+          ? authorById.get(r.authorUserId)
+          : undefined;
         return {
           id: String(r.id),
           title: r.title,

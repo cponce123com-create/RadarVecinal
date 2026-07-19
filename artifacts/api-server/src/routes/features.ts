@@ -19,7 +19,9 @@ const GEOCODE_TTL = 60 * 60 * 1000; // 1 hora
 
 async function fetchNominatim(url: string): Promise<Response> {
   return fetch(url, {
-    headers: { "User-Agent": "RadarVecinal/1.0 (civictech; contacto@radarvecinal.pe)" },
+    headers: {
+      "User-Agent": "RadarVecinal/1.0 (civictech; contacto@radarvecinal.pe)",
+    },
     signal: AbortSignal.timeout(6000),
   });
 }

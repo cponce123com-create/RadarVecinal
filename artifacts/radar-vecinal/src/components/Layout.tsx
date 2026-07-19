@@ -275,18 +275,13 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="px-3.5 pt-4 pb-1.5">
-          {user ? (
-            <Link href="/reportar">
-              <div className="flex items-center justify-center gap-2 w-full py-2.5 rounded-[13px] bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold text-[13.5px] cursor-pointer transition-transform hover:-translate-y-px shadow-[0_8px_22px_hsl(221_100%_59%_/_0.35),inset_0_1px_0_rgba(255,255,255,0.2)]">
-                <PlusCircle className="w-4 h-4" /> Nuevo Reporte
-              </div>
-            </Link>
-          ) : (
-            <button onClick={() => setAuthOpen(true)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-[13px] bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold text-[13.5px] cursor-pointer transition-transform hover:-translate-y-px shadow-[0_8px_22px_hsl(221_100%_59%_/_0.35),inset_0_1px_0_rgba(255,255,255,0.2)]">
+          {/* Reporte anónimo: cualquiera puede reportar sin sesión (el backend
+              lo soporta). Sin gate de login para bajar la fricción. */}
+          <Link href="/reportar">
+            <div className="flex items-center justify-center gap-2 w-full py-2.5 rounded-[13px] bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold text-[13.5px] cursor-pointer transition-transform hover:-translate-y-px shadow-[0_8px_22px_hsl(221_100%_59%_/_0.35),inset_0_1px_0_rgba(255,255,255,0.2)]">
               <PlusCircle className="w-4 h-4" /> Nuevo Reporte
-            </button>
-          )}
+            </div>
+          </Link>
         </div>
 
         <nav className="flex-1 px-2.5 py-2 overflow-y-auto hide-scrollbar">
@@ -368,18 +363,11 @@ export function Layout({ children }: LayoutProps) {
                 <SideNav isActive={isActive} isAdmin={isAdmin} mobile onNavigate={() => setMobileOpen(false)} />
               </nav>
               <div className="p-4 border-t border-sidebar-border flex flex-col gap-2">
-                {user ? (
-                  <Link href="/reportar">
-                    <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold cursor-pointer" onClick={() => setMobileOpen(false)}>
-                      <PlusCircle className="w-4 h-4" /> Nuevo Reporte
-                    </div>
-                  </Link>
-                ) : (
-                  <button onClick={() => { setAuthOpen(true); setMobileOpen(false); }}
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold cursor-pointer">
+                <Link href="/reportar">
+                  <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-primary to-[#1e52d6] text-white font-semibold cursor-pointer" onClick={() => setMobileOpen(false)}>
                     <PlusCircle className="w-4 h-4" /> Nuevo Reporte
-                  </button>
-                )}
+                  </div>
+                </Link>
                 {user ? (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/6">
                     <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-[#5b8dff] flex-shrink-0">
@@ -443,7 +431,7 @@ export function Layout({ children }: LayoutProps) {
           const Icon = item.icon;
           const active = isActive(item.href);
           if (item.isPrimary) {
-            return user ? (
+            return (
               <Link key={item.href} href={item.href}
                 className="flex flex-col items-center justify-center cursor-pointer pt-0 min-h-[44px]">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#1e52d6] flex items-center justify-center border-[3px] border-background shadow-[0_0_20px_hsl(221_100%_59%_/_0.45)] mb-[2px]">
@@ -451,14 +439,6 @@ export function Layout({ children }: LayoutProps) {
                 </div>
                 <span className="text-[9px] font-medium text-primary">Reportar</span>
               </Link>
-            ) : (
-              <button key={item.href} onClick={() => setAuthOpen(true)}
-                className="flex flex-col items-center justify-center pt-0 min-h-[44px]">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#1e52d6] flex items-center justify-center border-[3px] border-background shadow-[0_0_20px_hsl(221_100%_59%_/_0.45)] mb-[2px]">
-                  <Icon className="w-5.5 h-5.5 text-white" />
-                </div>
-                <span className="text-[9px] font-medium text-primary">Reportar</span>
-              </button>
             );
           }
           return (

@@ -74,7 +74,8 @@ export class ObjectStorageService {
     const timestamp = Math.floor(Date.now() / 1000);
     // El audio va a una subcarpeta propia; Cloudinary trata el audio como
     // resource_type "video" (mismo endpoint /video/upload).
-    const folder = resourceType === "video" ? "radarvecinal/audio" : "radarvecinal";
+    const folder =
+      resourceType === "video" ? "radarvecinal/audio" : "radarvecinal";
 
     // Cloudinary firma SOLO los parámetros que el cliente enviará, excluyendo
     // file, api_key, cloud_name y resource_type (este va en la URL, no se

@@ -252,7 +252,7 @@ export function Layout({ children }: LayoutProps) {
     : baseHead;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row relative">
+    <div className="min-h-dvh bg-background text-foreground flex flex-col md:flex-row relative">
       {/* A11y: saltar al contenido (visible solo al enfocar con teclado) */}
       <a
         href="#contenido-principal"
@@ -394,7 +394,7 @@ export function Layout({ children }: LayoutProps) {
       </AnimatePresence>
 
       {/* ── Contenido principal ── */}
-      <main className="flex-1 flex flex-col min-h-screen md:max-h-screen md:overflow-y-auto hide-scrollbar pb-24 md:pb-0 pt-[env(safe-area-inset-top,0px)] relative z-10">
+      <main className="flex-1 flex flex-col min-h-dvh md:max-h-dvh md:overflow-y-auto hide-scrollbar pb-24 md:pb-0 pt-[env(safe-area-inset-top,0px)] relative z-10">
         {/* Topbar desktop */}
         <div className="hidden md:flex items-center justify-between px-7 py-4 sticky top-0 z-20 bg-background/70 backdrop-blur-xl border-b border-white/5">
           <div>

@@ -5,10 +5,11 @@ import {
   Smartphone, Globe, Trash2, Download, ChevronRight, AlertTriangle,
   Eye, EyeOff, Wifi, BellOff, Radius, SlidersHorizontal,
   Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar, HelpCircle,
-  Home as HomeIcon, Volume2 as VoiceIcon, Loader2, CheckCircle2,
+  Home as HomeIcon, Volume2 as VoiceIcon, Loader2, CheckCircle2, MapPin,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDistrict } from "@/contexts/DistrictContext";
+import DistrictPicker from "@/components/DistrictPicker";
 import { playAlertSound } from "@/lib/alertSound";
 import { openWelcome } from "@/components/WelcomeModal";
 import {
@@ -146,6 +147,9 @@ export default function Settings() {
         : [...alertCategories, id]
     );
   };
+
+  // ── District picker ──
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // ── Avisos por voz (v1) ──
   const [voiceEnabled, setVoiceEnabled]   = useState(() => getVoicePrefs().enabled);
@@ -534,15 +538,17 @@ export default function Settings() {
           >
             <span className="text-sm text-white font-medium">{districtInfo?.department ?? "—"}</span>
           </SettingRow>
-          <SettingRow
-            label="Expandir a otros distritos"
-            sub="Escalabilidad provincial y regional disponible próximamente"
-          >
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/6 text-muted-foreground border border-white/8">
-              Próximamente
-            </span>
-          </SettingRow>
+          <div className="px-4 py-3.5">
+            <button
+              onClick={() => setPickerOpen(p => !p)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/15 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/25 transition-all"
+            >
+              <MapPin className="w-4 h-4" />
+              Cambiar de distrito
+            </button>
+          </div>
         </SettingSection>
+        <DistrictPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} />
       </motion.div>
 
       {/* ── Cuenta ── */}

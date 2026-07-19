@@ -198,12 +198,19 @@ export default function Home() {
               {[1, 2, 3].map(i => <div key={i} className="h-[68px] rounded-[14px] bg-card animate-pulse border border-white/5" />)}
             </div>
           ) : reports.length === 0 ? (
-            <div className="py-12 flex flex-col items-center text-center">
+            <div className="py-10 flex flex-col items-center text-center">
               <div className="w-14 h-14 rounded-2xl bg-card border border-white/5 flex items-center justify-center mb-3">
                 <Activity className="w-7 h-7 text-muted-foreground/30" />
               </div>
-              <p className="text-white font-semibold mb-1">No hay reportes recientes</p>
-              <p className="text-xs text-muted-foreground max-w-[220px]">Cuando los vecinos reporten incidentes, aparecerán aquí.</p>
+              <p className="text-white font-semibold mb-1">Aún no hay reportes</p>
+              <p className="text-xs text-muted-foreground max-w-[240px] mb-4">
+                Todo tranquilo por ahora. ¿Viste algo? Sé el primero en avisar a tu distrito.
+              </p>
+              <Link href="/reportar">
+                <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary/15 border border-primary/40 text-primary text-sm font-semibold hover:bg-primary/25 transition-colors cursor-pointer">
+                  <Plus className="w-4 h-4" /> Reportar un incidente
+                </span>
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">

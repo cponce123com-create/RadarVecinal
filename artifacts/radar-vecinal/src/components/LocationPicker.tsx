@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { LocateFixed } from "lucide-react";
 import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
 
 function DraggableMarker({
   position,
@@ -104,9 +105,9 @@ export default function LocationPicker({
           style={{ width: "100%", height: "100%" }}
         >
           <TileLayer
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution=""
-            maxZoom={19}
+            url={MAP_TILE_URL}
+            attribution={MAP_ATTRIBUTION}
+            maxZoom={MAP_TILE_MAX_ZOOM}
           />
           <MapCenterUpdater center={[lat, lng]} />
           <DraggableMarker

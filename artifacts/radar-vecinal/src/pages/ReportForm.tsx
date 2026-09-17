@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
 import IncidentPicker, { type IncidentPick } from "@/components/IncidentPicker";
 import VoiceNoteRecorder from "@/components/VoiceNoteRecorder";
 
@@ -356,7 +357,7 @@ export default function ReportForm() {
                       zoomControl={false}
                       style={{ width: "100%", height: "100%" }}
                     >
-                      <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="" maxZoom={19} />
+                      <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
                       <MapCenterUpdater center={[formData.latitude, formData.longitude]} />
                       <DraggableMarker
                         position={{ lat: formData.latitude, lng: formData.longitude }}

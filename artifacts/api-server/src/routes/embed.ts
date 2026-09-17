@@ -103,7 +103,7 @@ router.get("/embed/map", async (req, res) => {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
   <script>
     var map = L.map('map', { zoomControl: false, scrollWheelZoom: false }).setView([${district.centerLat || -11.1}, ${district.centerLng || -75.3}], ${district.defaultZoom || 13});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap © CARTO' }).addTo(map);
     var reports = ${JSON.stringify(reports)};
     var colors = { robbery: '#ef4444', fight: '#f59e0b', suspicious: '#8b5cf6', garbage: '#22c55e', water_cut: '#3b82f6', noise: '#ec4899', fire: '#ef4444', medical_emergency: '#06b6d4', other: '#6b7280' };
     reports.forEach(function(r) {

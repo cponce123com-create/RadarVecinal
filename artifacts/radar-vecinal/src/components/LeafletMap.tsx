@@ -9,6 +9,7 @@ import { es } from "date-fns/locale";
 import { Locate, Loader2, MapPin, Plus, Minus } from "lucide-react";
 import { useGeolocation } from "@/lib/useGeolocation";
 import { useDistrict } from "@/contexts/DistrictContext";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
 
 // Trazas de GPS solo en desarrollo (en producción no ensucian la consola).
 const gpsLog = import.meta.env.DEV ? console.log.bind(console) : () => {};
@@ -666,9 +667,9 @@ export function LeafletMap({
         style={{ width: "100%", height: "100%", background: "#0d1117" }}
       >
         <TileLayer
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          maxZoom={19}
+          url={MAP_TILE_URL}
+          attribution={MAP_ATTRIBUTION}
+          maxZoom={MAP_TILE_MAX_ZOOM}
         />
 
         <DistrictRecenter center={districtCenter} hasUserPos={!!userPos} />

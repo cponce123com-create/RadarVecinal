@@ -9,6 +9,7 @@ import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BLIPS = 30;
@@ -654,8 +655,9 @@ export default function RadarHero({
           attributionControl={false}
         >
           <TileLayer
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maxZoom={19}
+            url={MAP_TILE_URL}
+            attribution={MAP_ATTRIBUTION}
+            maxZoom={MAP_TILE_MAX_ZOOM}
           />
           {/* FIX: recentrar el mapa cuando llega/cambia el GPS */}
           <RecenterOnGps lat={center.lat} lng={center.lng} />

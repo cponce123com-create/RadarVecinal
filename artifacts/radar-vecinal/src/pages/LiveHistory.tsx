@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Route as RouteIcon, Calendar, Clock, MapPin, Ruler, AlertCircle, Radio, Home, LocateFixed, Loader2, CheckCircle2 } from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
 import {
   listLiveHistory,
   getProviderTrack,
@@ -91,7 +92,7 @@ function RouteDetail({ route }: { route: LiveRoute }) {
             center={latlngs[0]} zoom={15} zoomControl={false} attributionControl={false}
             style={{ width: "100%", height: "100%", background: "#0d1117" }}
           >
-            <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+            <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
             {latlngs.length >= 2 && (
               <>
                 <Polyline positions={latlngs} pathOptions={{ color: "#052e16", weight: 8, opacity: 0.35 }} />

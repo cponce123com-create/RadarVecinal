@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
 import { CAT_HEX, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -112,7 +113,7 @@ function StaticMiniMap({ reports }: { reports: Report[] }) {
         attributionControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117", pointerEvents: "none" }}
       >
-        <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
         <StaticDots reports={reports} />
       </MapContainer>
 

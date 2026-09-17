@@ -1,3 +1,4 @@
+
 <div align="center">
   <img src="./artifacts/radar-vecinal/public/images/radar-bg.png" alt="Radar Vecinal" width="120" style="border-radius: 20px;" />
   <h1 align="center" style="margin-top: 12px; font-size: 2.5em;">Radar Vecinal</h1>

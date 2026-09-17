@@ -19,6 +19,7 @@ import { requireAuth, requireAdmin, optionalAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { isMunicipalityLevel, isModeratorLevel } from "../lib/roles";
 import { sendPanicAlertPush } from "../lib/fcm";
+import { expireStalePanicAlerts } from "../workers/maintenance";
 
 const router: IRouter = Router();
 
@@ -64,28 +65,8 @@ interface SseClient {
 
 export let sseClients: SseClient[] = [];
 
-// ── expireStaleAlerts — Expiración lazy ──────────────────────────────────────
-async function expireStaleAlerts() {
-  await db
-    .update(panicAlertsTable)
-    .set({ status: "expired", isActive: false })
-    .where(
-      and(
-        eq(panicAlertsTable.status, "active"),
-        lt(panicAlertsTable.expiresAt, new Date()),
-      ),
-    );
-
-  await db
-    .update(panicAlertsTable)
-    .set({ status: "expired", isActive: false })
-    .where(
-      and(
-        eq(panicAlertsTable.status, "attending"),
-        lt(panicAlertsTable.expiresAt, new Date()),
-      ),
-    );
-}
+// La expiración de alertas vencidas vive en workers/maintenance.ts para que
+// el listado y el ciclo periódico apliquen exactamente la misma regla.
 
 // ── M-02: Broadcast de alerta solo a clientes del mismo distrito ────────────
 export function broadcastPanicAlert(alert: any) {
@@ -146,8 +127,8 @@ router.get("/panic-alerts/stream", optionalAuth, async (req, res) => {
     return;
   }
 
-  // Expirar alertas stale al conectar
-  expireStaleAlerts().catch(() => {});
+  // Expirar alertas vencidas al conectar (misma regla que el ciclo periódico)
+  expireStalePanicAlerts().catch(() => {});
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -183,8 +164,8 @@ router.get("/panic-alerts/stream", optionalAuth, async (req, res) => {
 // ── M-01: GET /panic-alerts ─────────────────────────────────────────────────
 router.get("/panic-alerts", optionalAuth, async (req, res) => {
   try {
-    // Expirar alertas stale al listar
-    await expireStaleAlerts();
+    // Expirar alertas vencidas al listar (misma regla que el ciclo periódico)
+    await expireStalePanicAlerts();
 
     const { active } = req.query;
     const districtId = getDistrictId(req);

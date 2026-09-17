@@ -1,7 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startReportWorker } from "./workers/reportWorker";
-import { startEmailWorker } from "./workers/emailWorker";
+import { startMaintenanceTasks, stopMaintenanceTasks } from "./workers/maintenance";
 import { pool } from "@workspace/db";
 
 const rawPort = process.env["PORT"];
@@ -42,6 +41,9 @@ async function gracefulShutdown(signal: string) {
   );
 
   try {
+    // 0. Detener las tareas de mantenimiento (que no consulten la BD ya cerrada)
+    stopMaintenanceTasks();
+
     // 1. Dejar de aceptar nuevas conexiones
     server.close(() => {
       logger.info("HTTP server closed — no longer accepting connections");
@@ -86,7 +88,6 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 const server = app.listen(port, () => {
   logger.info({ port }, "Server listening");
 
-  // Start background workers (non-blocking)
-  startReportWorker();
-  startEmailWorker();
+  // Tareas de mantenimiento periódicas (no bloquean el arranque ni necesitan Redis)
+  startMaintenanceTasks();
 });

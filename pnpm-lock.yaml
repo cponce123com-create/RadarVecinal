@@ -207,9 +207,6 @@ importers:
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
-      bullmq:
-        specifier: ^5.0.0
-        version: 5.79.3
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -228,9 +225,6 @@ importers:
       helmet:
         specifier: ^8.1.0
         version: 8.2.0
-      ioredis:
-        specifier: 5.10.1
-        version: 5.10.1
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3

@@ -9,7 +9,8 @@ import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import MapCredit from "@/components/MapCredit";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MAX_BLIPS = 30;
@@ -657,6 +658,7 @@ export default function RadarHero({
           <TileLayer
             url={MAP_TILE_URL}
             attribution={MAP_ATTRIBUTION}
+            maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM}
             maxZoom={MAP_TILE_MAX_ZOOM}
           />
           {/* FIX: recentrar el mapa cuando llega/cambia el GPS */}
@@ -669,6 +671,7 @@ export default function RadarHero({
           />
         </MapContainer>
       </div>
+      <MapCredit className="absolute bottom-1.5 left-4 z-[10]" />
 
       {/* Bottom gradient */}
       <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#070a11]/90 to-transparent pointer-events-none z-[5]" />

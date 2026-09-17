@@ -12,7 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Route as RouteIcon, Calendar, Clock, MapPin, Ruler, AlertCircle, Radio, Home, LocateFixed, Loader2, CheckCircle2 } from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import MapCredit from "@/components/MapCredit";
 import {
   listLiveHistory,
   getProviderTrack,
@@ -92,7 +93,7 @@ function RouteDetail({ route }: { route: LiveRoute }) {
             center={latlngs[0]} zoom={15} zoomControl={false} attributionControl={false}
             style={{ width: "100%", height: "100%", background: "#0d1117" }}
           >
-            <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
+            <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM} maxZoom={MAP_TILE_MAX_ZOOM} />
             {latlngs.length >= 2 && (
               <>
                 <Polyline positions={latlngs} pathOptions={{ color: "#052e16", weight: 8, opacity: 0.35 }} />
@@ -118,6 +119,7 @@ function RouteDetail({ route }: { route: LiveRoute }) {
           </div>
         )}
       </div>
+      <MapCredit className="absolute bottom-1 right-1.5 z-[500]" />
       <div className="grid grid-cols-3 divide-x divide-white/6 border-t border-white/6">
         <div className="flex flex-col items-center gap-0.5 py-2.5">
           <Clock className="w-3.5 h-3.5 text-primary" />

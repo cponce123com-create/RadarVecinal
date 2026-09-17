@@ -9,7 +9,7 @@ import { es } from "date-fns/locale";
 import { Locate, Loader2, MapPin, Plus, Minus } from "lucide-react";
 import { useGeolocation } from "@/lib/useGeolocation";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
 
 // Trazas de GPS solo en desarrollo (en producción no ensucian la consola).
 const gpsLog = import.meta.env.DEV ? console.log.bind(console) : () => {};
@@ -669,6 +669,7 @@ export function LeafletMap({
         <TileLayer
           url={MAP_TILE_URL}
           attribution={MAP_ATTRIBUTION}
+          maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM}
           maxZoom={MAP_TILE_MAX_ZOOM}
         />
 

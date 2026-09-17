@@ -12,7 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import ReportContextMenu from "@/components/ReportContextMenu";
 import { useGetReports, useGetPanicAlerts, ReportCategory, type Report } from "@workspace/api-client-react";
 import { CAT_HEX, SERVICE_CATEGORIES, SAFETY_CATEGORIES } from "@/lib/constants";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import MapCredit from "@/components/MapCredit";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -113,9 +114,10 @@ function StaticMiniMap({ reports }: { reports: Report[] }) {
         attributionControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117", pointerEvents: "none" }}
       >
-        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
+        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM} maxZoom={MAP_TILE_MAX_ZOOM} />
         <StaticDots reports={reports} />
       </MapContainer>
+      <MapCredit className="absolute bottom-1 right-1.5 z-[500]" />
 
       {/* Punto del usuario en el centro */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[500]">

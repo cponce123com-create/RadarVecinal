@@ -8,7 +8,8 @@ import { PanicAlertType, useCreatePanicAlert } from "@workspace/api-client-react
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import MapCredit from "@/components/MapCredit";
 
 interface PanicModalProps {
   isOpen: boolean;
@@ -317,7 +318,7 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                     attributionControl={false}
                     style={{ width: "100%", height: "100%", background: "#111" }}
                   >
-                    <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
+                    <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM} maxZoom={MAP_TILE_MAX_ZOOM} />
                     <MapController lat={effectiveLat} lng={effectiveLng} />
                     <TapToMove onMove={moveMarker} />
                     <Marker
@@ -332,6 +333,7 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                       }}
                     />
                   </MapContainer>
+                  <MapCredit className="absolute bottom-1 left-1.5 z-[500]" />
                   {/* Botón recentrar a GPS */}
                   {gpsStatus === "ok" && userMoved && (
                     <button

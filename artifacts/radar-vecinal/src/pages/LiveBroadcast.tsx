@@ -23,7 +23,8 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import MapCredit from "@/components/MapCredit";
 import { useToast } from "@/hooks/use-toast";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -153,10 +154,10 @@ function SimControlMap({
   }), [emoji, color]);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/10" style={{ height: 220 }}>
+    <div className="relative rounded-2xl overflow-hidden border border-white/10" style={{ height: 220 }}>
       <MapContainer center={[mpos.lat, mpos.lng]} zoom={16} attributionControl={false}
         style={{ width: "100%", height: "100%", background: "#0d1117" }}>
-        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxZoom={MAP_TILE_MAX_ZOOM} />
+        <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM} maxZoom={MAP_TILE_MAX_ZOOM} />
         <Marker
           draggable
           ref={markerRef}
@@ -173,6 +174,7 @@ function SimControlMap({
         <SimTapToMove onTap={(la, ln) => { setMpos({ lat: la, lng: ln }); onMove(la, ln); }} />
         <SimRecenter pos={mpos} trigger={recenter} />
       </MapContainer>
+      <MapCredit className="absolute bottom-1 left-1.5 z-[500]" />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { LocateFixed } from "lucide-react";
 import GeocoderInput from "@/components/GeocoderInput";
 import { pinIcon } from "@/lib/mapMarker";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM } from "@/lib/mapTiles";
+import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
 
 function DraggableMarker({
   position,
@@ -107,6 +107,7 @@ export default function LocationPicker({
           <TileLayer
             url={MAP_TILE_URL}
             attribution={MAP_ATTRIBUTION}
+            maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM}
             maxZoom={MAP_TILE_MAX_ZOOM}
           />
           <MapCenterUpdater center={[lat, lng]} />

@@ -72,7 +72,7 @@ app.use(
   }),
 );
 
-// BUG-2: RLS por variables de sesión abandonado — ver replit.md para rationale.
+// BUG-2: RLS por variables de sesión abandonado — ver docs/replit.md para rationale.
 // La defensa multi-tenant está en la capa de aplicación (tenant.ts checkTenant),
 // que filtra explícitamente por districtId en cada query. Las políticas RLS
 // en DB (migración 0007) se mantienen solo como defensa estática en profundidad

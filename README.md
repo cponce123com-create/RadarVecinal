@@ -1,5 +1,6 @@
 
 <div align="center">
+
   <img src="./artifacts/radar-vecinal/public/images/radar-bg.png" alt="Radar Vecinal" width="120" style="border-radius: 20px;" />
   <h1 align="center" style="margin-top: 12px; font-size: 2.5em;">Radar Vecinal</h1>
   <p align="center">
@@ -167,24 +168,23 @@ radar-vecinal/
 │   │   └── src/
 │   │       ├── routes/       # Endpoints REST
 │   │       ├── lib/          # Utilidades (FCM, email, storage, cache)
-│   │       ├── middlewares/  # Auth, audit
+│   │       ├── middlewares/  # Middlewares (auth)
 │   │       ├── workers/      # Background jobs
 │   │       └── __tests__/    # Pruebas
-│   ├── radar-vecinal/        # 🌐 Frontend React
-│   │   └── src/
-│   │       ├── pages/        # Páginas (Home, Map, Admin, etc.)
-│   │       ├── components/   # Componentes reutilizables
-│   │       ├── contexts/     # Auth, District
-│   │       ├── hooks/        # Custom hooks
-│   │       └── lib/          # Utilidades
-│   └── mockup-sandbox/       # 🎨 Sandbox de diseño
+│   └── radar-vecinal/        # 🌐 Frontend React
+│       └── src/
+│           ├── pages/        # Páginas (Home, Map, Admin, etc.)
+│           ├── components/   # Componentes reutilizables
+│           ├── contexts/     # Auth, District
+│           ├── hooks/        # Custom hooks
+│           └── lib/          # Utilidades
 ├── lib/
 │   ├── db/                   # 🗄️ Base de datos (schema, migraciones)
 │   ├── api-spec/             # 📐 OpenAPI / Orval
 │   ├── api-zod/              # ✅ Schemas Zod compartidos
 │   ├── api-client-react/     # 🔌 Cliente API generado
 │   └── object-storage-web/   # ☁️ Uploader Cloudinary
-├── scripts/                  # 🔧 Utilidades (seed, hello)
+├── docs/                     # 📄 Documentación (auditorías, setup)
 ├── android/                  # 📱 Proyecto Android nativo (Capacitor)
 └── .env.example              # 📋 Template de variables de entorno
 ```

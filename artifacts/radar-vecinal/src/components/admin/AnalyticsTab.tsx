@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Clock, BarChart3, Activity, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, Clock, BarChart3, Activity } from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
 
 interface TrendItem {
@@ -22,7 +22,7 @@ interface AnalyticsData {
  * Inspirado en CivicReporter (analytics) + Civix (insights).
  */
 export default function AnalyticsTab() {
-  const { currentDistrictId, currentDistrict } = useDistrict();
+  const { currentDistrictId } = useDistrict();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +32,7 @@ export default function AnalyticsTab() {
     Promise.all([
       fetch(`/api/stats?districtId=${currentDistrictId}`).then(r => r.json()),
       fetch(`/api/reports?districtId=${currentDistrictId}&limit=1000`).then(r => r.json()),
-    ]).then(([stats, reports]) => {
+    ]).then(([, reports]) => {
       const reportsList = reports?.reports ?? [];
 
       // By category
@@ -122,7 +122,7 @@ export default function AnalyticsTab() {
       <div className="p-4 rounded-xl bg-card border border-white/5">
         <p className="text-xs font-semibold text-white mb-3">Tendencia diaria (últimos 7 días)</p>
         <div className="flex items-end gap-2 h-24">
-          {data.dailyTrend.map((d, i) => (
+          {data.dailyTrend.map((d, _i) => (
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
               <span className="text-[10px] text-muted-foreground">{d.count}</span>
               <div className="w-full rounded-t-md transition-all"
@@ -143,7 +143,7 @@ export default function AnalyticsTab() {
             {Object.entries(data.byCategory)
               .sort(([,a], [,b]) => b - a)
               .slice(0, 8)
-              .map(([cat, count], i) => {
+              .map(([cat, count], _i) => {
                 const pct = Math.round((count / data.totalReports) * 100);
                 return (
                   <div key={cat} className="flex items-center gap-2">

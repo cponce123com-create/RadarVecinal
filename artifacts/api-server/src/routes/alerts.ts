@@ -4,7 +4,6 @@ import { db } from "@workspace/db";
 import {
   panicAlertsTable,
   missingPersonsTable,
-  notificationsTable,
   districtsTable,
   reportsTable,
   auditLogTable,
@@ -14,7 +13,7 @@ import {
   communityFlagsTable,
   userStrikesTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, lt, gt, sql, inArray, isNull } from "drizzle-orm";
+import { eq, desc, and, gt, sql, inArray, isNull } from "drizzle-orm";
 import { requireAuth, requireAdmin, optionalAuth } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { isMunicipalityLevel, isModeratorLevel } from "../lib/roles";
@@ -223,11 +222,6 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
   }
 
   // ── Anti-spam ────────────────────────────────────────────────────
-  const userIp =
-    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-    req.socket?.remoteAddress ||
-    "unknown";
-
   if (user?.sub) {
     // Validar authorName contra blacklist de palabras ofensivas
     const BLACKLIST = [

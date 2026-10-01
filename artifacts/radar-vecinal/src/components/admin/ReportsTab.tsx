@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Phone, CheckCircle, Eye, Clock, FileText, MessageSquare, AlertTriangle, Loader2, Shield, ShieldCheck, X, Flag, Users } from "lucide-react";
+import { Trash2, Phone, CheckCircle, Eye, Clock, FileText, MessageSquare, AlertTriangle, Loader2, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUpdateReport, useDeleteReport, ReportStatus } from "@workspace/api-client-react";
@@ -304,7 +304,6 @@ export default function ReportsTab({ reports, search, onRefetch }: Props) {
                 const Icon = catConfig?.icon;
                 const isReviewing = tabFilter === "reviewing";
                 const trustScore = r.trustScore ?? 50;
-                const isSuspended = r.suspendedUntil && new Date(r.suspendedUntil) > new Date();
                 return (
                   <tr key={r.id} className="hover:bg-white/[0.025] transition-colors">
                     <td className="px-4 py-3.5">

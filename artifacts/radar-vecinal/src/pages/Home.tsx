@@ -3,8 +3,8 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import {
   Siren, Map as MapIcon, ChevronRight, Activity, Plus, UserX,
-  Clock, BarChart3, CheckCircle2, ShieldAlert, Flame, Users,
-  HeartPulse, TrendingUp, Maximize2, Store, MapPin, Eye,
+  BarChart3, CheckCircle2, ShieldAlert, Flame, Users,
+  HeartPulse, TrendingUp, Store, MapPin, Eye,
 } from "lucide-react";
 import {
   useGetStats, useGetReports, useGetPanicAlerts, useGetMissingPersons, useGetAdSlots,

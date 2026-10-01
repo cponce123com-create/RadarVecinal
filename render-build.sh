@@ -24,7 +24,6 @@ $PNPM --filter @workspace/api-server run build
 
 echo "=== 3. Build Frontend ==="
 # Construye el frontend Vite + Tailwind v4 + React → dist/public/
-# @workspace/mockup-sandbox se omite (es solo para desarrollo/design).
 $PNPM --filter @workspace/radar-vecinal run build
 
 echo "=== Build completado ==="

@@ -13,7 +13,7 @@ import {
   refreshTokensTable,
   userConsentsTable,
 } from "@workspace/db/schema";
-import { eq, and, sql, lt } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";

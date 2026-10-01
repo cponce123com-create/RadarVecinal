@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Search, Clock, MapPin, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, ClipboardList } from "lucide-react";
 import { useGetReports, ReportCategory } from "@workspace/api-client-react";
-import { useDistrict } from "@/contexts/DistrictContext";
 import EmptyState from "@/components/EmptyState";
 import { CATEGORY_CONFIG } from "@/lib/constants";
 import { formatDistanceToNow } from "date-fns";

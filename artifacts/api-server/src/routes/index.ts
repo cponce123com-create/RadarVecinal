@@ -15,7 +15,6 @@ import embedRouter from "./embed";
 import reportsPdfRouter from "./reportsPdf";
 import messagesRouter from "./messages";
 import reniecRouter from "./reniec";
-import clearDemoRouter from "./clearDemo";
 import licensesRouter from "./licenses";
 import adminRouter from "./admin";
 import telegramRouter from "./telegram";

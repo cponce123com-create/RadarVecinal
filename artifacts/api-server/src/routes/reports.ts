@@ -4,10 +4,7 @@ import { z } from "zod";
 import { db } from "@workspace/db";
 import {
   reportsTable,
-  panicAlertsTable,
-  missingPersonsTable,
   usersTable,
-  adSlotsTable,
   districtsTable,
   auditLogTable,
   staticPointsTable,
@@ -37,7 +34,6 @@ import {
 import { getDistrictId, checkTenant } from "./tenant";
 import { sendStatusChangeEmail } from "../lib/email";
 import { notifyReportToTelegram } from "../lib/telegram";
-import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 

@@ -5,7 +5,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { reportsTable, districtsTable } from "@workspace/db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "./auth";
 import { getDistrictId } from "./tenant";
 import PDFDocument from "pdfkit";

@@ -43,11 +43,6 @@ const VIEW_MODES: { id: MapMode; label: string; Icon: React.ElementType; sub: st
   { id: "heat",  label: "Calor", Icon: Thermometer, sub: "6 MESES · ROBOS Y PELEAS" },
 ];
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, duration: 0.3 } }),
-};
-
 // ── Marcadores simples (puntos de color) para el mapa estático ───────────────
 function StaticDots({ reports }: { reports: Report[] }) {
   const map = useMap();

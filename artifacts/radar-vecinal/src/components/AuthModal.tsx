@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Mail, Lock, Phone, MapPin, ChevronRight, Eye, EyeOff, Loader2, Search, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { X, Mail, Lock, Phone, MapPin, ChevronRight, Eye, EyeOff, Loader2, Search, ShieldAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { SECTORS } from "@/lib/constants";
@@ -55,7 +55,6 @@ export default function AuthModal({ open, onClose }: Props) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
   // ── Búsqueda RENIEC automática al escribir DNI ──────────────────────────
-  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleDniChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
     setForm(prev => ({ ...prev, dni: raw }));

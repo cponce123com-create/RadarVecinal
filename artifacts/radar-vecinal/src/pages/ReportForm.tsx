@@ -228,7 +228,6 @@ export default function ReportForm() {
   const titleErr  = !titleTrimmed ? "El título es obligatorio" : titleTrimmed.length < 5 ? "Mínimo 5 caracteres" : null;
   const descErr   = !descTrimmed  ? "La descripción es obligatoria" : descTrimmed.length < 10 ? "Mínimo 10 caracteres" : null;
 
-  const canAdvanceStep1 = true; // map is always set (has default)
   const canAdvanceStep2 = !!formData.category && !titleErr && !descErr;
 
   const handleNext = () => {

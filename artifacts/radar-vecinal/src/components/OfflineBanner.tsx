@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { WifiOff, CloudUpload, RefreshCw, CheckCircle } from "lucide-react";
+import { WifiOff, CheckCircle } from "lucide-react";
 import { getPending, syncPending } from "@/lib/offlineSync";
 
 /**

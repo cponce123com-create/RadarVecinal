@@ -20,7 +20,7 @@ export default function AdminPanel() {
   const [search, setSearch] = useState("");
 
   const { currentDistrictId } = useDistrict();
-  const { user, isSuperAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const { data: reportsData, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
   const { data: usersData } = useGetUsers();
   const { data: stats } = useGetStats();

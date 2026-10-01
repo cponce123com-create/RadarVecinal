@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, MessageSquare, Send, Loader2, MessageCircle, Mail, Bell,
-  Clock, Check, AlertCircle, History, FileText,
+  Check, History, FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -241,8 +241,6 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
   };
 
   if (!report) return null;
-
-  const selectedMeta = CHANNEL_META[channel];
 
   return (
     <AnimatePresence>

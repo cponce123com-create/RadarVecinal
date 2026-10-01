@@ -6,7 +6,7 @@ import {
   districtsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireAuth, requireMunicipal } from "./auth";
 import {
   validateLicenseCodeFormat,

@@ -1,8 +1,7 @@
 /**
  * alertSound — motor único de sonido/vibración para alertas y notificaciones.
  *
- * Reemplaza dos implementaciones divergentes (usePanicAlertStream +
- * useProximitySound) y corrige sus fallos:
+ * Reemplaza la implementación previa (usePanicAlertStream) y corrige sus fallos:
  *   · Respeta SIEMPRE las preferencias (silencio maestro + horario de silencio).
  *   · Reutiliza UN solo AudioContext (antes se creaba uno por alerta → fuga).
  *   · Desbloquea el audio en el primer gesto del usuario (política de autoplay).

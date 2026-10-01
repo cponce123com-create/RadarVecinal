@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, MapPin, X } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { Link } from 'wouter';
 
 interface NearbyAlert {

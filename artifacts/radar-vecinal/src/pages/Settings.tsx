@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Settings as SettingsIcon, Bell, Volume2, Map, Shield, Lock,
+  Settings as SettingsIcon, Bell, Volume2, Map, Shield,
   Smartphone, Globe, Trash2, Download, ChevronRight, AlertTriangle,
-  Eye, EyeOff, Wifi, BellOff, Radius, SlidersHorizontal,
-  Moon, SunMedium, Clock, Users, Navigation, Thermometer, Radar, HelpCircle,
+  Moon, SunMedium, Navigation, Thermometer, Radar, HelpCircle,
   Home as HomeIcon, Volume2 as VoiceIcon, Loader2, CheckCircle2, MapPin,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";

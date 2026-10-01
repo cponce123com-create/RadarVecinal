@@ -112,7 +112,7 @@ export class ObjectStorageService {
    * actual de storage.ts.
    */
   async searchPublicObject(filePath: string): Promise<{ path: string } | null> {
-    const { cloudName } = getConfig();
+    getConfig();
     // filePath viene como "public_id.format"
     return { path: filePath };
   }

@@ -7,9 +7,8 @@ import {
   usersTable,
   notificationsTable,
   auditLogTable,
-  subscriptionsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { requireAuth, requireViewerOrAbove } from "./auth";
 import { checkTenant } from "./tenant";
 import { sendCustomMessageEmail } from "../lib/email";

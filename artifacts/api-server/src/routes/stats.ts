@@ -1,11 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import {
-  reportsTable,
-  panicAlertsTable,
-  missingPersonsTable,
-} from "@workspace/db/schema";
-import { eq, and, gte, sql, desc } from "drizzle-orm";
+import { reportsTable } from "@workspace/db/schema";
+import { eq, and, gte, sql } from "drizzle-orm";
 import { optionalAuth } from "./auth";
 import { getDistrictId } from "./tenant";
 import { MemoryCache } from "../lib/memoryCache";
@@ -28,14 +24,6 @@ router.get("/stats", optionalAuth, async (req, res) => {
     }
     const baseFilter = districtId
       ? and(eq(reportsTable.districtId, districtId))
-      : undefined;
-
-    const panicFilter = districtId
-      ? and(eq(panicAlertsTable.districtId, districtId))
-      : undefined;
-
-    const missingFilter = districtId
-      ? and(eq(missingPersonsTable.districtId, districtId))
       : undefined;
 
     const today = new Date();

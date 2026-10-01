@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Bell, Map, Clock, ChevronRight, Star, CreditCard, CheckCircle2, AlertCircle, Lock, Eye, EyeOff, SlidersHorizontal, Settings, LogIn, UserCheck, Edit3, X, Gavel, Send } from "lucide-react";
+import { Shield, Bell, Map, Clock, ChevronRight, Star, SlidersHorizontal, Settings, LogIn, UserCheck, Edit3, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useToast } from "@/hooks/use-toast";
@@ -155,7 +155,6 @@ export default function Profile() {
     ? new Intl.DateTimeFormat("es-PE", { month: "short", year: "numeric" }).format(new Date(user.createdAt))
     : "—";
   const roleLabel = user.role === "admin" ? "Administrador" : user.role === "moderator" ? "Moderador" : "Vecino Verificado";
-  const maskedDni = "Sin registrar";
 
   return (
     <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-5">

@@ -5,13 +5,12 @@ import {
   usersTable,
   adSlotsTable,
   notificationsTable,
-  panicAlertsTable,
   reportsTable,
   auditLogTable,
   licensesTable,
   userStrikesTable,
 } from "@workspace/db/schema";
-import { desc, eq, and, or, ilike, gt, sql, count, inArray } from "drizzle-orm";
+import { desc, eq, and, or, ilike, gt, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
 import { isMunicipalityLevel } from "../lib/roles";
 import bcrypt from "bcryptjs";

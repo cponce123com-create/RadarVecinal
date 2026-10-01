@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Siren, AlertTriangle, Heart, Users, Flame, UserX, Zap, MapPin, Clock, CheckCircle2, XCircle, Trash2, MessageSquare, Loader2, Filter } from "lucide-react";
+import { AlertTriangle, Heart, Users, Flame, UserX, Zap, MapPin, Clock, Trash2, Filter } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
@@ -46,7 +46,7 @@ async function api(url: string, options?: RequestInit) {
 }
 
 export default function AlertsTab() {
-  const { user, isSuperAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const { currentDistrictId } = useDistrict();
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -169,9 +169,6 @@ export default function AlertsTab() {
         const meta = PANIC_META[alert.type] ?? PANIC_META.other;
         const Icon = meta.icon;
         const statusMeta = STATUS_META[alert.status] ?? STATUS_META.active;
-        const Icon2 = statusMeta.label === "Activa" || statusMeta.label === "En Atención"
-          ? (alert.status === "attending" ? Users : AlertTriangle) : CheckCircle2;
-
         return (
           <div key={alert.id} className="flex items-start gap-3 p-3.5 rounded-xl bg-card border border-white/5 hover:bg-white/[0.02] transition-all">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${meta.color}18` }}>

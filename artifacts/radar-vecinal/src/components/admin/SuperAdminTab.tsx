@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Key, Building2, List, RefreshCw, CheckCircle2, XCircle,
-  Shield, Users, FileText, Calendar, Copy, Check, Globe,
+  Shield, Users, FileText, Copy, Check, Globe,
   Send, Link2, Unlink,
 } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
@@ -20,16 +20,6 @@ interface License {
   daysRemaining: number | null;
   municipalUserId: string | null;
   createdAt: string;
-}
-
-interface MunicipalUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  district: string;
-  displayName: string | null;
-  isActive: boolean;
 }
 
 interface AdminStats {

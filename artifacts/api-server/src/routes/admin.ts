@@ -6,10 +6,8 @@ import {
   usersTable,
   districtsTable,
   reportsTable,
-  panicAlertsTable,
-  auditLogTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, sql, count } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth } from "./auth";
 import { generateLicenseCode, formatLicenseResponse } from "../lib/license";
 import bcrypt from "bcryptjs";

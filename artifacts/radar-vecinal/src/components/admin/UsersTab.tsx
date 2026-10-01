@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Shield, ShieldCheck, Eye, EyeOff, UserPlus, X, Loader2, Check, Trash2,
-  Users, Calendar, Activity, MessageSquare, CheckCircle, Search, Filter,
-  AlertTriangle, Gavel, Ban,
+  Shield, ShieldCheck, Eye, EyeOff, UserPlus, X, Loader2,
+  Users, Activity, MessageSquare, CheckCircle, Search, Filter,
+  Gavel, Ban,
 } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -222,7 +222,6 @@ export default function UsersTab() {
   };
 
   const isSuspended = (user: User) => user.suspendedUntil && new Date(user.suspendedUntil) > new Date();
-  const activeStrikesCount = (userId: string) => strikes.filter(s => s.activo).length;
 
   return (
     <div className="flex flex-col gap-4 rv-in">

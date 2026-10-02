@@ -1,4 +1,5 @@
 
+
 <div align="center">
 
   <img src="./artifacts/radar-vecinal/public/images/radar-bg.png" alt="Radar Vecinal" width="120" style="border-radius: 20px;" />
@@ -236,6 +237,7 @@ pnpm --filter @workspace/radar-vecinal run dev
 | `DATABASE_URL` | ✅ | Conexión Neon PostgreSQL (usar `-pooler` en producción) |
 | `JWT_SECRET` | ✅ | `openssl rand -base64 32` |
 | `SUPER_ADMIN_EMAIL` | ✅ | Email del super administrador **(sin valor por defecto)** |
+| `SUPER_ADMIN_CLAIM_SECRET` | ❌ | Clave para activar el rol superadmin (`openssl rand -base64 32`) |
 | `PORT` | ✅ | Render asigna `10000` automáticamente |
 | `NODE_ENV` | ✅ | `development` o `production` |
 | `CORS_ORIGIN` | ✅ | Orígenes permitidos separados por coma |
@@ -270,7 +272,7 @@ pnpm --filter @workspace/db run migrate  # Migraciones DB
 | `POST` | `/api/auth/login` | ❌ | Iniciar sesión |
 | `POST` | `/api/auth/refresh` | ❌ | Renovar token JWT |
 | `POST` | `/api/auth/logout` | ✅ | Cerrar sesión |
-| `POST` | `/api/auth/claim-superadmin` | ✅ | Reclamar rol super_admin |
+| `POST` | `/api/auth/claim-superadmin` | ✅ | Reclamar rol super_admin (requiere `SUPER_ADMIN_CLAIM_SECRET`) |
 
 ### Reportes
 

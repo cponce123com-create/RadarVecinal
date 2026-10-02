@@ -57,11 +57,13 @@ export interface User {
   districtId: number;
   isActive: boolean;
   reportsCount: number;
+  canClaimSuperAdmin?: boolean;
   createdAt: string;
 }
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: User;
 }
 

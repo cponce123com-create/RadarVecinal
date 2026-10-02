@@ -41,6 +41,49 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
 }
 
+/**
+ * Callback used to renew the session when an authenticated request fails with
+ * 401. It should return a fresh access token, or `null` when renewal is not
+ * possible (e.g. no refresh token or it expired).
+ *
+ * Concurrent 401s share a single renewal call so the refresh token is not
+ * rotated more than once at a time.
+ */
+export type AuthTokenRefresher = () => Promise<string | null> | string | null;
+
+let _authTokenRefresher: AuthTokenRefresher | null = null;
+let _refreshInFlight: Promise<string | null> | null = null;
+
+/**
+ * Register a callback used to renew an expired session. Pass `null` to clear
+ * it. See {@link AuthTokenRefresher}.
+ */
+export function setAuthTokenRefresher(
+  refresher: AuthTokenRefresher | null,
+): void {
+  _authTokenRefresher = refresher;
+}
+
+/** Auth routes must never trigger a session renewal (avoids recursion). */
+const AUTH_NO_REFRESH_PATTERN =
+  /\/auth\/(login|register|refresh|logout)(\?|$|\/)/;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!_authTokenRefresher) return null;
+  if (!_refreshInFlight) {
+    _refreshInFlight = (async () => {
+      try {
+        return await _authTokenRefresher!();
+      } catch {
+        return null;
+      }
+    })().finally(() => {
+      _refreshInFlight = null;
+    });
+  }
+  return _refreshInFlight;
+}
+
 function isRequest(input: RequestInfo | URL): input is Request {
   return typeof Request !== "undefined" && input instanceof Request;
 }
@@ -370,7 +413,21 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response = await fetch(input, { ...init, method, headers });
+
+  // Si el servidor responde 401, la sesión pudo haber expirado: renovarla una
+  // sola vez (compartida entre llamadas concurrentes) y reintentar la petición.
+  if (
+    response.status === 401 &&
+    _authTokenRefresher &&
+    !AUTH_NO_REFRESH_PATTERN.test(requestInfo.url)
+  ) {
+    const renewedToken = await refreshAccessToken();
+    if (renewedToken) {
+      headers.set("authorization", `Bearer ${renewedToken}`);
+      response = await fetch(input, { ...init, method, headers });
+    }
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

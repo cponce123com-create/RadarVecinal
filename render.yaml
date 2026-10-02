@@ -39,6 +39,11 @@ services:
         value: ""
       - key: RENIEC_API_TOKEN
         value: ""
+      # Parte A1: clave para activar el rol de superadministrador. Sin ella, el
+      # endpoint /auth/claim-superadmin queda cerrado. Generar con:
+      # openssl rand -base64 32
+      - key: SUPER_ADMIN_CLAIM_SECRET
+        sync: false
       # Telegram: 1 bot global, N canales (uno por distrito, en la BD).
       # Si faltan, la función queda desactivada (los reportes se crean igual).
       - key: TELEGRAM_BOT_TOKEN

@@ -22,6 +22,7 @@ import {
   isMunicipalityLevel,
   isModeratorLevel,
 } from "../lib/roles";
+import { isValidClaimSecret } from "../lib/claimSecret";
 
 const router: IRouter = Router();
 
@@ -168,6 +169,18 @@ function toISO(d: Date | string | null | undefined): string | null {
   return String(d);
 }
 
+// Parte A1: solo la cuenta cuyo correo es el del superadministrador (y que
+// aún no tiene el rol) puede reclamarlo. Se expone como bandera para que el
+// frontend sepa si mostrar el formulario de activación.
+function canClaimSuperAdmin(u: { email: string; role: string }): boolean {
+  const superEmail = process.env.SUPER_ADMIN_EMAIL;
+  if (!superEmail) return false;
+  return (
+    u.role !== "super_admin" &&
+    u.email.toLowerCase() === superEmail.toLowerCase()
+  );
+}
+
 function formatUser(u: typeof usersTable.$inferSelect) {
   return {
     id: String(u.id),
@@ -181,6 +194,7 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     reportsCount: u.reportsCount,
     alias: u.alias ?? null,
     vecinoId: u.vecinoId ?? null,
+    canClaimSuperAdmin: canClaimSuperAdmin(u),
     // Item 7: Include suspension status for appeal UI
     suspendedUntil: toISO(u.suspendedUntil),
     createdAt: toISO(u.createdAt) ?? new Date().toISOString(),
@@ -272,7 +286,12 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     }
 
     const token = signToken(user);
-    return res.status(201).json({ token, user: formatUser(user) });
+    // BUG-4: entregar también el refresh token (30 días) para que la sesión
+    // pueda renovarse sin obligar al usuario a iniciar sesión cada 15 min.
+    const refreshToken = await signRefreshToken(user.id);
+    return res
+      .status(201)
+      .json({ token, refreshToken, user: formatUser(user) });
   } catch (err) {
     req.log.error({ err }, "register failed");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -359,7 +378,9 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     }
 
     const token = signToken(user);
-    return res.json({ token, user: formatUser(user) });
+    // BUG-4: entregar también el refresh token (30 días) para renovar la sesión.
+    const refreshToken = await signRefreshToken(user.id);
+    return res.json({ token, refreshToken, user: formatUser(user) });
   } catch (err) {
     req.log.error({ err }, "login failed");
     return res.status(500).json({ error: "Error interno del servidor." });
@@ -723,6 +744,22 @@ router.post(
           "SUPER_ADMIN_EMAIL no configurado. Configura esta variable de entorno en el servidor.",
       });
     }
+    // Parte A1: exigir la clave secreta del servidor. Si no está configurada,
+    // el endpoint queda cerrado (fail-closed) para impedir que alguien que se
+    // registre con el correo del superadministrador se apropie del rol.
+    const claimSecret = process.env.SUPER_ADMIN_CLAIM_SECRET;
+    if (!claimSecret) {
+      return res.status(503).json({
+        error:
+          "El reclamo de superadministrador no está habilitado. Configura SUPER_ADMIN_CLAIM_SECRET en el servidor.",
+      });
+    }
+    if (!isValidClaimSecret(req.body?.secret, claimSecret)) {
+      return res
+        .status(403)
+        .json({ error: "Clave de activación incorrecta." });
+    }
+
     const user = (req as any).jwtUser;
 
     try {

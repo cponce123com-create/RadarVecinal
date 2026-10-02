@@ -110,7 +110,7 @@ export default function AuthModal({ open, onClose }: Props) {
           throw new Error("🚫 Tu cuenta ha sido suspendida permanentemente por reportes falsos. No puedes acceder a Radar Vecinal.");
         }
 
-        login(loginData.token, loginData.user);
+        login(loginData.token, loginData.refreshToken ?? null, loginData.user);
         toast({ title: "¡Bienvenido de vuelta!", description: "Sesión iniciada correctamente." });
       } else {
         const res = await fetch("/api/auth/register", {
@@ -133,7 +133,7 @@ export default function AuthModal({ open, onClose }: Props) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Error al registrarse");
-        login(data.token, data.user);
+        login(data.token, data.refreshToken ?? null, data.user);
         toast({ title: "¡Cuenta creada!", description: "Ya puedes reportar incidentes en tu distrito." });
       }
       onClose();

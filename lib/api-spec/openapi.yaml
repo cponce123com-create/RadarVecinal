@@ -878,10 +878,13 @@ components:
       properties:
         token:
           type: string
+        refreshToken:
+          type: string
         user:
           $ref: "#/components/schemas/User"
       required:
         - token
+        - refreshToken
         - user
 
     SeedResponse:
@@ -1346,6 +1349,8 @@ components:
           type: boolean
         reportsCount:
           type: number
+        canClaimSuperAdmin:
+          type: boolean
         createdAt:
           type: string
       required:

@@ -89,6 +89,8 @@ Del Dashboard de Cloudinary, copia estos 3 valores y agrégalos en Render:
 - `DATABASE_URL` — Neon PostgreSQL
 - `JWT_SECRET` — Firma de tokens
 - `SUPER_ADMIN_EMAIL` — Email del superadmin
+- `SUPER_ADMIN_CLAIM_SECRET` — Clave para activar el rol superadmin
+  (`openssl rand -base64 32`). Sin ella, `/auth/claim-superadmin` queda cerrado.
 
 ### 4. Regenerar Clientes Orval (si se modificó el spec)
 

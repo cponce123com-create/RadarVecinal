@@ -17,5 +17,6 @@ export interface User {
   districtId: number;
   isActive: boolean;
   reportsCount: number;
+  canClaimSuperAdmin?: boolean;
   createdAt: string;
 }

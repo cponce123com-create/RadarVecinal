@@ -5,6 +5,7 @@ import { Shield, Bell, Map, Clock, ChevronRight, Star, SlidersHorizontal, Settin
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useToast } from "@/hooks/use-toast";
+import SuperAdminClaimCard from "@/components/SuperAdminClaimCard";
 
 const SECTORS = [
   "San Ramón Centro", "Bajo Kimiri", "Alto Kimiri", "Zona Industrial", "Pampa del Carmen", "La Oroya", "Pueblo Joven",
@@ -159,6 +160,9 @@ export default function Profile() {
   return (
     <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-5">
       <h2 className="text-2xl font-bold text-white">Tu Perfil</h2>
+
+      {/* Parte A1: activación del rol superadmin (solo para la cuenta dueña) */}
+      <SuperAdminClaimCard />
 
       {/* Profile Hero Card */}
       <motion.div

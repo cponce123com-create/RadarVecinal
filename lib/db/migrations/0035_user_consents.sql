@@ -33,8 +33,19 @@ CREATE TABLE IF NOT EXISTS "user_consents" (
 
 DO $$
 BEGIN
+  -- Se comprueba que exista CUALQUIER FK sobre user_id, no una con un nombre
+  -- concreto: si la tabla ya existía en producción (creada por push o a mano),
+  -- el constraint puede llamarse distinto y añadir otro sería redundante.
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'user_consents_user_id_users_id_fk'
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attname = 'user_id'
+    WHERE n.nspname = 'public'
+      AND t.relname = 'user_consents'
+      AND c.contype = 'f'
+      AND a.attnum = ANY (c.conkey)
   ) THEN
     ALTER TABLE "user_consents"
       ADD CONSTRAINT "user_consents_user_id_users_id_fk"

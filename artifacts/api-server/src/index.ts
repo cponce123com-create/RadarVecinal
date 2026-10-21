@@ -8,7 +8,12 @@ import {
   startMaintenanceTasks,
   stopMaintenanceTasks,
 } from "./workers/maintenance";
-import { pool } from "@workspace/db";
+import { pool, assertDatabaseConfigured } from "@workspace/db";
+
+// Falla rápido si falta DATABASE_URL. Importar el módulo de base de datos no
+// lanza (hay tests unitarios que lo importan sin base de datos), así que la
+// validación es explícita y ocurre aquí, antes de aceptar tráfico.
+assertDatabaseConfigured();
 
 const rawPort = process.env["PORT"];
 

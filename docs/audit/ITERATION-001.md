@@ -263,6 +263,36 @@ fallaban de forma intermitente**.
 **Corrección.** `maxWorkers: 3` y `hookTimeout`/`testTimeout` de 30 s en
 `vitest.config.ts`, con el motivo documentado en el propio archivo.
 
+### 4.11 🟠 El import del módulo de base de datos lanzaba sin `DATABASE_URL`
+
+**Descubierto por la CI del propio PR** (job "Tests unitarios (API)", que
+corre sin base de datos): `maintenance.test.ts` es un test **unitario** —inyecta
+un doble de BD— pero importa transitivamente `../workers/maintenance` →
+`@workspace/db`, y ese módulo **lanzaba en tiempo de import** si no había
+`DATABASE_URL`. El job fallaba entero con:
+
+```
+Error: DATABASE_URL must be set. Did you forget to provision a database?
+Test Files 1 failed | 13 passed | 12 skipped (26)
+```
+
+Es decir: **importar el módulo y validar la configuración se confundían**.
+
+**Corrección.** `lib/db/src/index.ts` ya no lanza al importarse: crea el pool
+con una cadena placeholder (el pool de `pg` es perezoso, no conecta) y expone
+`assertDatabaseConfigured()`, que sí lanza. Se invoca:
+
+- en `artifacts/api-server/src/index.ts`, **antes de aceptar tráfico** → un
+  despliegue mal configurado sigue muriendo en el arranque, no en la primera
+  petición;
+- en `lib/db/src/migrate.ts`, antes de aplicar migraciones.
+
+Verificado: el bundle arrancado sin `DATABASE_URL` muere con
+`Error: DATABASE_URL must be set...` y código de salida 1.
+
+**Consecuencia.** Los tests unitarios corren sin base de datos (14 suites
+pasan, 12 se saltan) y la suite de integración sigue igual (26/26 con BD).
+
 ---
 
 ## 5. Resultados de la verificación (post-corrección)
@@ -272,10 +302,12 @@ fallaban de forma intermitente**.
 | `pnpm install --frozen-lockfile`                                 | ✅ exit 0                                       |
 | `pnpm run typecheck` (libs + api-server + frontend)              | ✅ exit 0                                       |
 | `pnpm exec prettier --check` (backend + frontend + libs + tools) | ✅ "All matched files use Prettier code style!" |
+| Tests backend **sin** `DATABASE_URL` (job de unitarios)           | ✅ **14/14 pasan · 12 se saltan**               |
 | Tests backend (Postgres 17 real)                                 | ✅ **26/26 suites · 173 pasan · 1 skip**        |
 | Tests frontend                                                   | ✅ **4/4 suites · 17 pasan**                    |
 | `pnpm --filter @workspace/api-server run build`                  | ✅ exit 0                                       |
 | `pnpm --filter @workspace/radar-vecinal run build`               | ✅ exit 0 (PWA: 44 entradas en precache)        |
+| Arranque sin `DATABASE_URL`                                      | ✅ muere con error explícito y exit 1           |
 | `pnpm audit --prod --audit-level high`                           | ✅ exit 0 (0 críticas, 0 altas)                 |
 | `pnpm peers check`                                               | ✅ "No peer dependency issues found"            |
 

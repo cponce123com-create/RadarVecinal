@@ -4,14 +4,38 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+/**
+ * Cadena de conexión configurada.
+ *
+ * `undefined` cuando no hay DATABASE_URL. Importar este módulo NO debe
+ * lanzar: hay tests unitarios que importan el esquema y el código de los
+ * workers sin(base de datos —inyectan un doble—) y, si el import fallara,
+ * no podrían ni ejecutarse. La validación es explícita y ocurre al arrancar
+ * el servidor (`assertDatabaseConfigured()`) o al lanzar las migraciones.
+ */
+const connectionString = process.env.DATABASE_URL;
+
+/** Origen de conexión placeholder: el pool es perezoso, no conecta al crear. */
+const PLACEHOLDER_CONNECTION_STRING =
+  "postgresql://placeholder:placeholder@127.0.0.1:1/placeholder";
+
+/**
+ * Falla rápido si la base de datos no está configurada.
+ *
+ * Se llama al arrancar el servidor y en el runner de migraciones, para que
+ * un despliegue mal configurado muera en el arranque y no en la primera
+ * petición.
+ */
+export function assertDatabaseConfigured(): void {
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL must be set. Did you forget to provision a database?",
+    );
+  }
 }
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString ?? PLACEHOLDER_CONNECTION_STRING,
   // Límite de 3 conexiones: el free tier de Neon permite 5 conexiones simultáneas
   // como máximo. Con 3 dejamos margen para una conexión de migración o admin.
   // Elegimos configurar el propio pool en vez del connection string "-pooler" de

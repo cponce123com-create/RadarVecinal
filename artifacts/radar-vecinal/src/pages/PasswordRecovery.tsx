@@ -1,34 +1,57 @@
 /**
  * PasswordRecovery — "Olvidé mi contraseña": pide el correo y solicita el enlace.
  * La respuesta es siempre genérica (no revela si el correo existe).
+ *
+ * Matiz importante: la respuesta del servidor es genérica, pero un fallo de red
+ * o un 429 sí se muestran. Si no, el usuario lee "Revisa tu correo" cuando la
+ * petición nunca salió y el enlace no va a llegar: el mismo fallo silencioso que
+ * tenía el `fetch` desnudo en el APK.
  */
 import { useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Mail, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
-import { customFetch } from "@workspace/api-client-react";
+import {
+  Mail,
+  Loader2,
+  CheckCircle2,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
+import { ApiError, customFetch } from "@workspace/api-client-react";
 
 export default function PasswordRecovery() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
+    setError(null);
     try {
-      // La respuesta es genérica exista o no el correo, así que un error HTTP
-      // no debe mostrarse distinto: solo un fallo de red evita el envío.
       await customFetch("/api/auth/forgot-password", {
         method: "POST",
         body: JSON.stringify({ email: email.trim() }),
       });
-    } catch {
-      /* respuesta genérica igual */
+      setSent(true);
+    } catch (err) {
+      // Un 429 habla de límite de peticiones, no de si la cuenta existe, así
+      // que se puede mostrar sin abrir un oráculo de enumeración.
+      if (err instanceof ApiError && err.status === 429) {
+        setError(
+          "Hiciste demasiadas solicitudes. Espera unos minutos y vuelve a intentar.",
+        );
+      } else if (err instanceof ApiError) {
+        setError("No pudimos procesar la solicitud. Intenta de nuevo.");
+      } else {
+        setError(
+          "No hay conexión con el servidor. Revisa tu internet e intenta de nuevo.",
+        );
+      }
     } finally {
       setLoading(false);
-      setSent(true);
     }
   };
 
@@ -83,6 +106,15 @@ export default function PasswordRecovery() {
                     className="w-full pl-9 pr-3 py-2.5 bg-background border border-white/10 rounded-xl text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={loading}

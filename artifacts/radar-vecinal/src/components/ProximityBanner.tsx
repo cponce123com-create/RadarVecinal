@@ -1,6 +1,6 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, X } from 'lucide-react';
-import { Link } from 'wouter';
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, X } from "lucide-react";
+import { Link } from "wouter";
 
 interface NearbyAlert {
   id: string;
@@ -19,40 +19,43 @@ interface ProximityBannerProps {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  robbery: 'Robo/Asalto',
-  fight: 'Pelea',
-  suspicious: 'Sospechoso',
-  fire: 'Incendio',
-  medical_emergency: 'Emergencia Médica',
-  missing_person: 'Persona Extraviada',
-  water_cut: 'Corte de Agua',
-  garbage: 'Basura',
-  noise: 'Ruidos',
-  other: 'Incidente',
-  prostitution: 'Prostíbulo',
-  drug_point: 'Drogas',
-  bar_trouble: 'Bar Problemático',
-  informal_commerce: 'Comercio Ilícito',
+  robbery: "Robo/Asalto",
+  fight: "Pelea",
+  suspicious: "Sospechoso",
+  fire: "Incendio",
+  medical_emergency: "Emergencia Médica",
+  missing_person: "Persona Extraviada",
+  water_cut: "Corte de Agua",
+  garbage: "Basura",
+  noise: "Ruidos",
+  other: "Incidente",
+  prostitution: "Prostíbulo",
+  drug_point: "Drogas",
+  bar_trouble: "Bar Problemático",
+  informal_commerce: "Comercio Ilícito",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  robbery: '#ef4444',
-  fight: '#f97316',
-  fire: '#ef4444',
-  medical_emergency: '#ef4444',
-  missing_person: '#f59e0b',
-  suspicious: '#eab308',
-  water_cut: '#3b82f6',
-  garbage: '#6b7280',
-  noise: '#f59e0b',
-  other: '#6b7280',
+  robbery: "#ef4444",
+  fight: "#f97316",
+  fire: "#ef4444",
+  medical_emergency: "#ef4444",
+  missing_person: "#f59e0b",
+  suspicious: "#eab308",
+  water_cut: "#3b82f6",
+  garbage: "#6b7280",
+  noise: "#f59e0b",
+  other: "#6b7280",
 };
 
-export default function ProximityBanner({ nearbyAlerts, onDismiss }: ProximityBannerProps) {
+export default function ProximityBanner({
+  nearbyAlerts,
+  onDismiss,
+}: ProximityBannerProps) {
   if (nearbyAlerts.length === 0) return null;
 
   const topAlert = nearbyAlerts[0];
-  const color = CATEGORY_COLORS[topAlert.category] ?? '#ef4444';
+  const color = CATEGORY_COLORS[topAlert.category] ?? "#ef4444";
   const label = CATEGORY_LABELS[topAlert.category] ?? topAlert.category;
 
   return (
@@ -61,7 +64,7 @@ export default function ProximityBanner({ nearbyAlerts, onDismiss }: ProximityBa
         initial={{ opacity: 0, y: -12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -12, scale: 0.98 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
       >
         <div
           className="relative flex items-start gap-3 px-4 py-3 rounded-xl border overflow-hidden"
@@ -79,17 +82,23 @@ export default function ProximityBanner({ nearbyAlerts, onDismiss }: ProximityBa
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color }}>
+            <p
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ color }}
+            >
               ⚠️ Alerta de {label}
             </p>
             <p className="text-sm text-white font-semibold mt-0.5 truncate">
               {topAlert.title}
             </p>
             <p className="text-xs text-white/60 mt-0.5">
-              {topAlert.sector || topAlert.address || ''}
+              {topAlert.sector || topAlert.address || ""}
               {topAlert.distance > 0 && (
                 <span className="font-mono ml-1" style={{ color }}>
-                  · {topAlert.distance < 1000 ? `${topAlert.distance} m` : `${(topAlert.distance / 1000).toFixed(1)} km`}
+                  ·{" "}
+                  {topAlert.distance < 1000
+                    ? `${topAlert.distance} m`
+                    : `${(topAlert.distance / 1000).toFixed(1)} km`}
                 </span>
               )}
             </p>

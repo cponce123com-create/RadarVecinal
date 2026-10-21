@@ -5,7 +5,11 @@ import { Sun, Moon } from "lucide-react";
  * ThemeToggle — Botón dark/light mode con persistencia localStorage.
  * Inspirado en Civix (dark mode toggle con class + localStorage).
  */
-export default function ThemeToggle({ compact = false }: { compact?: boolean }) {
+export default function ThemeToggle({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const [dark, setDark] = useState(true);
 
   useEffect(() => {
@@ -32,7 +36,8 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
 
   if (compact) {
     return (
-      <button onClick={toggle}
+      <button
+        onClick={toggle}
         className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/8 transition-all"
         title={dark ? "Modo claro" : "Modo oscuro"}
       >
@@ -42,7 +47,8 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
   }
 
   return (
-    <button onClick={toggle}
+    <button
+      onClick={toggle}
       className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-white hover:bg-white/5 transition-all"
     >
       {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

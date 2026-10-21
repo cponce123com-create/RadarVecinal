@@ -8,12 +8,19 @@
  */
 import { Component, type ReactNode } from "react";
 
-interface Props { children: ReactNode }
-interface State { hasError: boolean; isChunkError: boolean }
+interface Props {
+  children: ReactNode;
+}
+interface State {
+  hasError: boolean;
+  isChunkError: boolean;
+}
 
 function isChunkLoadError(error: unknown): boolean {
   const msg = String((error as any)?.message ?? error ?? "");
-  return /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module/i.test(msg);
+  return /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module/i.test(
+    msg,
+  );
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
@@ -33,10 +40,18 @@ export default class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="max-w-sm w-full rounded-2xl bg-card border border-white/8 p-8 flex flex-col items-center gap-4 text-center">
-          <img src="/favicon.svg" alt="" width="48" height="48" className="w-12 h-12 opacity-90" />
+          <img
+            src="/favicon.svg"
+            alt=""
+            width="48"
+            height="48"
+            className="w-12 h-12 opacity-90"
+          />
           <div>
             <h2 className="text-lg font-bold text-white mb-1">
-              {this.state.isChunkError ? "Hay una versión nueva" : "Algo salió mal"}
+              {this.state.isChunkError
+                ? "Hay una versión nueva"
+                : "Algo salió mal"}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {this.state.isChunkError

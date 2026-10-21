@@ -1,14 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, ShieldAlert, Heart, Users, Flame, UserX, Zap, MapPin, Locate, CheckCircle2, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
+import {
+  AlertTriangle,
+  X,
+  ShieldAlert,
+  Heart,
+  Users,
+  Flame,
+  UserX,
+  Zap,
+  MapPin,
+  Locate,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { PanicAlertType, useCreatePanicAlert } from "@workspace/api-client-react";
+import {
+  PanicAlertType,
+  useCreatePanicAlert,
+} from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import {
+  MAP_TILE_URL,
+  MAP_ATTRIBUTION,
+  MAP_TILE_MAX_ZOOM,
+  MAP_TILE_MAX_NATIVE_ZOOM,
+} from "@/lib/mapTiles";
 import MapCredit from "@/components/MapCredit";
 
 interface PanicModalProps {
@@ -16,13 +43,62 @@ interface PanicModalProps {
   onClose: () => void;
 }
 
-const PANIC_OPTIONS: { type: PanicAlertType; icon: any; label: string; sub: string; color: string; bg: string }[] = [
-  { type: PanicAlertType.robbery, icon: AlertTriangle, label: "Asalto", sub: "Robo en progreso", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-  { type: PanicAlertType.medical, icon: Heart, label: "Emergencia médica", sub: "Necesito ambulancia", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-  { type: PanicAlertType.fight, icon: Users, label: "Violencia física", sub: "Pelea o agresión", color: "#f97316", bg: "rgba(249,115,22,0.12)" },
-  { type: PanicAlertType.fire, icon: Flame, label: "Incendio", sub: "Fuego fuera de control", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  { type: PanicAlertType.missing_person, icon: UserX, label: "Persona extraviada", sub: "Menor o adulto mayor", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  { type: PanicAlertType.other, icon: Zap, label: "Otra emergencia", sub: "Describir luego", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
+const PANIC_OPTIONS: {
+  type: PanicAlertType;
+  icon: any;
+  label: string;
+  sub: string;
+  color: string;
+  bg: string;
+}[] = [
+  {
+    type: PanicAlertType.robbery,
+    icon: AlertTriangle,
+    label: "Asalto",
+    sub: "Robo en progreso",
+    color: "#ef4444",
+    bg: "rgba(239,68,68,0.12)",
+  },
+  {
+    type: PanicAlertType.medical,
+    icon: Heart,
+    label: "Emergencia médica",
+    sub: "Necesito ambulancia",
+    color: "#3b82f6",
+    bg: "rgba(59,130,246,0.12)",
+  },
+  {
+    type: PanicAlertType.fight,
+    icon: Users,
+    label: "Violencia física",
+    sub: "Pelea o agresión",
+    color: "#f97316",
+    bg: "rgba(249,115,22,0.12)",
+  },
+  {
+    type: PanicAlertType.fire,
+    icon: Flame,
+    label: "Incendio",
+    sub: "Fuego fuera de control",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+  },
+  {
+    type: PanicAlertType.missing_person,
+    icon: UserX,
+    label: "Persona extraviada",
+    sub: "Menor o adulto mayor",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+  },
+  {
+    type: PanicAlertType.other,
+    icon: Zap,
+    label: "Otra emergencia",
+    sub: "Describir luego",
+    color: "#8b5cf6",
+    bg: "rgba(139,92,246,0.12)",
+  },
 ];
 
 type Phase = "select" | "countdown" | "sending" | "sent";
@@ -66,7 +142,9 @@ function TapToMove({ onMove }: { onMove: (lat: number, lng: number) => void }) {
 }
 
 export function PanicModal({ isOpen, onClose }: PanicModalProps) {
-  const [selected, setSelected] = useState<(typeof PANIC_OPTIONS)[0] | null>(null);
+  const [selected, setSelected] = useState<(typeof PANIC_OPTIONS)[0] | null>(
+    null,
+  );
   const [countdown, setCountdown] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>("select");
   const { toast } = useToast();
@@ -80,9 +158,17 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
   const districtLat = districtCenter.lat;
   const districtLng = districtCenter.lng;
 
-  const [gps, setGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
-  const [gpsStatus, setGpsStatus] = useState<"searching" | "ok" | "error">("searching");
-  const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(null);
+  const [gps, setGps] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number;
+  } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"searching" | "ok" | "error">(
+    "searching",
+  );
+  const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [userMoved, setUserMoved] = useState(false);
   const watchIdRef = useRef<number | null>(null);
 
@@ -101,7 +187,11 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
     }
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        const p = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
         setGps(p);
         setGpsStatus("ok");
       },
@@ -153,7 +243,8 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
     if (!currentDistrictId) {
       toast({
         title: "Selecciona tu distrito",
-        description: "Necesitamos saber tu distrito para avisar al serenazgo correcto.",
+        description:
+          "Necesitamos saber tu distrito para avisar al serenazgo correcto.",
         variant: "destructive",
       });
       return;
@@ -215,7 +306,8 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
         onError: () => {
           toast({
             title: "No pudimos enviar la alerta",
-            description: "Revisa tu conexión e intenta de nuevo. Si es urgente llama al 105 (PNP) o a serenazgo.",
+            description:
+              "Revisa tu conexión e intenta de nuevo. Si es urgente llama al 105 (PNP) o a serenazgo.",
             variant: "destructive",
           });
           setPhase("select");
@@ -254,7 +346,10 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 overflow-y-auto"
-          style={{ background: "hsl(224 15% 4% / 0.97)", backdropFilter: "blur(24px)" }}
+          style={{
+            background: "hsl(224 15% 4% / 0.97)",
+            backdropFilter: "blur(24px)",
+          }}
         >
           {/* Vignette rojo animado durante el countdown */}
           <AnimatePresence>
@@ -265,7 +360,10 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 3, repeat: Infinity }}
                 className="absolute inset-0 pointer-events-none"
-                style={{ background: "radial-gradient(ellipse at center, hsl(0 90% 55% / 0.15) 0%, transparent 70%)" }}
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, hsl(0 90% 55% / 0.15) 0%, transparent 70%)",
+                }}
               />
             )}
           </AnimatePresence>
@@ -304,21 +402,37 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                     />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white tracking-tight leading-none">BOTÓN DE PÁNICO</h2>
-                    <p className="text-[11px] text-muted-foreground mt-1">{currentDistrict || "Distrito no seleccionado"}</p>
+                    <h2 className="text-xl font-bold text-white tracking-tight leading-none">
+                      BOTÓN DE PÁNICO
+                    </h2>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {currentDistrict || "Distrito no seleccionado"}
+                    </p>
                   </div>
                 </div>
 
                 {/* ── Mapa de ubicación ── */}
-                <div className="w-full rounded-xl overflow-hidden border border-white/10 mb-2 relative" style={{ height: 190 }}>
+                <div
+                  className="w-full rounded-xl overflow-hidden border border-white/10 mb-2 relative"
+                  style={{ height: 190 }}
+                >
                   <MapContainer
                     center={[effectiveLat, effectiveLng]}
                     zoom={16}
                     zoomControl={false}
                     attributionControl={false}
-                    style={{ width: "100%", height: "100%", background: "#111" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      background: "#111",
+                    }}
                   >
-                    <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM} maxZoom={MAP_TILE_MAX_ZOOM} />
+                    <TileLayer
+                      url={MAP_TILE_URL}
+                      attribution={MAP_ATTRIBUTION}
+                      maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM}
+                      maxZoom={MAP_TILE_MAX_ZOOM}
+                    />
                     <MapController lat={effectiveLat} lng={effectiveLng} />
                     <TapToMove onMove={moveMarker} />
                     <Marker
@@ -371,11 +485,18 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                           className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ background: `${opt.color}20` }}
                         >
-                          <Icon className="w-5 h-5" style={{ color: opt.color }} />
+                          <Icon
+                            className="w-5 h-5"
+                            style={{ color: opt.color }}
+                          />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white leading-tight">{opt.label}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{opt.sub}</p>
+                          <p className="text-sm font-semibold text-white leading-tight">
+                            {opt.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                            {opt.sub}
+                          </p>
                         </div>
                       </motion.button>
                     );
@@ -394,22 +515,30 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                 transition={{ duration: 0.2 }}
                 className="flex flex-col items-center text-center"
               >
-                {selected && (() => {
-                  const Icon = selected.icon;
-                  return (
-                    <>
-                      <div
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 border border-white/10"
-                        style={{ background: selected.bg }}
-                      >
-                        <Icon className="w-7 h-7" style={{ color: selected.color }} />
-                      </div>
-                      <p className="text-muted-foreground text-base font-medium mb-1">{selected.label}</p>
-                    </>
-                  );
-                })()}
+                {selected &&
+                  (() => {
+                    const Icon = selected.icon;
+                    return (
+                      <>
+                        <div
+                          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 border border-white/10"
+                          style={{ background: selected.bg }}
+                        >
+                          <Icon
+                            className="w-7 h-7"
+                            style={{ color: selected.color }}
+                          />
+                        </div>
+                        <p className="text-muted-foreground text-base font-medium mb-1">
+                          {selected.label}
+                        </p>
+                      </>
+                    );
+                  })()}
 
-                <h3 className="text-2xl font-bold text-white mb-2">Enviando alerta en...</h3>
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  Enviando alerta en...
+                </h3>
                 <p className="text-xs text-muted-foreground mb-6 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" />
                   {userMoved
@@ -420,10 +549,22 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                 </p>
 
                 <div className="relative w-44 h-44 mb-8">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="54" fill="none" stroke="hsl(220 14% 14%)" strokeWidth="8" />
+                  <svg
+                    className="w-full h-full -rotate-90"
+                    viewBox="0 0 120 120"
+                  >
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="54"
+                      fill="none"
+                      stroke="hsl(220 14% 14%)"
+                      strokeWidth="8"
+                    />
                     <motion.circle
-                      cx="60" cy="60" r="54"
+                      cx="60"
+                      cy="60"
+                      r="54"
                       fill="none"
                       stroke="hsl(0 90% 55%)"
                       strokeWidth="8"
@@ -443,7 +584,9 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                     >
                       {countdown}
                     </motion.span>
-                    <span className="text-xs text-muted-foreground mt-1">segundos</span>
+                    <span className="text-xs text-muted-foreground mt-1">
+                      segundos
+                    </span>
                   </div>
                 </div>
 
@@ -466,9 +609,12 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                 className="flex flex-col items-center text-center"
               >
                 <Loader2 className="w-14 h-14 text-destructive animate-spin mb-5" />
-                <h3 className="text-2xl font-bold text-white mb-2">Enviando alerta...</h3>
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  Enviando alerta...
+                </h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Notificando a serenazgo y vecinos cercanos. No cierres la aplicación.
+                  Notificando a serenazgo y vecinos cercanos. No cierres la
+                  aplicación.
                 </p>
               </motion.div>
             )}
@@ -490,12 +636,20 @@ export function PanicModal({ isOpen, onClose }: PanicModalProps) {
                 >
                   <CheckCircle2 className="w-10 h-10 text-emerald-400" />
                 </motion.div>
-                <h3 className="text-2xl font-bold text-white mb-2">Alerta enviada</h3>
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  Alerta enviada
+                </h3>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Serenazgo y los vecinos de <span className="text-white/80 font-semibold">{currentDistrict}</span> ya fueron notificados con tu ubicación.
+                  Serenazgo y los vecinos de{" "}
+                  <span className="text-white/80 font-semibold">
+                    {currentDistrict}
+                  </span>{" "}
+                  ya fueron notificados con tu ubicación.
                 </p>
                 <p className="text-[11px] text-muted-foreground/70 mb-7">
-                  Si la emergencia empeora, llama al <span className="text-white/70 font-semibold">105</span> (Policía Nacional).
+                  Si la emergencia empeora, llama al{" "}
+                  <span className="text-white/70 font-semibold">105</span>{" "}
+                  (Policía Nacional).
                 </p>
                 <button
                   onClick={resetAndClose}

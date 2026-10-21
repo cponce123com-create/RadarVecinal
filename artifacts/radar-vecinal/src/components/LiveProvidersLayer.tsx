@@ -57,8 +57,26 @@ function ProviderTrail({ providerId }: { providerId: string }) {
   return (
     <>
       {/* Halo suave debajo para dar contraste sobre el mapa */}
-      <Polyline positions={pts} pathOptions={{ color: "#052e16", weight: 8, opacity: 0.35, lineCap: "round", lineJoin: "round" }} />
-      <Polyline positions={pts} pathOptions={{ color: "#22c55e", weight: 4, opacity: 0.95, lineCap: "round", lineJoin: "round" }} />
+      <Polyline
+        positions={pts}
+        pathOptions={{
+          color: "#052e16",
+          weight: 8,
+          opacity: 0.35,
+          lineCap: "round",
+          lineJoin: "round",
+        }}
+      />
+      <Polyline
+        positions={pts}
+        pathOptions={{
+          color: "#22c55e",
+          weight: 4,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }}
+      />
     </>
   );
 }
@@ -80,9 +98,11 @@ export function LiveProvidersLayer({ enabled = true }: { enabled?: boolean }) {
   return (
     <>
       {/* Ruta en vivo del camión recolector (línea verde) */}
-      {providers.filter((p) => p.type === "recolector").map((p) => (
-        <ProviderTrail key={`trail-${p.id}`} providerId={p.id} />
-      ))}
+      {providers
+        .filter((p) => p.type === "recolector")
+        .map((p) => (
+          <ProviderTrail key={`trail-${p.id}`} providerId={p.id} />
+        ))}
       {providers.map((p) => {
         const meta = providerMeta(p.type);
         return (
@@ -94,21 +114,54 @@ export function LiveProvidersLayer({ enabled = true }: { enabled?: boolean }) {
           >
             <Popup closeButton={false} maxWidth={230}>
               <div style={{ fontFamily: "inherit", minWidth: 170 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginBottom: 5,
+                  }}
+                >
                   <span style={{ fontSize: 18 }}>{meta.emoji}</span>
                   <strong style={{ fontSize: 13, color: meta.color }}>
                     {providerTitle(p)}
                   </strong>
                   {p.verified && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#059669", background: "#05966922", border: "1px solid #05966955", borderRadius: 6, padding: "1px 5px" }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#059669",
+                        background: "#05966922",
+                        border: "1px solid #05966955",
+                        borderRadius: 6,
+                        padding: "1px 5px",
+                      }}
+                    >
                       ✓ Oficial
                     </span>
                   )}
                 </div>
                 <div style={{ fontSize: 11, lineHeight: 1.5, color: "#444" }}>
                   {p.displayName && p.label && <div>{p.displayName}</div>}
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3, color: "#16a34a" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      marginTop: 3,
+                      color: "#16a34a",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: "#16a34a",
+                        display: "inline-block",
+                      }}
+                    />
                     <b>En vivo</b> · visto hace{" "}
                     {formatDistanceToNow(new Date(p.updatedAt), { locale: es })}
                   </div>

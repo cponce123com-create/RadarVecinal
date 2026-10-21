@@ -16,7 +16,10 @@ interface Props {
  * GeocoderInput — Escribe una dirección y obtén coordenadas vía Nominatim.
  * Inspirado en SafeRoute (Node-Geocoder).
  */
-export default function GeocoderInput({ onSelect, placeholder = "Ej. Av. La Mar 1234, San Ramón" }: Props) {
+export default function GeocoderInput({
+  onSelect,
+  placeholder = "Ej. Av. La Mar 1234, San Ramón",
+}: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeoResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +29,8 @@ export default function GeocoderInput({ onSelect, placeholder = "Ej. Av. La Mar 
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -69,11 +73,13 @@ export default function GeocoderInput({ onSelect, placeholder = "Ej. Av. La Mar 
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           value={query}
-          onChange={e => search(e.target.value)}
+          onChange={(e) => search(e.target.value)}
           placeholder={placeholder}
           className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/5 border border-white/8 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
         />
-        {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />}
+        {loading && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+        )}
       </div>
 
       {open && results.length > 0 && (
@@ -85,7 +91,9 @@ export default function GeocoderInput({ onSelect, placeholder = "Ej. Av. La Mar 
               className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
             >
               <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-              <span className="text-xs text-white leading-tight">{r.label}</span>
+              <span className="text-xs text-white leading-tight">
+                {r.label}
+              </span>
             </button>
           ))}
         </div>

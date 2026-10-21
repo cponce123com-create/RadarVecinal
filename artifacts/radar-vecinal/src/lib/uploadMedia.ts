@@ -11,7 +11,8 @@ export async function uploadMedia(
   filename?: string,
 ): Promise<string> {
   const token = localStorage.getItem("radarvecinal_token");
-  const name = filename ?? (file instanceof File ? file.name : `nota-${Date.now()}`);
+  const name =
+    filename ?? (file instanceof File ? file.name : `nota-${Date.now()}`);
 
   const res = await fetch("/api/storage/uploads/request-url", {
     method: "POST",
@@ -19,7 +20,12 @@ export async function uploadMedia(
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ name, size: file.size, contentType: file.type, kind }),
+    body: JSON.stringify({
+      name,
+      size: file.size,
+      contentType: file.type,
+      kind,
+    }),
   });
   if (!res.ok) {
     let msg = "No se pudo iniciar la subida.";

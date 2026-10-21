@@ -49,7 +49,10 @@ interface BgWatcherOptions {
 interface BgPlugin {
   addWatcher(
     options: BgWatcherOptions,
-    callback: (position?: BgLocation, error?: { message: string; code?: string }) => void,
+    callback: (
+      position?: BgLocation,
+      error?: { message: string; code?: string },
+    ) => void,
   ): Promise<string>;
   removeWatcher(options: { id: string }): Promise<void>;
   openSettings(): Promise<void>;

@@ -1,16 +1,41 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bell, BellOff, AlertTriangle, CheckCircle2, UserX, ShieldAlert,
-  RefreshCw, Flame, Info, Check, ChevronRight, Trash2,
-  Volume2, Zap, Building2,
+  Bell,
+  BellOff,
+  AlertTriangle,
+  CheckCircle2,
+  UserX,
+  ShieldAlert,
+  RefreshCw,
+  Flame,
+  Info,
+  Check,
+  ChevronRight,
+  Trash2,
+  Volume2,
+  Zap,
+  Building2,
 } from "lucide-react";
-import { formatDistanceToNow, isToday, isYesterday, subDays, isAfter } from "date-fns";
+import {
+  formatDistanceToNow,
+  isToday,
+  isYesterday,
+  subDays,
+  isAfter,
+} from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useGetNotifications } from "@workspace/api-client-react";
 
-type NotifType = "panic" | "confirmation" | "missing" | "update" | "system" | "fire" | "municipal";
+type NotifType =
+  | "panic"
+  | "confirmation"
+  | "missing"
+  | "update"
+  | "system"
+  | "fire"
+  | "municipal";
 type NotifFilter = "all" | "unread" | "alerts" | "system" | "municipal";
 
 interface Notification {
@@ -27,43 +52,85 @@ interface Notification {
   reportTitle?: string;
 }
 
-const TYPE_META: Record<NotifType, { icon: React.ElementType; color: string; bg: string; label: string }> = {
-  panic:        { icon: ShieldAlert,   color: "#ef4444", bg: "rgba(239,68,68,0.15)",    label: "Pánico" },
-  confirmation: { icon: CheckCircle2,  color: "#22c55e", bg: "rgba(34,197,94,0.15)",    label: "Confirmación" },
-  missing:      { icon: UserX,         color: "#f59e0b", bg: "rgba(245,158,11,0.15)",   label: "Extraviado" },
-  update:       { icon: RefreshCw,     color: "#3b82f6", bg: "rgba(59,130,246,0.15)",   label: "Actualización" },
-  fire:         { icon: Flame,         color: "#f97316", bg: "rgba(249,115,22,0.15)",   label: "Incendio" },
-  system:       { icon: Info,          color: "#6b7280", bg: "rgba(107,114,128,0.15)",  label: "Sistema" },
-  municipal:    { icon: Building2,     color: "#8b5cf6", bg: "rgba(139,92,246,0.15)",   label: "Municipalidad" },
+const TYPE_META: Record<
+  NotifType,
+  { icon: React.ElementType; color: string; bg: string; label: string }
+> = {
+  panic: {
+    icon: ShieldAlert,
+    color: "#ef4444",
+    bg: "rgba(239,68,68,0.15)",
+    label: "Pánico",
+  },
+  confirmation: {
+    icon: CheckCircle2,
+    color: "#22c55e",
+    bg: "rgba(34,197,94,0.15)",
+    label: "Confirmación",
+  },
+  missing: {
+    icon: UserX,
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.15)",
+    label: "Extraviado",
+  },
+  update: {
+    icon: RefreshCw,
+    color: "#3b82f6",
+    bg: "rgba(59,130,246,0.15)",
+    label: "Actualización",
+  },
+  fire: {
+    icon: Flame,
+    color: "#f97316",
+    bg: "rgba(249,115,22,0.15)",
+    label: "Incendio",
+  },
+  system: {
+    icon: Info,
+    color: "#6b7280",
+    bg: "rgba(107,114,128,0.15)",
+    label: "Sistema",
+  },
+  municipal: {
+    icon: Building2,
+    color: "#8b5cf6",
+    bg: "rgba(139,92,246,0.15)",
+    label: "Municipalidad",
+  },
 };
 
-const FILTER_TABS: { id: NotifFilter; label: string; icon?: React.ElementType }[] = [
-  { id: "all",        label: "Todas" },
-  { id: "unread",     label: "No leídas" },
-  { id: "alerts",     label: "Alertas" },
-  { id: "municipal",  label: "Municipalidad", icon: Building2 },
-  { id: "system",     label: "Sistema" },
+const FILTER_TABS: {
+  id: NotifFilter;
+  label: string;
+  icon?: React.ElementType;
+}[] = [
+  { id: "all", label: "Todas" },
+  { id: "unread", label: "No leídas" },
+  { id: "alerts", label: "Alertas" },
+  { id: "municipal", label: "Municipalidad", icon: Building2 },
+  { id: "system", label: "Sistema" },
 ];
 
 function groupByDate(notifs: Notification[]) {
-  const today:    Notification[] = [];
+  const today: Notification[] = [];
   const yesterday: Notification[] = [];
-  const week:     Notification[] = [];
-  const older:    Notification[] = [];
+  const week: Notification[] = [];
+  const older: Notification[] = [];
 
-  notifs.forEach(n => {
-    if (isToday(n.time))      today.push(n);
+  notifs.forEach((n) => {
+    if (isToday(n.time)) today.push(n);
     else if (isYesterday(n.time)) yesterday.push(n);
     else if (isAfter(n.time, subDays(new Date(), 7))) week.push(n);
     else older.push(n);
   });
 
   return [
-    { label: "Hoy",          items: today },
-    { label: "Ayer",          items: yesterday },
-    { label: "Esta semana",   items: week },
-    { label: "Más antiguas",  items: older },
-  ].filter(g => g.items.length > 0);
+    { label: "Hoy", items: today },
+    { label: "Ayer", items: yesterday },
+    { label: "Esta semana", items: week },
+    { label: "Más antiguas", items: older },
+  ].filter((g) => g.items.length > 0);
 }
 
 export default function Notifications() {
@@ -71,21 +138,30 @@ export default function Notifications() {
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const { data: apiNotifs, isLoading, isError, refetch } = useGetNotifications();
+  const {
+    data: apiNotifs,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetNotifications();
 
   // B-16: Merge API system notifications into local state
   useEffect(() => {
     if (!apiNotifs?.notifications?.length) return;
-    setNotifs(prev => {
-      const existingIds = new Set(prev.map(n => n.id));
+    setNotifs((prev) => {
+      const existingIds = new Set(prev.map((n) => n.id));
       const merged = apiNotifs.notifications
         .filter((n: any) => !existingIds.has(n.id))
         .map((n: any) => {
           // Detectar mensajes de la municipalidad por referenceType
-          const isMunicipal = n.referenceType === "report_message" || n.type === "municipal_message";
+          const isMunicipal =
+            n.referenceType === "report_message" ||
+            n.type === "municipal_message";
           return {
             id: n.id,
-            type: isMunicipal ? "municipal" as NotifType : (n.type ?? "system") as NotifType,
+            type: isMunicipal
+              ? ("municipal" as NotifType)
+              : ((n.type ?? "system") as NotifType),
             title: n.title ?? "Notificación del sistema",
             body: n.body ?? n.message ?? "",
             time: new Date(n.createdAt ?? Date.now()),
@@ -99,31 +175,41 @@ export default function Notifications() {
     });
   }, [apiNotifs]);
 
-  const unreadCount = notifs.filter(n => !n.read).length;
-  const municipalCount = notifs.filter(n => n.type === "municipal").length;
+  const unreadCount = notifs.filter((n) => !n.read).length;
+  const municipalCount = notifs.filter((n) => n.type === "municipal").length;
 
   const filtered = useMemo(() => {
     switch (filter) {
-      case "unread":   return notifs.filter(n => !n.read);
-      case "alerts":   return notifs.filter(n => n.type === "panic" || n.type === "fire" || n.type === "missing");
-      case "municipal": return notifs.filter(n => n.type === "municipal");
-      case "system":   return notifs.filter(n => n.type === "system" || n.type === "update");
-      default:         return notifs;
+      case "unread":
+        return notifs.filter((n) => !n.read);
+      case "alerts":
+        return notifs.filter(
+          (n) =>
+            n.type === "panic" || n.type === "fire" || n.type === "missing",
+        );
+      case "municipal":
+        return notifs.filter((n) => n.type === "municipal");
+      case "system":
+        return notifs.filter((n) => n.type === "system" || n.type === "update");
+      default:
+        return notifs;
     }
   }, [notifs, filter]);
 
   const groups = groupByDate(filtered);
 
   const markAllRead = () => {
-    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
     toast({ title: "Todas marcadas como leídas" });
   };
 
   const markRead = (id: string) =>
-    setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifs((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
 
   const deleteNotif = (id: string) =>
-    setNotifs(prev => prev.filter(n => n.id !== id));
+    setNotifs((prev) => prev.filter((n) => n.id !== id));
 
   const clearAll = () => {
     setNotifs([]);
@@ -132,7 +218,6 @@ export default function Notifications() {
 
   return (
     <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-5">
-
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -171,7 +256,9 @@ export default function Notifications() {
           <Volume2 className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">Alertas sonoras {soundEnabled ? "activadas" : "desactivadas"}</p>
+          <p className="text-sm font-semibold text-white">
+            Alertas sonoras {soundEnabled ? "activadas" : "desactivadas"}
+          </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {soundEnabled
               ? "Recibirás alertas de audio cuando ocurra un incidente en tu radio de cercanía."
@@ -179,17 +266,24 @@ export default function Notifications() {
           </p>
         </div>
         <button
-          onClick={() => setSoundEnabled(v => !v)}
+          onClick={() => setSoundEnabled((v) => !v)}
           className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-all duration-300 ${soundEnabled ? "bg-primary" : "bg-white/10"}`}
         >
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${soundEnabled ? "left-[22px]" : "left-0.5"}`} />
+          <span
+            className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${soundEnabled ? "left-[22px]" : "left-0.5"}`}
+          />
         </button>
       </motion.div>
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
-        {FILTER_TABS.map(tab => {
-          const count = tab.id === "unread" ? unreadCount : tab.id === "municipal" ? municipalCount : undefined;
+        {FILTER_TABS.map((tab) => {
+          const count =
+            tab.id === "unread"
+              ? unreadCount
+              : tab.id === "municipal"
+                ? municipalCount
+                : undefined;
           const TabIcon = tab.icon;
           return (
             <button
@@ -206,9 +300,11 @@ export default function Notifications() {
               {TabIcon && <TabIcon className="w-3 h-3" />}
               {tab.label}
               {count !== undefined && count > 0 && (
-                <span className={`w-4 h-4 rounded-full text-white text-[9px] font-bold flex items-center justify-center ${
-                  tab.id === "municipal" ? "bg-violet-500" : "bg-red-500"
-                }`}>
+                <span
+                  className={`w-4 h-4 rounded-full text-white text-[9px] font-bold flex items-center justify-center ${
+                    tab.id === "municipal" ? "bg-violet-500" : "bg-red-500"
+                  }`}
+                >
                   {count}
                 </span>
               )}
@@ -230,8 +326,11 @@ export default function Notifications() {
       {/* Notification list */}
       {isLoading && notifs.length === 0 ? (
         <div className="flex flex-col gap-3">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-20 rounded-xl bg-card border border-white/5 animate-pulse" />
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-20 rounded-xl bg-card border border-white/5 animate-pulse"
+            />
           ))}
         </div>
       ) : isError && notifs.length === 0 ? (
@@ -239,8 +338,13 @@ export default function Notifications() {
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <AlertTriangle className="w-8 h-8 text-red-400/70" />
           </div>
-          <p className="text-sm font-medium text-white">No se pudieron cargar las notificaciones</p>
-          <button onClick={() => refetch()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white/80 hover:bg-white/10 transition-all min-h-[44px]">
+          <p className="text-sm font-medium text-white">
+            No se pudieron cargar las notificaciones
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/6 border border-white/10 text-sm text-white/80 hover:bg-white/10 transition-all min-h-[44px]"
+          >
             <RefreshCw className="w-4 h-4" /> Reintentar
           </button>
         </div>
@@ -253,14 +357,17 @@ export default function Notifications() {
           <div className="w-16 h-16 rounded-2xl bg-white/4 flex items-center justify-center">
             <BellOff className="w-8 h-8 text-muted-foreground/40" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">Sin notificaciones</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            Sin notificaciones
+          </p>
           <p className="text-xs text-muted-foreground/50 text-center max-w-xs">
-            Las alertas de incidentes cercanos y actualizaciones del distrito aparecerán aquí.
+            Las alertas de incidentes cercanos y actualizaciones del distrito
+            aparecerán aquí.
           </p>
         </motion.div>
       ) : (
         <div className="flex flex-col gap-4">
-          {groups.map(group => (
+          {groups.map((group) => (
             <div key={group.label}>
               {/* Date separator */}
               <div className="flex items-center gap-3 mb-2">
@@ -309,16 +416,25 @@ export default function Notifications() {
                           }`}
                           style={{ background: meta.bg }}
                         >
-                          <Icon className="w-4.5 h-4.5" style={{ color: meta.color, width: "18px", height: "18px" }} />
+                          <Icon
+                            className="w-4.5 h-4.5"
+                            style={{
+                              color: meta.color,
+                              width: "18px",
+                              height: "18px",
+                            }}
+                          />
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-sm font-semibold leading-snug ${
-                                isMunicipal ? "text-violet-200" : "text-white"
-                              }`}>
+                              <span
+                                className={`text-sm font-semibold leading-snug ${
+                                  isMunicipal ? "text-violet-200" : "text-white"
+                                }`}
+                              >
                                 {notif.title}
                               </span>
                               {notif.critical && (
@@ -340,9 +456,13 @@ export default function Notifications() {
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${
-                            isMunicipal ? "text-violet-300/70" : "text-muted-foreground"
-                          }`}>
+                          <p
+                            className={`text-xs mt-1 leading-relaxed line-clamp-2 ${
+                              isMunicipal
+                                ? "text-violet-300/70"
+                                : "text-muted-foreground"
+                            }`}
+                          >
                             {notif.body}
                           </p>
 
@@ -355,7 +475,9 @@ export default function Notifications() {
                               </span>
                               {notif.reportTitle && (
                                 <>
-                                  <span className="text-[9px] text-violet-500/30">·</span>
+                                  <span className="text-[9px] text-violet-500/30">
+                                    ·
+                                  </span>
                                   <span className="text-[10px] text-violet-400/40">
                                     {notif.reportTitle}
                                   </span>
@@ -366,7 +488,10 @@ export default function Notifications() {
 
                           <div className="flex items-center gap-3 mt-2">
                             <span className="text-[10px] text-muted-foreground/50">
-                              {formatDistanceToNow(notif.time, { locale: es, addSuffix: true })}
+                              {formatDistanceToNow(notif.time, {
+                                locale: es,
+                                addSuffix: true,
+                              })}
                             </span>
                             <span
                               className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
@@ -414,7 +539,10 @@ export default function Notifications() {
       {/* Tip */}
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-white/2 border border-white/5 text-xs text-muted-foreground/50">
         <Zap className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-yellow-500/40" />
-        Los mensajes enviados por funcionarios municipales aparecen con un distintivo violeta. Las alertas de pánico y búsqueda de personas extraviadas siempre aparecerán aunque no tengas alertas sonoras activadas.
+        Los mensajes enviados por funcionarios municipales aparecen con un
+        distintivo violeta. Las alertas de pánico y búsqueda de personas
+        extraviadas siempre aparecerán aunque no tengas alertas sonoras
+        activadas.
       </div>
     </div>
   );

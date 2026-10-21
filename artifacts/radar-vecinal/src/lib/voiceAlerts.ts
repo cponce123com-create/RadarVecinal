@@ -90,12 +90,27 @@ export function playClip(url: string): void {
  * Desbloquea el audio: los navegadores exigen un gesto del usuario antes de
  * poder hablar/reproducir. Llamar desde un onClick. Devuelve true si se soporta.
  */
-export function unlockAndTestVoice(sample = "Avisos por voz activados."): boolean {
+export function unlockAndTestVoice(
+  sample = "Avisos por voz activados.",
+): boolean {
   // Prime del elemento de audio de clips (permite reproducir luego sin gesto).
   try {
     const a = clipAudio();
-    if (a) { a.muted = true; void a.play().then(() => { a.pause(); a.muted = false; }).catch(() => { a.muted = false; }); }
-  } catch { /* ignore */ }
+    if (a) {
+      a.muted = true;
+      void a
+        .play()
+        .then(() => {
+          a.pause();
+          a.muted = false;
+        })
+        .catch(() => {
+          a.muted = false;
+        });
+    }
+  } catch {
+    /* ignore */
+  }
   if (!isVoiceSupported()) return false;
   speak(sample);
   return true;
@@ -122,12 +137,20 @@ export function getHome(): HomeLocation | null {
 
 export function setHome(lat: number, lng: number): HomeLocation {
   const home = { lat, lng, savedAt: Date.now() };
-  try { localStorage.setItem(HOME_KEY, JSON.stringify(home)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(HOME_KEY, JSON.stringify(home));
+  } catch {
+    /* ignore */
+  }
   return home;
 }
 
 export function clearHome(): void {
-  try { localStorage.removeItem(HOME_KEY); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem(HOME_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 // ── Preferencias de avisos por voz ──────────────────────────────────────────
@@ -158,15 +181,28 @@ export function getVoicePrefs(): VoicePrefs {
 
 export function setVoicePrefs(patch: Partial<VoicePrefs>): VoicePrefs {
   const next = { ...getVoicePrefs(), ...patch };
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
   // Avisar a los watchers en la misma pestaña (localStorage 'storage' no dispara
   // en la pestaña que escribe).
-  try { window.dispatchEvent(new CustomEvent("rv:voice-prefs-changed")); } catch { /* ignore */ }
+  try {
+    window.dispatchEvent(new CustomEvent("rv:voice-prefs-changed"));
+  } catch {
+    /* ignore */
+  }
   return next;
 }
 
 // ── Utilidad de distancia (haversine) ───────────────────────────────────────
-export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function distanceMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);

@@ -1,5 +1,17 @@
 import { useState } from "react";
-import { Shield, Siren, FileText, Users as UsersIcon, Megaphone, Search, BarChart3, FileDown, Crown, Truck, Volume2 } from "lucide-react";
+import {
+  Shield,
+  Siren,
+  FileText,
+  Users as UsersIcon,
+  Megaphone,
+  Search,
+  BarChart3,
+  FileDown,
+  Crown,
+  Truck,
+  Volume2,
+} from "lucide-react";
 import { useGetReports, useGetUsers } from "@workspace/api-client-react";
 import { useGetStats } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,18 +33,20 @@ export default function AdminPanel() {
 
   const { currentDistrictId } = useDistrict();
   const { isSuperAdmin } = useAuth();
-  const { data: reportsData, refetch } = useGetReports({ districtId: currentDistrictId ?? undefined });
+  const { data: reportsData, refetch } = useGetReports({
+    districtId: currentDistrictId ?? undefined,
+  });
   const { data: usersData } = useGetUsers();
   const { data: stats } = useGetStats();
 
   const tabs = [
-    { id: "reports" as Tab, label: "Reportes",   icon: FileText },
+    { id: "reports" as Tab, label: "Reportes", icon: FileText },
     { id: "analytics" as Tab, label: "Analítica", icon: BarChart3 },
-    { id: "alerts" as Tab,  label: "Alertas",    icon: Siren },
-    { id: "users" as Tab,   label: "Usuarios",   icon: UsersIcon },
+    { id: "alerts" as Tab, label: "Alertas", icon: Siren },
+    { id: "users" as Tab, label: "Usuarios", icon: UsersIcon },
     { id: "devices" as Tab, label: "Recolector", icon: Truck },
-    { id: "audios" as Tab,  label: "Audios",     icon: Volume2 },
-    { id: "ads" as Tab,     label: "Publicidad", icon: Megaphone },
+    { id: "audios" as Tab, label: "Audios", icon: Volume2 },
+    { id: "ads" as Tab, label: "Publicidad", icon: Megaphone },
   ];
 
   // Super admin tab solo visible para super_admin
@@ -49,8 +63,12 @@ export default function AdminPanel() {
             <Shield className="w-5 h-5 text-accent" />
           </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white">Centro de Control</h2>
-            <p className="text-sm text-muted-foreground">Gestión de incidentes, usuarios y moderación</p>
+            <h2 className="text-xl md:text-2xl font-bold text-white">
+              Centro de Control
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Gestión de incidentes, usuarios y moderación
+            </p>
           </div>
         </div>
 
@@ -58,12 +76,15 @@ export default function AdminPanel() {
         <DistrictSwitcher isSuperAdmin={isSuperAdmin} />
 
         {tab === "reports" && (
-          <a href={`/api/reports/export/pdf?districtId=${currentDistrictId}`} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
+          <a
+            href={`/api/reports/export/pdf?districtId=${currentDistrictId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all"
+          >
             <FileDown className="w-3.5 h-3.5" /> PDF
           </a>
         )}
-
       </div>
 
       {/* KPI Cards */}
@@ -72,14 +93,19 @@ export default function AdminPanel() {
       {/* Tabs + Search */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex gap-0 border border-white/8 rounded-xl overflow-hidden p-0.5 bg-card w-fit">
-          {tabs.map(t => {
+          {tabs.map((t) => {
             const Icon = t.icon;
             return (
               <button
                 key={t.id}
-                onClick={() => { setTab(t.id); setSearch(""); }}
+                onClick={() => {
+                  setTab(t.id);
+                  setSearch("");
+                }}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tab === t.id ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
+                  tab === t.id
+                    ? "bg-white/10 text-white"
+                    : "text-muted-foreground hover:text-white"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -89,21 +115,34 @@ export default function AdminPanel() {
           })}
         </div>
 
-        {tab !== "ads" && tab !== "analytics" && tab !== "devices" && tab !== "audios" && (
-          <div className="relative flex-1 max-w-sm ml-auto">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={tab === "reports" ? "Buscar reportes..." : "Buscar usuarios..."}
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-card border border-white/8 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
-            />
-          </div>
-        )}
+        {tab !== "ads" &&
+          tab !== "analytics" &&
+          tab !== "devices" &&
+          tab !== "audios" && (
+            <div className="relative flex-1 max-w-sm ml-auto">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={
+                  tab === "reports"
+                    ? "Buscar reportes..."
+                    : "Buscar usuarios..."
+                }
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-card border border-white/8 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-colors"
+              />
+            </div>
+          )}
       </div>
 
       {/* Tab content */}
-      {tab === "reports" && <ReportsTab reports={reportsData?.reports ?? []} search={search} onRefetch={refetch} />}
+      {tab === "reports" && (
+        <ReportsTab
+          reports={reportsData?.reports ?? []}
+          search={search}
+          onRefetch={refetch}
+        />
+      )}
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "alerts" && <AlertsTab />}
       {tab === "users" && <UsersTab />}

@@ -20,7 +20,9 @@ export interface PendingReport {
 export function queueReport(reportData: Record<string, any>): void {
   const pending = getPending();
   pending.push({
-    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     data: reportData,
     createdAt: new Date().toISOString(),
     retries: 0,
@@ -43,7 +45,10 @@ export function getPending(): PendingReport[] {
  * Intenta sincronizar todos los reportes pendientes.
  * Retorna { synced: number, failed: number }.
  */
-export async function syncPending(): Promise<{ synced: number; failed: number }> {
+export async function syncPending(): Promise<{
+  synced: number;
+  failed: number;
+}> {
   if (!navigator.onLine) return { synced: 0, failed: 0 };
 
   const pending = getPending();

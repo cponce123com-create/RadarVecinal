@@ -10,10 +10,20 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { useToast } from "@/hooks/use-toast";
-import { listLiveProviders, providerMeta, type LiveProviderType } from "@/lib/liveProviders";
+import {
+  listLiveProviders,
+  providerMeta,
+  type LiveProviderType,
+} from "@/lib/liveProviders";
 import { listVoiceClips } from "@/lib/voiceClips";
 import {
-  getHome, getVoicePrefs, speak, playClip, distanceMeters, type VoicePrefs, type HomeLocation,
+  getHome,
+  getVoicePrefs,
+  speak,
+  playClip,
+  distanceMeters,
+  type VoicePrefs,
+  type HomeLocation,
 } from "@/lib/voiceAlerts";
 
 const COOLDOWN_MS = 8 * 60 * 1000; // no repetir el mismo servicio en 8 min
@@ -35,7 +45,11 @@ export function useProximityVoice() {
   const [home, setHomeState] = useState<HomeLocation | null>(() => getHome());
 
   useEffect(() => {
-    const reload = () => { setPrefs(getVoicePrefs()); setHomeState(getHome()); setTick((t) => t + 1); };
+    const reload = () => {
+      setPrefs(getVoicePrefs());
+      setHomeState(getHome());
+      setTick((t) => t + 1);
+    };
     window.addEventListener("rv:voice-prefs-changed", reload);
     window.addEventListener("storage", reload);
     return () => {
@@ -63,15 +77,21 @@ export function useProximityVoice() {
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
-  const clipByType = new Map<LiveProviderType, { audioUrl: string | null; phrase: string }>();
+  const clipByType = new Map<
+    LiveProviderType,
+    { audioUrl: string | null; phrase: string }
+  >();
   for (const c of clips ?? []) {
-    if (c.enabled) clipByType.set(c.type, { audioUrl: c.audioUrl, phrase: c.phrase });
+    if (c.enabled)
+      clipByType.set(c.type, { audioUrl: c.audioUrl, phrase: c.phrase });
   }
   const clipRef = useRef(clipByType);
   clipRef.current = clipByType;
 
   // Estado por proveedor: última distancia y último anuncio.
-  const stateRef = useRef<Map<string, { lastDist: number; lastAnnounced: number }>>(new Map());
+  const stateRef = useRef<
+    Map<string, { lastDist: number; lastAnnounced: number }>
+  >(new Map());
 
   useEffect(() => {
     if (!active || !home || !data) return;
@@ -83,14 +103,19 @@ export function useProximityVoice() {
       const d = distanceMeters(home.lat, home.lng, p.latitude, p.longitude);
       const prev = stateRef.current.get(p.id);
 
-      const entering = d <= prefs.distanceM && (!prev || prev.lastDist > prefs.distanceM);
+      const entering =
+        d <= prefs.distanceM && (!prev || prev.lastDist > prefs.distanceM);
       const approaching = !prev || d <= prev.lastDist + NOISE_M; // no anunciar si se aleja
-      const cooldownOk = !prev?.lastAnnounced || now - prev.lastAnnounced > COOLDOWN_MS;
+      const cooldownOk =
+        !prev?.lastAnnounced || now - prev.lastAnnounced > COOLDOWN_MS;
 
       let lastAnnounced = prev?.lastAnnounced ?? 0;
       if (entering && approaching && cooldownOk) {
         const meta = providerMeta(p.type);
-        const label = p.type === "recolector" ? "El camión recolector" : `El ${meta.label.toLowerCase()}`;
+        const label =
+          p.type === "recolector"
+            ? "El camión recolector"
+            : `El ${meta.label.toLowerCase()}`;
         const clip = clipRef.current.get(p.type);
         if (clip?.audioUrl) {
           // Voz grabada por la municipalidad (acento local).

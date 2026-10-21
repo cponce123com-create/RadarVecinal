@@ -22,14 +22,20 @@ interface Props {
  * "robo") y elige un subtipo concreto, o toca un acceso frecuente. Reemplaza la
  * antigua parrilla de ~19 botones por una sola entrada intuitiva.
  */
-export default function IncidentPicker({ category, title, onPick, onClear }: Props) {
+export default function IncidentPicker({
+  category,
+  title,
+  onPick,
+  onClear,
+}: Props) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = useMemo(() => searchCatalog(query, 8), [query]);
   const q = query.trim();
   const showFreeform =
-    q.length >= 3 && !results.some((r) => r.label.toLowerCase() === q.toLowerCase());
+    q.length >= 3 &&
+    !results.some((r) => r.label.toLowerCase() === q.toLowerCase());
 
   // ── Estado seleccionado ──
   if (category) {
@@ -50,12 +56,20 @@ export default function IncidentPicker({ category, title, onPick, onClear }: Pro
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{title || cfg?.label}</p>
-          <p className="text-[11px] text-muted-foreground truncate">{cfg?.label ?? category}</p>
+          <p className="text-sm font-semibold text-white truncate">
+            {title || cfg?.label}
+          </p>
+          <p className="text-[11px] text-muted-foreground truncate">
+            {cfg?.label ?? category}
+          </p>
         </div>
         <button
           type="button"
-          onClick={() => { onClear(); setQuery(""); setTimeout(() => inputRef.current?.focus(), 0); }}
+          onClick={() => {
+            onClear();
+            setQuery("");
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/8 text-[11px] font-medium text-white/80 hover:bg-white/12"
         >
           <X className="w-3.5 h-3.5" /> Cambiar
@@ -65,7 +79,11 @@ export default function IncidentPicker({ category, title, onPick, onClear }: Pro
   }
 
   const pickFreeform = () =>
-    onPick({ category: ReportCategory.other, label: q, urgency: ReportUrgency.medium });
+    onPick({
+      category: ReportCategory.other,
+      label: q,
+      urgency: ReportUrgency.medium,
+    });
 
   return (
     <div>
@@ -79,7 +97,12 @@ export default function IncidentPicker({ category, title, onPick, onClear }: Pro
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              if (results[0]) onPick({ category: results[0].category, label: results[0].label, urgency: results[0].urgency });
+              if (results[0])
+                onPick({
+                  category: results[0].category,
+                  label: results[0].label,
+                  urgency: results[0].urgency,
+                });
               else if (showFreeform) pickFreeform();
             }
           }}
@@ -99,17 +122,30 @@ export default function IncidentPicker({ category, title, onPick, onClear }: Pro
               <button
                 key={r.label}
                 type="button"
-                onClick={() => onPick({ category: r.category, label: r.label, urgency: r.urgency })}
+                onClick={() =>
+                  onPick({
+                    category: r.category,
+                    label: r.label,
+                    urgency: r.urgency,
+                  })
+                }
                 className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-white/5 transition-colors"
               >
                 {Icon && (
-                  <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${hex}20` }}>
+                  <span
+                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${hex}20` }}
+                  >
                     <Icon className="w-4 h-4" style={{ color: hex }} />
                   </span>
                 )}
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm text-white truncate">{r.label}</span>
-                  <span className="block text-[10px] text-muted-foreground truncate">{cfg?.label}</span>
+                  <span className="block text-sm text-white truncate">
+                    {r.label}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground truncate">
+                    {cfg?.label}
+                  </span>
                 </span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
               </button>
@@ -131,7 +167,9 @@ export default function IncidentPicker({ category, title, onPick, onClear }: Pro
             </button>
           )}
           {results.length === 0 && !showFreeform && (
-            <p className="px-3.5 py-3 text-xs text-muted-foreground">Sigue escribiendo…</p>
+            <p className="px-3.5 py-3 text-xs text-muted-foreground">
+              Sigue escribiendo…
+            </p>
           )}
         </div>
       )}
@@ -139,13 +177,21 @@ export default function IncidentPicker({ category, title, onPick, onClear }: Pro
       {/* Accesos frecuentes */}
       {q.length < 2 && (
         <div className="mt-3">
-          <p className="text-[11px] text-muted-foreground mb-2">Más frecuentes</p>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Más frecuentes
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {FREQUENT_QUICK.map((f) => (
               <button
                 key={f.label}
                 type="button"
-                onClick={() => onPick({ category: f.category, label: f.label, urgency: f.urgency })}
+                onClick={() =>
+                  onPick({
+                    category: f.category,
+                    label: f.label,
+                    urgency: f.urgency,
+                  })
+                }
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/8 text-sm font-medium text-white/85 hover:border-primary/40 hover:bg-white/[0.06] transition-all"
               >
                 <span className="text-base">{f.emoji}</span>

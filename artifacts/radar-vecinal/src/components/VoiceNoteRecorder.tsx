@@ -6,7 +6,12 @@ const MAX_MS = 20_000; // 20 segundos
 
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg",
+  ];
   return candidates.find((t) => MediaRecorder.isTypeSupported(t));
 }
 
@@ -42,15 +47,21 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
     stopTimeoutRef.current = null;
   };
 
-  useEffect(() => () => {
-    cleanupStream();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(
+    () => () => {
+      cleanupStream();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [],
+  );
 
   const start = async () => {
     setError(null);
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
       setError("Tu navegador no permite grabar audio.");
       return;
     }
@@ -58,7 +69,10 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       const mimeType = pickMimeType();
-      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const rec = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -75,7 +89,10 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
       setRecording(true);
       setElapsed(0);
       const startedAt = Date.now();
-      timerRef.current = setInterval(() => setElapsed(Date.now() - startedAt), 100);
+      timerRef.current = setInterval(
+        () => setElapsed(Date.now() - startedAt),
+        100,
+      );
       stopTimeoutRef.current = setTimeout(() => stop(), MAX_MS);
     } catch {
       cleanupStream();
@@ -96,7 +113,11 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
     setUploading(true);
     setUploaded(false);
     try {
-      const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+      const ext = type.includes("mp4")
+        ? "m4a"
+        : type.includes("ogg")
+          ? "ogg"
+          : "webm";
       const secureUrl = await uploadMedia(blob, "audio", `nota-voz.${ext}`);
       onChange(secureUrl);
       setUploaded(true);
@@ -129,7 +150,8 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
             <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
           </span>
           <span className="text-sm font-medium text-white tabular-nums">
-            Grabando… {secs}s <span className="text-muted-foreground">/ 20s</span>
+            Grabando… {secs}s{" "}
+            <span className="text-muted-foreground">/ 20s</span>
           </span>
           <button
             type="button"
@@ -140,7 +162,10 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
           </button>
         </div>
         <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
-          <div className="h-full bg-red-500 transition-all" style={{ width: `${pct}%` }} />
+          <div
+            className="h-full bg-red-500 transition-all"
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
     );
@@ -157,7 +182,9 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Subiendo…
             </span>
           ) : uploaded ? (
-            <span className="text-[11px] font-medium text-green-400">✓ Adjunta</span>
+            <span className="text-[11px] font-medium text-green-400">
+              ✓ Adjunta
+            </span>
           ) : null}
           <button
             type="button"
@@ -186,7 +213,8 @@ export default function VoiceNoteRecorder({ onChange }: Props) {
         className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/10 py-3 text-sm text-muted-foreground transition-all hover:border-primary/40 hover:bg-white/[0.02] hover:text-white"
       >
         <Mic className="h-5 w-5 opacity-70" />
-        Grabar nota de voz <span className="text-[11px] opacity-60">(máx. 20s)</span>
+        Grabar nota de voz{" "}
+        <span className="text-[11px] opacity-60">(máx. 20s)</span>
       </button>
       {error && (
         <p className="mt-1.5 flex items-center gap-1 text-[11px] text-red-400">

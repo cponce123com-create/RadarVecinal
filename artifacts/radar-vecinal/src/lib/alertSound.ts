@@ -46,7 +46,9 @@ function bindUnlock() {
   if (unlockBound || typeof window === "undefined") return;
   unlockBound = true;
   const resume = () => {
-    getCtx()?.resume().catch(() => {});
+    getCtx()
+      ?.resume()
+      .catch(() => {});
   };
   ["pointerdown", "keydown", "touchstart"].forEach((ev) =>
     window.addEventListener(ev, resume, { passive: true }),
@@ -59,8 +61,12 @@ export function soundMuted(): boolean {
   try {
     if (localStorage.getItem("rvs_sound") === "false") return true;
     if (localStorage.getItem("rvs_quietHours") === "true") {
-      const s = (localStorage.getItem("rvs_quietStart") ?? "22:00").split(":").map(Number);
-      const e = (localStorage.getItem("rvs_quietEnd") ?? "07:00").split(":").map(Number);
+      const s = (localStorage.getItem("rvs_quietStart") ?? "22:00")
+        .split(":")
+        .map(Number);
+      const e = (localStorage.getItem("rvs_quietEnd") ?? "07:00")
+        .split(":")
+        .map(Number);
       const now = new Date();
       const cur = now.getHours() * 60 + now.getMinutes();
       const sm = s[0] * 60 + (s[1] ?? 0);
@@ -84,7 +90,8 @@ function tone(c: AudioContext, t0: number, s: ToneSpec) {
   osc.type = s.type ?? "sine";
   const start = t0 + s.at;
   osc.frequency.setValueAtTime(s.f, start);
-  if (s.f2 !== undefined) osc.frequency.linearRampToValueAtTime(s.f2, start + s.dur);
+  if (s.f2 !== undefined)
+    osc.frequency.linearRampToValueAtTime(s.f2, start + s.dur);
 
   // Envolvente: ataque corto + liberación suave (evita clicks/pops).
   const peak = Math.max(0.0002, (s.vol ?? 1) * MASTER);
@@ -167,7 +174,10 @@ function render(specs: ToneSpec[], force = false) {
     const t0 = c.currentTime + 0.02;
     for (const s of specs) tone(c, t0, s);
   };
-  if (c.state === "suspended") c.resume().then(go).catch(() => {});
+  if (c.state === "suspended")
+    c.resume()
+      .then(go)
+      .catch(() => {});
   else go();
 }
 

@@ -9,7 +9,12 @@ import { CATEGORY_CONFIG, CAT_HEX } from "@/lib/constants";
 import { useDistrict } from "@/contexts/DistrictContext";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import {
+  MAP_TILE_URL,
+  MAP_ATTRIBUTION,
+  MAP_TILE_MAX_ZOOM,
+  MAP_TILE_MAX_NATIVE_ZOOM,
+} from "@/lib/mapTiles";
 import MapCredit from "@/components/MapCredit";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -20,29 +25,37 @@ const RADAR_ZOOM = 15;
 const ELLIPSE_RX_FRAC = 0.47;
 const ELLIPSE_RY_FRAC = 0.43;
 const URGENCY_ORDER: Record<string, number> = {
-  critical: 0, high: 1, medium: 2, low: 3,
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
 };
 
 // ── Emoji icons per category (same as LeafletMap) ────────────────────────────
 const CATEGORY_EMOJI: Record<string, string> = {
-  robbery:           "🔪",
-  fight:             "👊",
-  suspicious:        "👁️",
-  water_cut:         "💧",
-  garbage:           "🗑️",
+  robbery: "🔪",
+  fight: "👊",
+  suspicious: "👁️",
+  water_cut: "💧",
+  garbage: "🗑️",
   informal_commerce: "🛒",
-  noise:             "🔊",
-  missing_person:    "🔍",
-  fire:              "🔥",
+  noise: "🔊",
+  missing_person: "🔍",
+  fire: "🔥",
   medical_emergency: "🚑",
-  prostitution:      "🏠",
-  drug_point:        "💊",
-  bar_trouble:       "🍺",
-  other:             "⚠️",
+  prostitution: "🏠",
+  drug_point: "💊",
+  bar_trouble: "🍺",
+  other: "⚠️",
 };
 
 // ── Haversine distance ────────────────────────────────────────────────────────
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -56,7 +69,10 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 
 // ── Blip popup / sheet detail ─────────────────────────────────────────────────
 function BlipDetail({
-  report, distance, onConfirm, onClose,
+  report,
+  distance,
+  onConfirm,
+  onClose,
 }: {
   report: Report;
   distance: number;
@@ -66,10 +82,14 @@ function BlipDetail({
   const config = CATEGORY_CONFIG[report.category as ReportCategory];
   const color = CAT_HEX[report.category] ?? "#6b7280";
   const Icon = config?.icon ?? ShieldAlert;
-  const timeAgo = formatDistanceToNow(new Date(report.createdAt), { locale: es, addSuffix: true });
-  const distText = distance < 1
-    ? `${Math.round(distance * 1000)} m`
-    : `${distance.toFixed(1)} km`;
+  const timeAgo = formatDistanceToNow(new Date(report.createdAt), {
+    locale: es,
+    addSuffix: true,
+  });
+  const distText =
+    distance < 1
+      ? `${Math.round(distance * 1000)} m`
+      : `${distance.toFixed(1)} km`;
 
   return (
     <div className="p-4">
@@ -81,7 +101,9 @@ function BlipDetail({
           <Icon className="w-5 h-5" style={{ color }} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-[15px] font-bold text-white leading-tight">{report.title}</h3>
+          <h3 className="text-[15px] font-bold text-white leading-tight">
+            {report.title}
+          </h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {config?.label ?? report.category}
           </p>
@@ -108,7 +130,8 @@ function BlipDetail({
           <Clock className="w-3.5 h-3.5" /> {timeAgo}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary/40" /> A {distText} de ti
+          <span className="w-1.5 h-1.5 rounded-full bg-primary/40" /> A{" "}
+          {distText} de ti
         </span>
         <span className="text-[10px] text-[#4a5568]">
           Reportado por {report.authorName || "Anónimo"}
@@ -135,7 +158,11 @@ function BlipDetail({
 
 // ── Desktop popup ─────────────────────────────────────────────────────────────
 function BlipPopover({
-  report, distance, position, onConfirm, onClose,
+  report,
+  distance,
+  position,
+  onConfirm,
+  onClose,
 }: {
   report: Report;
   distance: number;
@@ -150,7 +177,10 @@ function BlipPopover({
         className="fixed z-[61] w-[300px] bg-[#0f1219] border border-white/10 rounded-2xl shadow-2xl"
         style={{
           left: Math.min(position.x, window.innerWidth - 320),
-          top: Math.max(10, Math.min(position.y - 10, window.innerHeight - 400)),
+          top: Math.max(
+            10,
+            Math.min(position.y - 10, window.innerHeight - 400),
+          ),
         }}
       >
         <BlipDetail
@@ -166,7 +196,11 @@ function BlipPopover({
 
 // ── Mobile Bottom Sheet ───────────────────────────────────────────────────────
 function BlipSheet({
-  report, distance, onConfirm, onClose, open,
+  report,
+  distance,
+  onConfirm,
+  onClose,
+  open,
 }: {
   report: Report | null;
   distance: number;
@@ -216,7 +250,10 @@ function RecenterOnGps({ lat, lng }: { lat: number; lng: number }) {
 
 // ── Overlay del radar (canvas, forma ovoide, anclado a coordenadas reales) ────
 function RadarCanvasOverlay({
-  reports, centerLat, centerLng, onBlipClick,
+  reports,
+  centerLat,
+  centerLng,
+  onBlipClick,
 }: {
   reports: Report[];
   centerLat: number;
@@ -230,8 +267,12 @@ function RadarCanvasOverlay({
   const centerRef = useRef({ centerLat, centerLng });
   const sortedRef = useRef<Report[]>([]);
 
-  useEffect(() => { onBlipClickRef.current = onBlipClick; }, [onBlipClick]);
-  useEffect(() => { centerRef.current = { centerLat, centerLng }; }, [centerLat, centerLng]);
+  useEffect(() => {
+    onBlipClickRef.current = onBlipClick;
+  }, [onBlipClick]);
+  useEffect(() => {
+    centerRef.current = { centerLat, centerLng };
+  }, [centerLat, centerLng]);
 
   // Ordenar por urgencia y recencia, limitar a MAX_BLIPS
   const sorted = useMemo(() => {
@@ -243,7 +284,9 @@ function RadarCanvasOverlay({
     });
     return s.slice(0, MAX_BLIPS);
   }, [reports]);
-  useEffect(() => { sortedRef.current = sorted; }, [sorted]);
+  useEffect(() => {
+    sortedRef.current = sorted;
+  }, [sorted]);
 
   useEffect(() => {
     const container = map.getContainer();
@@ -256,7 +299,12 @@ function RadarCanvasOverlay({
     container.appendChild(canvas);
     const ctx = canvas.getContext("2d")!;
 
-    let clickTargets: Array<{ report: Report; cx: number; cy: number; r: number }> = [];
+    let clickTargets: Array<{
+      report: Report;
+      cx: number;
+      cy: number;
+      r: number;
+    }> = [];
 
     // Punto sobre el borde del óvalo en dirección (dx,dy) desde el ancla
     const clampToEllipse = (dx: number, dy: number, rx: number, ry: number) => {
@@ -475,7 +523,12 @@ function RadarCanvasOverlay({
           ctx.textAlign = "left";
         }
 
-        clickTargets.push({ report, cx: px, cy: py, r: Math.max(baseR + 8, 14) });
+        clickTargets.push({
+          report,
+          cx: px,
+          cy: py,
+          r: Math.max(baseR + 8, 14),
+        });
       });
 
       // ── Etiqueta de cobertura real (según escala actual del mapa) ─────────
@@ -544,7 +597,11 @@ function RadarCanvasOverlay({
 interface RadarHeroProps {
   reports: Report[];
   userPosition: { lat: number; lng: number } | null;
-  districtInfo: { centerLat?: number | null; centerLng?: number | null; name: string } | null;
+  districtInfo: {
+    centerLat?: number | null;
+    centerLng?: number | null;
+    name: string;
+  } | null;
   onViewOnMap?: () => void;
 }
 
@@ -582,20 +639,25 @@ export default function RadarHero({
     [],
   );
 
-  const handleConfirm = useCallback(async (id: string) => {
-    if (confirmedIds.has(id) || confirming) return;
-    setConfirming(true);
-    try {
-      const res = await fetch(`/api/reports/${id}/confirm`, { method: "POST" });
-      if (res.ok) {
-        setConfirmedIds((prev) => new Set(prev).add(id));
+  const handleConfirm = useCallback(
+    async (id: string) => {
+      if (confirmedIds.has(id) || confirming) return;
+      setConfirming(true);
+      try {
+        const res = await fetch(`/api/reports/${id}/confirm`, {
+          method: "POST",
+        });
+        if (res.ok) {
+          setConfirmedIds((prev) => new Set(prev).add(id));
+        }
+      } catch {
+        // silent
+      } finally {
+        setConfirming(false);
       }
-    } catch {
-      // silent
-    } finally {
-      setConfirming(false);
-    }
-  }, [confirmedIds, confirming]);
+    },
+    [confirmedIds, confirming],
+  );
 
   const handleCloseBlip = useCallback(() => {
     setSelectedBlip(null);

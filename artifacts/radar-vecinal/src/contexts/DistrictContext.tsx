@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { DISTRICT } from "@/lib/constants";
 
@@ -72,7 +79,12 @@ const LS_ACTIVE = "radarvecinal_active_district_slug";
 const LS_LEGACY = "radarvecinal_district_slug"; // clave de la versión anterior
 
 /** Distancia aproximada en metros entre dos coordenadas (haversine). */
-function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+function haversineMeters(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(bLat - aLat);
@@ -98,14 +110,18 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
   const [districts, setDistricts] = useState<DistrictInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  const [locatedDistrict, setLocatedDistrict] = useState<DistrictInfo | null>(null);
+  const [locatedDistrict, setLocatedDistrict] = useState<DistrictInfo | null>(
+    null,
+  );
   const [detectingLocation, setDetectingLocation] = useState(true);
   const [isLocationApproximate, setIsLocationApproximate] = useState(false);
   const [manualSlug, setManualSlug] = useState<string | null>(() => {
     // Migración: la clave antigua pasa a ser el distrito manual
     return localStorage.getItem(LS_MANUAL) ?? localStorage.getItem(LS_LEGACY);
   });
-  const [activeSlug, setActiveSlug] = useState<string | null>(() => localStorage.getItem(LS_ACTIVE));
+  const [activeSlug, setActiveSlug] = useState<string | null>(() =>
+    localStorage.getItem(LS_ACTIVE),
+  );
   // ¿El usuario eligió distrito EN ESTA sesión? Solo entonces su selección
   // supera al GPS. La preferencia persistida de sesiones anteriores NO debe
   // ganarle a la ubicación real de hoy (era parte del bug del "distrito
@@ -115,8 +131,8 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
   // ── 1. Cargar catálogo completo de distritos ────────────────────────────
   useEffect(() => {
     fetch("/api/districts")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setDistricts(data.districts ?? []);
         setLoaded(true);
       })
@@ -172,15 +188,17 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
       clearGrace();
       const seq = ++reqSeq;
       fetch(`/api/districts/locate?lat=${lat}&lng=${lng}`)
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (cancelled || seq !== reqSeq) return; // ya hay una petición más nueva
           const found: DistrictInfo | undefined = data.district;
           if (found) setLocatedDistrict(found);
           setIsLocationApproximate(data.method === "approximate");
           setDetectingLocation(false);
         })
-        .catch(() => { if (!cancelled) setDetectingLocation(false); });
+        .catch(() => {
+          if (!cancelled) setDetectingLocation(false);
+        });
     };
 
     // Plazo de gracia: si no llegó ningún fix aceptable, usar el mejor visto.
@@ -194,7 +212,8 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
     const onPosition = (pos: GeolocationPosition) => {
       if (cancelled) return;
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-      if (!bestFix || accuracy < bestFix.accuracy) bestFix = { lat, lng, accuracy };
+      if (!bestFix || accuracy < bestFix.accuracy)
+        bestFix = { lat, lng, accuracy };
 
       if (!located) {
         // FASE A: solo resolver con un fix aceptable (el timer cubre el resto)
@@ -234,14 +253,18 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
   }, [loaded]);
 
   // ── 3. Bloqueo por rol: admin/moderator quedan fijos a su distrito ──────
-  const isLocked = !!user && (user.role === "admin" || user.role === "moderator");
+  const isLocked =
+    !!user && (user.role === "admin" || user.role === "moderator");
   const lockedDistrict = useMemo(() => {
     if (!isLocked || !user?.districtId) return null;
-    return districts.find(d => d.id === Number(user.districtId)) ?? null;
+    return districts.find((d) => d.id === Number(user.districtId)) ?? null;
   }, [isLocked, user, districts]);
 
   const manualDistrict = useMemo(
-    () => (manualSlug ? districts.find(d => d.slug === manualSlug) ?? null : null),
+    () =>
+      manualSlug
+        ? (districts.find((d) => d.slug === manualSlug) ?? null)
+        : null,
     [manualSlug, districts],
   );
 
@@ -250,7 +273,8 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
     if (lockedDistrict) return [lockedDistrict];
     const list: DistrictInfo[] = [];
     if (locatedDistrict) list.push(locatedDistrict);
-    if (manualDistrict && manualDistrict.id !== locatedDistrict?.id) list.push(manualDistrict);
+    if (manualDistrict && manualDistrict.id !== locatedDistrict?.id)
+      list.push(manualDistrict);
     return list;
   }, [lockedDistrict, locatedDistrict, manualDistrict]);
 
@@ -260,15 +284,23 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
   const districtInfo = useMemo(() => {
     if (lockedDistrict) return lockedDistrict;
     if (sessionChosen && activeSlug) {
-      const found = availableDistricts.find(d => d.slug === activeSlug);
+      const found = availableDistricts.find((d) => d.slug === activeSlug);
       if (found) return found;
     }
     if (locatedDistrict) return locatedDistrict;
     if (manualDistrict) return manualDistrict;
     // Último recurso (GPS apagado/denegado): el distrito de la sesión anterior
-    if (activeSlug) return districts.find(d => d.slug === activeSlug) ?? null;
+    if (activeSlug) return districts.find((d) => d.slug === activeSlug) ?? null;
     return null;
-  }, [lockedDistrict, sessionChosen, activeSlug, availableDistricts, locatedDistrict, manualDistrict, districts]);
+  }, [
+    lockedDistrict,
+    sessionChosen,
+    activeSlug,
+    availableDistricts,
+    locatedDistrict,
+    manualDistrict,
+    districts,
+  ]);
 
   const needsSelection = loaded && !detectingLocation && !districtInfo;
 
@@ -284,7 +316,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
   // ── 6. Acciones ──────────────────────────────────────────────────────────
   const setManualDistrict = (slug: string) => {
     if (isLocked) return;
-    const found = districts.find(d => d.slug === slug);
+    const found = districts.find((d) => d.slug === slug);
     if (!found) return;
     setManualSlug(slug);
     localStorage.setItem(LS_MANUAL, slug);
@@ -302,7 +334,7 @@ export function DistrictProvider({ children }: { children: ReactNode }) {
    */
   const setDistrict = (slug: string) => {
     if (isLocked) return;
-    const isAvailable = availableDistricts.some(d => d.slug === slug);
+    const isAvailable = availableDistricts.some((d) => d.slug === slug);
     if (isAvailable) {
       setActiveSlug(slug);
       setSessionChosen(true);

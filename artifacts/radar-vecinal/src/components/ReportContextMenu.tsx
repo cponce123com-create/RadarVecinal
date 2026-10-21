@@ -16,7 +16,12 @@ interface ReportContextMenuProps {
   onResolved: () => void;
 }
 
-export default function ReportContextMenu({ report, position, onClose, onResolved }: ReportContextMenuProps) {
+export default function ReportContextMenu({
+  report,
+  position,
+  onClose,
+  onResolved,
+}: ReportContextMenuProps) {
   const [showMessageInput, setShowMessageInput] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -71,7 +76,8 @@ export default function ReportContextMenu({ report, position, onClose, onResolve
     setSending(true);
     try {
       const token = localStorage.getItem("radarvecinal_token");
-      const defaultMsg = "Vecino, ya hemos atendido su reporte. El personal municipal ha resuelto la incidencia. Gracias por su colaboración.";
+      const defaultMsg =
+        "Vecino, ya hemos atendido su reporte. El personal municipal ha resuelto la incidencia. Gracias por su colaboración.";
       const res = await fetch(`/api/reports/${report.id}/resolve`, {
         method: "POST",
         headers: {
@@ -115,14 +121,21 @@ export default function ReportContextMenu({ report, position, onClose, onResolve
         className="fixed z-[10000] min-w-[220px]"
         style={{
           left: Math.min(position.x, window.innerWidth - 240),
-          top: Math.min(position.y, window.innerHeight - (showMessageInput ? 280 : 160)),
+          top: Math.min(
+            position.y,
+            window.innerHeight - (showMessageInput ? 280 : 160),
+          ),
         }}
       >
         <div className="bg-[#0f1220] border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl">
           {/* Header */}
           <div className="px-3 py-2.5 border-b border-white/5">
-            <p className="text-xs font-bold text-white truncate">{report.title}</p>
-            <p className="text-[10px] text-muted-foreground/60">ID: #{report.id.slice(0, 8)}</p>
+            <p className="text-xs font-bold text-white truncate">
+              {report.title}
+            </p>
+            <p className="text-[10px] text-muted-foreground/60">
+              ID: #{report.id.slice(0, 8)}
+            </p>
           </div>
 
           {/* Actions */}
@@ -147,7 +160,9 @@ export default function ReportContextMenu({ report, position, onClose, onResolve
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left text-blue-400 hover:bg-blue-500/10 transition-all"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span className="font-medium">Resolver con mensaje personalizado</span>
+                  <span className="font-medium">
+                    Resolver con mensaje personalizado
+                  </span>
                 </button>
               </>
             ) : (

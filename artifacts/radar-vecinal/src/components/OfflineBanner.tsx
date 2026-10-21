@@ -13,7 +13,10 @@ export default function OfflineBanner() {
   const [showSync, setShowSync] = useState(false);
 
   useEffect(() => {
-    const goOnline = () => { setIsOffline(false); syncNow(); };
+    const goOnline = () => {
+      setIsOffline(false);
+      syncNow();
+    };
     const goOffline = () => setIsOffline(true);
 
     window.addEventListener("online", goOnline);
@@ -26,7 +29,10 @@ export default function OfflineBanner() {
 
   // Actualizar contador periódicamente
   useEffect(() => {
-    const interval = setInterval(() => setPendingCount(getPending().length), 3000);
+    const interval = setInterval(
+      () => setPendingCount(getPending().length),
+      3000,
+    );
     return () => clearInterval(interval);
   }, []);
 
@@ -57,7 +63,9 @@ export default function OfflineBanner() {
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-2 bg-red-500/20 border-b border-red-500/30 text-red-400 text-xs font-medium">
         <WifiOff className="w-3.5 h-3.5" />
         Sin conexión — los reportes se guardarán localmente
-        {pendingCount > 0 && <span className="ml-1">({pendingCount} pendientes)</span>}
+        {pendingCount > 0 && (
+          <span className="ml-1">({pendingCount} pendientes)</span>
+        )}
       </div>
     );
   }

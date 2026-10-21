@@ -38,7 +38,13 @@ const Terms = lazy(() => import("@/pages/Terms"));
 
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="py-2"><PageSkeleton /></div>}>
+    <Suspense
+      fallback={
+        <div className="py-2">
+          <PageSkeleton />
+        </div>
+      }
+    >
       {children}
     </Suspense>
   );
@@ -63,10 +69,10 @@ if (typeof document !== "undefined") {
   document.documentElement.classList.toggle("dark", isDark);
 }
 
-// A simple landing redirector 
+// A simple landing redirector
 function Landing() {
-  if (typeof window !== 'undefined') {
-    window.location.replace('/home');
+  if (typeof window !== "undefined") {
+    window.location.replace("/home");
   }
   return null;
 }
@@ -87,58 +93,178 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      
+
       {/* App Routes wrapped in Layout */}
       <Route path="/home">
-        {() => <Layout><BrandingWrapper><Home /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <Home />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/mapa">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><MapPage /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <MapPage />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/reportar">
-        {() => <Layout><BrandingWrapper><ReportForm /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <ReportForm />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/alertas">
-        {() => <Layout><BrandingWrapper><Alerts /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <Alerts />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/historial">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><History /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <History />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/estadisticas">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><Stats /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <Stats />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/perfil">
-        {() => <Layout><BrandingWrapper><Profile /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <Profile />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/menor-perdido">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><MissingPerson /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <MissingPerson />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/en-vivo">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><LiveBroadcast /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <LiveBroadcast />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/rutas">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><LiveHistory /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <LiveHistory />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/admin">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><Admin /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <Admin />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/notificaciones">
-        {() => <Layout><BrandingWrapper><Notifications /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <Notifications />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/configuracion">
-        {() => <Layout><BrandingWrapper><Settings /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <Settings />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/emergencias">
-        {() => <Layout><BrandingWrapper><Emergencias /></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <Emergencias />
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/privacidad">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><Privacy /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <Privacy />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
       <Route path="/terminos">
-        {() => <Layout><BrandingWrapper><SuspenseWrapper><Terms /></SuspenseWrapper></BrandingWrapper></Layout>}
+        {() => (
+          <Layout>
+            <BrandingWrapper>
+              <SuspenseWrapper>
+                <Terms />
+              </SuspenseWrapper>
+            </BrandingWrapper>
+          </Layout>
+        )}
       </Route>
-      
-      <Route>{() => <SuspenseWrapper><NotFound /></SuspenseWrapper>}</Route>
+
+      <Route>
+        {() => (
+          <SuspenseWrapper>
+            <NotFound />
+          </SuspenseWrapper>
+        )}
+      </Route>
     </Switch>
   );
 }
@@ -146,20 +272,20 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <DistrictProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-            <GlobalPanicStream />
-            <ProximityVoiceWatcher />
-            <Toaster />
-          </DistrictProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider>
+            <DistrictProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+              <GlobalPanicStream />
+              <ProximityVoiceWatcher />
+              <Toaster />
+            </DistrictProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

@@ -6,13 +6,36 @@
  * recorrido en el mapa para comprobar por dónde pasó.
  */
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Polyline,
+  Marker,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Route as RouteIcon, Calendar, Clock, MapPin, Ruler, AlertCircle, Radio, Home, LocateFixed, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Route as RouteIcon,
+  Calendar,
+  Clock,
+  MapPin,
+  Ruler,
+  AlertCircle,
+  Radio,
+  Home,
+  LocateFixed,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
 import { useDistrict } from "@/contexts/DistrictContext";
-import { MAP_TILE_URL, MAP_ATTRIBUTION, MAP_TILE_MAX_ZOOM, MAP_TILE_MAX_NATIVE_ZOOM } from "@/lib/mapTiles";
+import {
+  MAP_TILE_URL,
+  MAP_ATTRIBUTION,
+  MAP_TILE_MAX_ZOOM,
+  MAP_TILE_MAX_NATIVE_ZOOM,
+} from "@/lib/mapTiles";
 import MapCredit from "@/components/MapCredit";
 import {
   listLiveHistory,
@@ -49,7 +72,12 @@ function durationLabel(startISO: string, endISO: string): string {
 function trackMeters(points: TrackPoint[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    total += distanceMeters(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
+    total += distanceMeters(
+      points[i - 1].lat,
+      points[i - 1].lng,
+      points[i].lat,
+      points[i].lng,
+    );
   }
   return total;
 }
@@ -90,18 +118,35 @@ function RouteDetail({ route }: { route: LiveRoute }) {
       <div className="relative h-[240px] sm:h-[300px]">
         {latlngs.length >= 1 ? (
           <MapContainer
-            center={latlngs[0]} zoom={15} zoomControl={false} attributionControl={false}
+            center={latlngs[0]}
+            zoom={15}
+            zoomControl={false}
+            attributionControl={false}
             style={{ width: "100%", height: "100%", background: "#0d1117" }}
           >
-            <TileLayer url={MAP_TILE_URL} attribution={MAP_ATTRIBUTION} maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM} maxZoom={MAP_TILE_MAX_ZOOM} />
+            <TileLayer
+              url={MAP_TILE_URL}
+              attribution={MAP_ATTRIBUTION}
+              maxNativeZoom={MAP_TILE_MAX_NATIVE_ZOOM}
+              maxZoom={MAP_TILE_MAX_ZOOM}
+            />
             {latlngs.length >= 2 && (
               <>
-                <Polyline positions={latlngs} pathOptions={{ color: "#052e16", weight: 8, opacity: 0.35 }} />
-                <Polyline positions={latlngs} pathOptions={{ color: "#22c55e", weight: 4, opacity: 0.95 }} />
+                <Polyline
+                  positions={latlngs}
+                  pathOptions={{ color: "#052e16", weight: 8, opacity: 0.35 }}
+                />
+                <Polyline
+                  positions={latlngs}
+                  pathOptions={{ color: "#22c55e", weight: 4, opacity: 0.95 }}
+                />
               </>
             )}
             <Marker position={latlngs[0]} icon={dot("#3b82f6")} />
-            <Marker position={latlngs[latlngs.length - 1]} icon={dot(route.isActive ? "#ef4444" : "#22c55e")} />
+            <Marker
+              position={latlngs[latlngs.length - 1]}
+              icon={dot(route.isActive ? "#ef4444" : "#22c55e")}
+            />
             <FitBounds points={latlngs} />
           </MapContainer>
         ) : (
@@ -110,12 +155,17 @@ function RouteDetail({ route }: { route: LiveRoute }) {
           </div>
         )}
         {route.isActive && (
-          <div className="absolute top-2 left-2 z-[500] flex items-center gap-1.5 px-2.5 py-1 rounded-lg backdrop-blur-md border border-red-500/40" style={{ background: "rgba(7,9,15,0.85)" }}>
+          <div
+            className="absolute top-2 left-2 z-[500] flex items-center gap-1.5 px-2.5 py-1 rounded-lg backdrop-blur-md border border-red-500/40"
+            style={{ background: "rgba(7,9,15,0.85)" }}
+          >
             <span className="relative flex w-2 h-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
             </span>
-            <span className="text-[10px] font-semibold text-red-300">EN CURSO</span>
+            <span className="text-[10px] font-semibold text-red-300">
+              EN CURSO
+            </span>
           </div>
         )}
       </div>
@@ -123,24 +173,36 @@ function RouteDetail({ route }: { route: LiveRoute }) {
       <div className="grid grid-cols-3 divide-x divide-white/6 border-t border-white/6">
         <div className="flex flex-col items-center gap-0.5 py-2.5">
           <Clock className="w-3.5 h-3.5 text-primary" />
-          <span className="text-[11px] text-white font-semibold">{durationLabel(route.startedAt, route.endedAt)}</span>
+          <span className="text-[11px] text-white font-semibold">
+            {durationLabel(route.startedAt, route.endedAt)}
+          </span>
           <span className="text-[9px] text-muted-foreground">Duración</span>
         </div>
         <div className="flex flex-col items-center gap-0.5 py-2.5">
           <Ruler className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-[11px] text-white font-semibold">{meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`}</span>
+          <span className="text-[11px] text-white font-semibold">
+            {meters >= 1000
+              ? `${(meters / 1000).toFixed(1)} km`
+              : `${Math.round(meters)} m`}
+          </span>
           <span className="text-[9px] text-muted-foreground">Recorrido</span>
         </div>
         <div className="flex flex-col items-center gap-0.5 py-2.5">
           <MapPin className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-[11px] text-white font-semibold">{points.length}</span>
+          <span className="text-[11px] text-white font-semibold">
+            {points.length}
+          </span>
           <span className="text-[9px] text-muted-foreground">Puntos</span>
         </div>
       </div>
       <div className="flex items-center gap-2 px-3 py-2 border-t border-white/6 text-[11px] text-muted-foreground">
         <span className="text-base">{meta.emoji}</span>
-        <span className="text-white/80 font-medium">{route.label || meta.label}</span>
-        <span className="ml-auto">🔵 inicio · {route.isActive ? "🔴 ahora" : "🟢 fin"}</span>
+        <span className="text-white/80 font-medium">
+          {route.label || meta.label}
+        </span>
+        <span className="ml-auto">
+          🔵 inicio · {route.isActive ? "🔴 ahora" : "🟢 fin"}
+        </span>
       </div>
     </div>
   );
@@ -148,27 +210,51 @@ function RouteDetail({ route }: { route: LiveRoute }) {
 
 // ── "¿Pasó el recolector por mi casa?" ──────────────────────────────────────
 function PassedByCard({
-  districtId, range, dateLabel,
-}: { districtId: number; range: { from: string; to: string }; dateLabel: string }) {
+  districtId,
+  range,
+  dateLabel,
+}: {
+  districtId: number;
+  range: { from: string; to: string };
+  dateLabel: string;
+}) {
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
 
   const { data, isFetching } = useQuery({
     queryKey: ["passed", districtId, range.from, loc?.lat, loc?.lng],
-    queryFn: () => findWhenPassed({ districtId, lat: loc!.lat, lng: loc!.lng, from: range.from, to: range.to, type: "recolector" }),
+    queryFn: () =>
+      findWhenPassed({
+        districtId,
+        lat: loc!.lat,
+        lng: loc!.lng,
+        from: range.from,
+        to: range.to,
+        type: "recolector",
+      }),
     enabled: !!loc,
   });
 
   const locate = () => {
-    if (!navigator.geolocation) { setGeoError("Tu dispositivo no permite geolocalización."); return; }
+    if (!navigator.geolocation) {
+      setGeoError("Tu dispositivo no permite geolocalización.");
+      return;
+    }
     setLocating(true);
     setGeoError(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); },
+      (pos) => {
+        setLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
       (err) => {
         setLocating(false);
-        setGeoError(err.code === err.PERMISSION_DENIED ? "Permiso de ubicación denegado." : "No se pudo obtener tu ubicación.");
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Permiso de ubicación denegado."
+            : "No se pudo obtener tu ubicación.",
+        );
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
     );
@@ -181,21 +267,35 @@ function PassedByCard({
     <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-emerald-500/[0.06] to-transparent p-4">
       <div className="flex items-center gap-2 mb-2">
         <Home className="w-4 h-4 text-emerald-400" />
-        <h3 className="text-[13px] font-semibold text-white">¿Pasó el recolector por tu casa?</h3>
+        <h3 className="text-[13px] font-semibold text-white">
+          ¿Pasó el recolector por tu casa?
+        </h3>
       </div>
 
       {!loc ? (
         <>
           <p className="text-[11.5px] text-muted-foreground leading-relaxed mb-3">
-            Comparte tu ubicación y te digo si el camión pasó cerca el {dateLabel}, a qué hora y a cuántos metros.
+            Comparte tu ubicación y te digo si el camión pasó cerca el{" "}
+            {dateLabel}, a qué hora y a cuántos metros.
           </p>
           <button
-            onClick={locate} disabled={locating}
+            onClick={locate}
+            disabled={locating}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-sm font-semibold hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
           >
-            {locating ? <><Loader2 className="w-4 h-4 animate-spin" /> Ubicando…</> : <><LocateFixed className="w-4 h-4" /> Usar mi ubicación</>}
+            {locating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Ubicando…
+              </>
+            ) : (
+              <>
+                <LocateFixed className="w-4 h-4" /> Usar mi ubicación
+              </>
+            )}
           </button>
-          {geoError && <p className="text-[11px] text-red-300 mt-2">{geoError}</p>}
+          {geoError && (
+            <p className="text-[11px] text-red-300 mt-2">{geoError}</p>
+          )}
         </>
       ) : isFetching ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
@@ -207,7 +307,8 @@ function PassedByCard({
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-500/12 border border-emerald-500/40">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
               <p className="text-[13px] text-emerald-100">
-                <b>Sí pasó.</b> El recolector estuvo a <b>{nearest.distanceMeters} m</b> de tu casa a las{" "}
+                <b>Sí pasó.</b> El recolector estuvo a{" "}
+                <b>{nearest.distanceMeters} m</b> de tu casa a las{" "}
                 <b>{format(new Date(nearest.at), "HH:mm")}</b>.
               </p>
             </div>
@@ -215,7 +316,8 @@ function PassedByCard({
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
               <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
               <p className="text-[13px] text-amber-100">
-                No pasó muy cerca. Lo más cerca fue a <b>{nearest.distanceMeters} m</b> a las{" "}
+                No pasó muy cerca. Lo más cerca fue a{" "}
+                <b>{nearest.distanceMeters} m</b> a las{" "}
                 <b>{format(new Date(nearest.at), "HH:mm")}</b>.
               </p>
             </div>
@@ -227,7 +329,10 @@ function PassedByCard({
               </p>
             </div>
           )}
-          <button onClick={locate} className="text-[11px] text-primary hover:underline mt-2">
+          <button
+            onClick={locate}
+            className="text-[11px] text-primary hover:underline mt-2"
+          >
             Actualizar mi ubicación
           </button>
         </div>
@@ -246,7 +351,13 @@ export default function LiveHistory() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["live-history", currentDistrictId, date, type],
-    queryFn: () => listLiveHistory({ districtId: currentDistrictId as number, from: range.from, to: range.to, type }),
+    queryFn: () =>
+      listLiveHistory({
+        districtId: currentDistrictId as number,
+        from: range.from,
+        to: range.to,
+        type,
+      }),
     enabled: !!currentDistrictId,
     refetchInterval: 20000,
   });
@@ -254,7 +365,8 @@ export default function LiveHistory() {
 
   // Al cambiar de día/tipo, limpiar la selección si ya no está en la lista.
   useEffect(() => {
-    if (selected && !routes.some((r) => r.id === selected.id)) setSelected(null);
+    if (selected && !routes.some((r) => r.id === selected.id))
+      setSelected(null);
   }, [routes, selected]);
 
   if (!currentDistrictId) {
@@ -262,7 +374,9 @@ export default function LiveHistory() {
       <div className="rv-in max-w-2xl mx-auto">
         <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
           <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-          <p className="text-sm text-amber-200">Elige tu distrito arriba para ver el historial de rutas.</p>
+          <p className="text-sm text-amber-200">
+            Elige tu distrito arriba para ver el historial de rutas.
+          </p>
         </div>
       </div>
     );
@@ -275,9 +389,12 @@ export default function LiveHistory() {
           <RouteIcon className="w-5 h-5 text-emerald-400" />
         </div>
         <div>
-          <h1 className="font-display text-xl font-bold text-white leading-tight">Historial de rutas</h1>
+          <h1 className="font-display text-xl font-bold text-white leading-tight">
+            Historial de rutas
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Recorridos de {currentDistrict || "tu distrito"}. Elige una fecha y comprueba por dónde pasó.
+            Recorridos de {currentDistrict || "tu distrito"}. Elige una fecha y
+            comprueba por dónde pasó.
           </p>
         </div>
       </div>
@@ -287,18 +404,23 @@ export default function LiveHistory() {
         <label className="flex items-center gap-2 px-3 h-11 rounded-xl bg-white/[0.04] border border-white/10 flex-1">
           <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
           <input
-            type="date" value={date} max={todayStr()}
+            type="date"
+            value={date}
+            max={todayStr()}
             onChange={(e) => setDate(e.target.value)}
             className="bg-transparent text-sm text-white focus:outline-none [color-scheme:dark] w-full"
           />
         </label>
         <select
-          value={type} onChange={(e) => setType(e.target.value as LiveProviderType | "")}
+          value={type}
+          onChange={(e) => setType(e.target.value as LiveProviderType | "")}
           className="px-3 h-11 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none [color-scheme:dark] flex-1"
         >
           <option value="">Todos los servicios</option>
           {PROVIDER_META.map((m) => (
-            <option key={m.type} value={m.type}>{m.emoji} {m.label}</option>
+            <option key={m.type} value={m.type}>
+              {m.emoji} {m.label}
+            </option>
           ))}
         </select>
       </div>
@@ -312,7 +434,10 @@ export default function LiveHistory() {
 
       {/* Ruta seleccionada */}
       {selected && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <RouteDetail route={selected} />
         </motion.div>
       )}
@@ -326,7 +451,10 @@ export default function LiveHistory() {
       ) : routes.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-10 text-center">
           <RouteIcon className="w-8 h-8 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">No hay rutas registradas el {format(new Date(`${date}T00:00:00`), "dd/MM/yyyy")}.</p>
+          <p className="text-sm text-muted-foreground">
+            No hay rutas registradas el{" "}
+            {format(new Date(`${date}T00:00:00`), "dd/MM/yyyy")}.
+          </p>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -338,14 +466,20 @@ export default function LiveHistory() {
                 <button
                   onClick={() => setSelected(active ? null : r)}
                   className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-all ${
-                    active ? "bg-emerald-500/10 border-emerald-500/40" : "bg-white/[0.03] border-white/8 hover:border-white/15"
+                    active
+                      ? "bg-emerald-500/10 border-emerald-500/40"
+                      : "bg-white/[0.03] border-white/8 hover:border-white/15"
                   }`}
                 >
                   <span className="text-2xl flex-shrink-0">{meta.emoji}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-white truncate">{r.label || meta.label}</p>
+                    <p className="text-[13px] font-semibold text-white truncate">
+                      {r.label || meta.label}
+                    </p>
                     <p className="text-[11px] text-muted-foreground">
-                      {format(new Date(r.startedAt), "HH:mm")} · {durationLabel(r.startedAt, r.endedAt)} · {r.points} puntos
+                      {format(new Date(r.startedAt), "HH:mm")} ·{" "}
+                      {durationLabel(r.startedAt, r.endedAt)} · {r.points}{" "}
+                      puntos
                     </p>
                   </div>
                   {r.isActive ? (
@@ -353,7 +487,9 @@ export default function LiveHistory() {
                       <Radio className="w-2.5 h-2.5" /> en curso
                     </span>
                   ) : (
-                    <span className="text-[10px] text-muted-foreground flex-shrink-0">ver ruta →</span>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                      ver ruta →
+                    </span>
                   )}
                 </button>
               </li>

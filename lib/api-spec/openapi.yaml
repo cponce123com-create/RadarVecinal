@@ -101,6 +101,55 @@ paths:
         "401":
           description: Not authenticated
 
+  /auth/forgot-password:
+    post:
+      operationId: authForgotPassword
+      tags: [auth]
+      summary: Request a password reset link
+      description: |
+        Devuelve siempre el mismo cuerpo 200, exista o no el correo, para no
+        revelar qué direcciones están registradas. Limitado por IP y por
+        correo destino (anti email bombing).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordInput"
+      responses:
+        "200":
+          description: Generic acknowledgement (no revela si el correo existe)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericMessage"
+        "429":
+          description: Too many reset requests (rate limited)
+
+  /auth/reset-password:
+    post:
+      operationId: authResetPassword
+      tags: [auth]
+      summary: Set a new password with the token from the recovery email
+      description: |
+        El token vence en 30 minutos y es de un solo uso: va ligado al hash
+        actual de la contraseña, así que deja de validar en cuanto se cambia.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        "200":
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericMessage"
+        "400":
+          description: Token inválido, vencido o ya usado; o contraseña débil
+
   /districts:
     get:
       operationId: getDistricts
@@ -189,6 +238,57 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Report"
+
+  /reports/mine:
+    get:
+      operationId: getMyReports
+      tags: [reports]
+      summary: Reports authored by the authenticated user
+      description: |
+        Devuelve solo los reportes cuyo `author_user_id` es el del token, sin
+        los eliminados lógicamente. Un token de recuperación de contraseña no
+        sirve aquí: solo se aceptan tokens de sesión.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Paginated list of the caller's reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                  limit:
+                    type: number
+                  offset:
+                    type: number
+                  reports:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MyReport"
+                required:
+                  - total
+                  - limit
+                  - offset
+                  - reports
+        "401":
+          description: Not authenticated
 
   /reports/{id}:
     get:
@@ -802,6 +902,40 @@ components:
       required:
         - status
 
+    GenericMessage:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: string
+      required:
+        - ok
+        - message
+
+    ForgotPasswordInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+
+    ResetPasswordInput:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token del enlace del correo
+        password:
+          type: string
+          minLength: 8
+          description: Mínimo 8 caracteres, con mayúscula, minúscula y número
+      required:
+        - token
+        - password
+
     District:
       type: object
       properties:
@@ -996,6 +1130,54 @@ components:
         - authorName
         - confirmedCount
         - createdAt
+
+    MyReport:
+      type: object
+      description: |
+        Reporte del propio autor. Es un subconjunto de `Report`: `GET
+        /reports/mine` no devuelve descripción, coordenadas ni datos de
+        contacto.
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        urgency:
+          type: string
+        status:
+          type: string
+        sector:
+          type: string
+        district:
+          type: string
+        districtId:
+          type: integer
+        imageUrl:
+          type: string
+          nullable: true
+        confirmedCount:
+          type: number
+        resolutionConfirmedCount:
+          type: number
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - category
+        - urgency
+        - status
+        - sector
+        - district
+        - districtId
+        - confirmedCount
+        - resolutionConfirmedCount
+        - createdAt
+        - updatedAt
 
     CreateReportInput:
       type: object

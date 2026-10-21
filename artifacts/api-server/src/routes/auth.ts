@@ -537,11 +537,9 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
   try {
     payload = jwt.verify(token, JWT_SECRET) as PasswordResetPayload;
   } catch {
-    return res
-      .status(400)
-      .json({
-        error: "El enlace no es válido o ya venció. Solicita uno nuevo.",
-      });
+    return res.status(400).json({
+      error: "El enlace no es válido o ya venció. Solicita uno nuevo.",
+    });
   }
   if (
     payload?.purpose !== "pwreset" ||
@@ -563,11 +561,9 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
       .limit(1);
     // Uso único: si el hash cambió (o no hay), el token ya no sirve.
     if (!user?.passwordHash || pwBinding(user.passwordHash) !== payload.v) {
-      return res
-        .status(400)
-        .json({
-          error: "El enlace ya fue usado o venció. Solicita uno nuevo.",
-        });
+      return res.status(400).json({
+        error: "El enlace ya fue usado o venció. Solicita uno nuevo.",
+      });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);

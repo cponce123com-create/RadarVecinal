@@ -76,8 +76,16 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     afterAll(async () => {
       if (!db) return;
+      // Orden de borrado: primero las tablas que referencian a users (el login
+      // del test crea un refresh_token) y luego el usuario y el distrito.
       await db.execute(
         sql`DELETE FROM "reports" WHERE "district_id" = ${districtId}`,
+      );
+      await db.execute(
+        sql`DELETE FROM "refresh_tokens" WHERE "user_id" = ${userId}`,
+      );
+      await db.execute(
+        sql`DELETE FROM "user_consents" WHERE "user_id" = ${userId}`,
       );
       await db.execute(
         sql`DELETE FROM "users" WHERE "district_id" = ${districtId}`,
@@ -183,6 +191,40 @@ describe.skipIf(!process.env.DATABASE_URL)(
           ["Mío 1", "Mío 2"].includes(r.title),
         ),
       ).toBe(true);
+    });
+
+    it("un token de recuperación NO sirve como token de sesión", async () => {
+      // Ambos tokens se firman con el mismo JWT_SECRET. Si no se distinguiera
+      // el propósito, el enlace del correo (que además se escribe en el log
+      // cuando no hay SMTP) valdría como sesión durante 30 minutos.
+      const resetToken = jwt.sign(
+        { sub: String(userId), purpose: "pwreset", v: "cualquiera" },
+        process.env.JWT_SECRET!,
+        { expiresIn: "30m" },
+      );
+
+      const { verifyToken } = await import("../routes/auth");
+      expect(verifyToken(resetToken)).toBeNull();
+
+      const res = await request(app)
+        .get("/api/reports/mine")
+        .set("Authorization", `Bearer ${resetToken}`);
+      expect(res.status).toBe(401);
+    });
+
+    it("limita las solicitudes de recuperación por IP (anti email bombing)", async () => {
+      // El limitador de /api/auth usa email+IP como clave, así que rotar el
+      // correo lo esquiva. El límite por IP debe cortar la enumeración.
+      const statuses: number[] = [];
+      for (let i = 0; i < 12; i++) {
+        const res = await request(app)
+          .post("/api/auth/forgot-password")
+          .send({ email: `bomb-${i}-${Date.now()}@example.pe` });
+        statuses.push(res.status);
+      }
+      expect(statuses).toContain(429);
+      // Las primeras (incluidas las 2 del primer test) sí pasan.
+      expect(statuses.filter((s) => s === 200).length).toBeGreaterThan(0);
     });
   },
 );

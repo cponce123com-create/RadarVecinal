@@ -22,7 +22,9 @@ import { fileURLToPath } from "node:url";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { db, pool, assertDatabaseConfigured } from "./index";
 
-const migrationsFolder = fileURLToPath(new URL("../migrations", import.meta.url));
+const migrationsFolder = fileURLToPath(
+  new URL("../migrations", import.meta.url),
+);
 
 function assertJournalComplete(): void {
   const journalPath = `${migrationsFolder}/meta/_journal.json`;

@@ -7,7 +7,7 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAuth, requireMunicipal } from "./auth";
+import { requireAuth, requireMunicipal, currentUser } from "./auth";
 import {
   validateLicenseCodeFormat,
   formatLicenseResponse,
@@ -40,7 +40,7 @@ router.post("/licenses/activate", requireAuth, async (req, res) => {
       .json({ error: parsed.error.issues[0]?.message ?? "Código inválido" });
   }
 
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   const { code } = parsed.data;
 
   try {
@@ -128,7 +128,7 @@ router.post("/licenses/activate", requireAuth, async (req, res) => {
 
 // ── GET /licenses/my — Ver info de mi licencia (municipal autenticado) ───────
 router.get("/licenses/my", requireAuth, requireMunicipal, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
 
   try {
     const [license] = await db

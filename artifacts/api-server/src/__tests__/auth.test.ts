@@ -25,7 +25,7 @@ function requireAuthInline(
   }
   try {
     const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as any;
-    (req as any).jwtUser = payload;
+    req.jwtUser = payload;
     next();
   } catch {
     res.status?.(401);
@@ -38,7 +38,7 @@ function requireAdminInline(
   res: Partial<Response>,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!user || !["admin", "moderator"].includes(user.role)) {
     res.status?.(403);
     res.json?.({ error: "Acceso denegado. Se requiere rol de administrador." });
@@ -56,7 +56,7 @@ function optionalAuthInline(
   if (authHeader?.startsWith("Bearer ")) {
     try {
       const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as any;
-      (req as any).jwtUser = payload;
+      req.jwtUser = payload;
     } catch {
       // ignore invalid tokens
     }
@@ -166,8 +166,8 @@ describe("requireAuth middleware", () => {
     requireAuthInline(req, res, next);
 
     expect(next).toHaveBeenCalled();
-    expect((req as any).jwtUser).toBeDefined();
-    expect((req as any).jwtUser.role).toBe("user");
+    expect(req.jwtUser).toBeDefined();
+    expect(req.jwtUser?.role).toBe("user");
   });
 });
 
@@ -227,7 +227,7 @@ describe("optionalAuth middleware", () => {
     optionalAuthInline(req, res, next);
 
     expect(next).toHaveBeenCalled();
-    expect((req as any).jwtUser).toBeUndefined();
+    expect(req.jwtUser).toBeUndefined();
   });
 
   it("should attach jwtUser if valid token provided", () => {
@@ -243,7 +243,7 @@ describe("optionalAuth middleware", () => {
     optionalAuthInline(req, res, next);
 
     expect(next).toHaveBeenCalled();
-    expect((req as any).jwtUser.email).toBe("user@test.com");
+    expect(req.jwtUser?.email).toBe("user@test.com");
   });
 
   it("should ignore invalid tokens and continue", () => {
@@ -256,6 +256,6 @@ describe("optionalAuth middleware", () => {
     optionalAuthInline(req, res, next);
 
     expect(next).toHaveBeenCalled();
-    expect((req as any).jwtUser).toBeUndefined();
+    expect(req.jwtUser).toBeUndefined();
   });
 });

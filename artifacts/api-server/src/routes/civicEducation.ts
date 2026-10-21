@@ -69,7 +69,7 @@ router.post("/civic-education/progress", optionalAuth, async (req, res) => {
       .status(400)
       .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
 
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   const userId = user ? Number(user.sub) : 0;
 
   try {
@@ -121,7 +121,7 @@ router.post("/civic-education/progress", optionalAuth, async (req, res) => {
 
 // ── GET /civic-education/progress — progreso del usuario ───────────────────
 router.get("/civic-education/progress", optionalAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!user) return res.json({ progress: [], totalXp: 0 });
 
   try {

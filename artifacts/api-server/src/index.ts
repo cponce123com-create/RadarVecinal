@@ -1,6 +1,13 @@
+// Debe ser el PRIMER import: fija la zona horaria del proceso en UTC antes
+// de que nada cree un `Date` (ver lib/timezone.ts).
+import "./lib/timezone";
+
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startMaintenanceTasks, stopMaintenanceTasks } from "./workers/maintenance";
+import {
+  startMaintenanceTasks,
+  stopMaintenanceTasks,
+} from "./workers/maintenance";
 import { pool } from "@workspace/db";
 
 const rawPort = process.env["PORT"];

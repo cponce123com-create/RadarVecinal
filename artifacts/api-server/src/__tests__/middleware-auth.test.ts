@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
+import type { JwtUser } from "../lib/authTypes";
 
 // Following the same pattern as auth.test.ts — no vi.mock, use real jwt
 
@@ -36,8 +37,8 @@ describe("Auth Middleware — extended edge cases", () => {
     }
     const token = authHeader.slice(7);
     try {
-      const decoded = jwt.verify(token, TEST_SECRET);
-      (req as any).jwtUser = decoded;
+      const decoded = jwt.verify(token, TEST_SECRET) as JwtUser;
+      req.jwtUser = decoded;
       next();
     } catch {
       res.status?.(401);
@@ -50,7 +51,7 @@ describe("Auth Middleware — extended edge cases", () => {
     res: Partial<Response>,
     next: NextFunction,
   ) {
-    const user = (req as any).jwtUser;
+    const user = req.jwtUser;
     if (!user || !["admin", "moderator"].includes(user.role)) {
       res.status?.(403);
       res.json?.({
@@ -127,8 +128,8 @@ describe("Auth Middleware — extended edge cases", () => {
     requireAuth(req, res, next);
 
     expect(next).toHaveBeenCalled();
-    expect((req as any).jwtUser).toBeDefined();
-    expect((req as any).jwtUser.sub).toBe("42");
+    expect(req.jwtUser).toBeDefined();
+    expect(req.jwtUser?.sub).toBe("42");
   });
 
   it("should return 403 if requireAdmin is called without jwtUser", () => {

@@ -27,11 +27,16 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
+        // Sin 'unsafe-inline': el HTML de producción NO tiene scripts inline
+        // (el bundle y el registro del service worker son ficheros externos),
+        // así que permitirlo solo abriría la puerta a XSS. Verificado sobre
+        // dist/public/index.html. 'unsafe-eval' solo hace falta en desarrollo.
         scriptSrc: [
           "'self'",
-          "'unsafe-inline'",
           ...(process.env.NODE_ENV === "production" ? [] : ["'unsafe-eval'"]),
-        ], // unsafe-eval solo para React dev
+        ],
+        // React aplica estilos en línea (atributo style), así que aquí sí
+        // hace falta 'unsafe-inline'.
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         connectSrc: [
@@ -39,11 +44,17 @@ app.use(
           "https://*.googleapis.com",
           "https://*.firebaseio.com",
           "https://api.cloudinary.com",
+          // Backend de Render: la app nativa (Capacitor) habla con él desde
+          // otro origen (https://localhost).
+          "https://radarvecinal.onrender.com",
         ],
         fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
+        // Anti-clickjacking y anti-form-hijacking.
+        frameAncestors: ["'none'"],
+        formAction: ["'self'"],
       },
     },
   }),
@@ -63,12 +74,31 @@ const CAPACITOR_ORIGINS = [
   "capacitor://localhost",
   "http://localhost",
 ];
+
+const isProduction = process.env.NODE_ENV === "production";
+
+// En producción NO se admite el fallback de desarrollo (localhost:5173 /
+// localhost:3000): una web servida desde ahí podría leer la API con las
+// credenciales del usuario. Si falta CORS_ORIGIN se avisa en el log y solo
+// quedan los orígenes de Capacitor (que sí son necesarios para el APK).
+const configuredOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : [];
+
+if (isProduction && configuredOrigins.length === 0) {
+  logger.warn(
+    "CORS_ORIGIN no está definido en producción: solo se admiten los orígenes de Capacitor. Configúralo si sirves el frontend desde otro dominio.",
+  );
+}
+
 const allowedOrigins = [
   ...CAPACITOR_ORIGINS,
-  ...(process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
-    : ["http://localhost:5173", "http://localhost:3000"]),
+  ...configuredOrigins,
+  ...(isProduction ? [] : ["http://localhost:5173", "http://localhost:3000"]),
 ];
+
 app.use(
   cors({
     origin: allowedOrigins,

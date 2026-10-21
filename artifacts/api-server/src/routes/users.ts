@@ -11,8 +11,14 @@ import {
   userStrikesTable,
 } from "@workspace/db/schema";
 import { desc, eq, and, or, ilike, gt, sql, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireMunicipal } from "./auth";
+import {
+  requireAuth,
+  requireAdmin,
+  requireMunicipal,
+  currentUser,
+} from "./auth";
 import { isMunicipalityLevel } from "../lib/roles";
+import { getDistrictTerritory } from "../lib/district";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -20,7 +26,7 @@ const router: IRouter = Router();
 // ── GET /users — listar usuarios (super_admin ve todos, admin/moderator ve su distrito) ──
 router.get("/users", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const canSeeEmails = user.role === "super_admin";
 
     // ── Filtros de moderación ────────────────────────────────────────────
@@ -146,7 +152,7 @@ router.post("/users/manage", requireAuth, requireAdmin, async (req, res) => {
       .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
 
-  const authUser = (req as any).jwtUser;
+  const authUser = currentUser(req);
   const { name, email, password, role, sector, district, districtId } =
     parsed.data;
 
@@ -208,7 +214,7 @@ router.post("/users/manage", requireAuth, requireAdmin, async (req, res) => {
 // ── GET /users/:id/stats — estadísticas de desempeño de un usuario admin ──
 router.get("/users/:id/stats", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const authUser = (req as any).jwtUser;
+    const authUser = currentUser(req);
     const targetId = parseInt(req.params.id as string);
 
     const [target] = await db
@@ -286,7 +292,7 @@ router.patch(
     }
 
     try {
-      const authUser = (req as any).jwtUser;
+      const authUser = currentUser(req);
       const targetId = parseInt(req.params.id as string);
 
       const [target] = await db
@@ -366,7 +372,7 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
   }
 
   try {
-    const authUser = (req as any).jwtUser;
+    const authUser = currentUser(req);
     const targetId = parseInt(req.params.id as string);
 
     const [target] = await db
@@ -459,7 +465,7 @@ router.patch("/users/:id", requireAuth, async (req, res) => {
 // ── GET /notifications — notificaciones del usuario autenticado ─────────────
 router.get("/notifications", requireAuth, async (req, res) => {
   try {
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const notifications = await db
       .select()
       .from(notificationsTable)
@@ -535,7 +541,7 @@ router.post("/ad-slots", requireAuth, requireAdmin, async (req, res) => {
       .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
 
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   let districtId: number;
   if (user.role === "super_admin" && parsed.data.districtId) {
     districtId = parsed.data.districtId;
@@ -582,7 +588,7 @@ router.patch("/ad-slots/:id", requireAuth, requireAdmin, async (req, res) => {
 
     if (!ad) return res.status(404).json({ error: "Ad slot no encontrado." });
 
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     if (
       user.role !== "super_admin" &&
       Number(user.districtId) !== Number(ad.districtId)
@@ -657,7 +663,7 @@ router.post(
         .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
     }
 
-    const authUser = (req as any).jwtUser;
+    const authUser = currentUser(req);
     const { name, email, password, displayName, sector } = parsed.data;
 
     try {
@@ -710,6 +716,20 @@ router.post(
       }
 
       // 4. Crear viewer
+      // Los datos territoriales se resuelven desde el catálogo `districts`
+      // (fuente de verdad), NO desde el JWT: el token no lleva provincia ni
+      // departamento, así que antes se caía siempre a los valores por defecto
+      // ("Chanchamayo" / "Junín") y todo visor creado fuera de esa provincia
+      // quedaba con el territorio corrupto.
+      const territory = await getDistrictTerritory(Number(authUser.districtId));
+
+      if (!territory) {
+        return res.status(409).json({
+          error:
+            "No se encontró el distrito del usuario. Verifica la configuración del municipio.",
+        });
+      }
+
       const passwordHash = await bcrypt.hash(password, 10);
       const [viewer] = await db
         .insert(usersTable)
@@ -720,9 +740,9 @@ router.post(
           role: "viewer" as any,
           sector: sector.trim(),
           districtId: Number(authUser.districtId),
-          district: authUser.district ?? "San Ramón",
-          province: authUser.province ?? "Chanchamayo",
-          department: authUser.department ?? "Junín",
+          district: territory.name,
+          province: territory.province,
+          department: territory.department,
           displayName: displayName.trim(),
           isActive: true,
           reportsCount: 0,
@@ -756,7 +776,7 @@ router.get(
   requireAuth,
   requireMunicipal,
   async (req, res) => {
-    const authUser = (req as any).jwtUser;
+    const authUser = currentUser(req);
 
     try {
       const viewers = await db
@@ -810,7 +830,7 @@ router.patch(
         .json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" });
     }
 
-    const authUser = (req as any).jwtUser;
+    const authUser = currentUser(req);
     const targetId = parseInt(req.params.id as string);
 
     try {
@@ -863,7 +883,7 @@ router.get(
   requireAdmin,
   async (req, res) => {
     try {
-      const authUser = (req as any).jwtUser;
+      const authUser = currentUser(req);
       const targetId = parseInt(req.params.id as string);
 
       const [target] = await db
@@ -937,7 +957,7 @@ router.post(
   requireAdmin,
   async (req, res) => {
     try {
-      const authUser = (req as any).jwtUser;
+      const authUser = currentUser(req);
       const targetId = parseInt(req.params.id as string);
 
       const [target] = await db

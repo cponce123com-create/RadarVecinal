@@ -1,8 +1,9 @@
 /**
  * Tests de CORS.
- * Verifica que un origin fuera de la whitelist recibe rechazo.
+ * Verifica que un origin fuera de la whitelist recibe rechazo y que el
+ * fallback de desarrollo (localhost:5173 / :3000) NO se aplica en producción.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 
 describe.skipIf(!process.env.DATABASE_URL)("CORS", () => {
   let app: any;
@@ -42,5 +43,34 @@ describe.skipIf(!process.env.DATABASE_URL)("CORS", () => {
       "http://localhost:5173",
     );
     delete process.env.CORS_ORIGIN;
+  });
+
+  it("en producción NO admite los orígenes de desarrollo", async () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    const prevCors = process.env.CORS_ORIGIN;
+    process.env.NODE_ENV = "production";
+    delete process.env.CORS_ORIGIN;
+
+    // La lista de orígenes se calcula al cargar el módulo: hay que recargarlo.
+    vi.resetModules();
+    const prodApp = (await import("../app")).default;
+    const prodRequest = (await import("supertest")).default;
+
+    const dev = await prodRequest(prodApp)
+      .get("/api/healthz")
+      .set("Origin", "http://localhost:5173");
+    expect(dev.headers["access-control-allow-origin"]).toBeUndefined();
+
+    // El origen del APK (Capacitor) sí debe seguir funcionando.
+    const apk = await prodRequest(prodApp)
+      .get("/api/healthz")
+      .set("Origin", "https://localhost");
+    expect(apk.headers["access-control-allow-origin"]).toBe(
+      "https://localhost",
+    );
+
+    process.env.NODE_ENV = prevNodeEnv;
+    if (prevCors !== undefined) process.env.CORS_ORIGIN = prevCors;
+    vi.resetModules();
   });
 });

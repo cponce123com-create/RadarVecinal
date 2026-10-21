@@ -8,7 +8,7 @@ import {
   reportsTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
-import { requireAuth } from "./auth";
+import { requireAuth, currentUser } from "./auth";
 import { generateLicenseCode, formatLicenseResponse } from "../lib/license";
 import bcrypt from "bcryptjs";
 
@@ -68,7 +68,7 @@ router.post(
 
     const { siglas, distrito, provincia, departamento, maxViewers } =
       parsed.data;
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
 
     try {
       // 1. Generar código de 16 dígitos
@@ -204,7 +204,7 @@ router.post(
     }
 
     const data = parsed.data;
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
 
     try {
       // 1. Verificar que el email no exista

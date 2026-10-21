@@ -15,7 +15,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import { z } from "zod";
 import {
   isSuperAdmin,
@@ -23,6 +23,8 @@ import {
   isModeratorLevel,
 } from "../lib/roles";
 import { isValidClaimSecret } from "../lib/claimSecret";
+import { getDistrictTerritory } from "../lib/district";
+import type { JwtUser } from "../lib/authTypes";
 
 const router: IRouter = Router();
 
@@ -246,6 +248,17 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         .json({ error: "Distrito no válido. Verifica e intenta de nuevo." });
     }
 
+    // Los datos territoriales se derivan del catálogo de distritos: sin esto,
+    // `province`/`department` quedaban con los valores por defecto nationwide
+    // ("Chanchamayo" / "Junín") para cualquier usuario que no fuera de esa
+    // provincia.
+    const territory = await getDistrictTerritory(districtId);
+    if (!territory) {
+      return res.status(400).json({
+        error: "Distrito no válido. Verifica e intenta de nuevo.",
+      });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const [user] = await db
@@ -256,7 +269,9 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         passwordHash,
         sector,
         districtId,
-        district: district ?? "San Ramón",
+        district: territory.name,
+        province: territory.province,
+        department: territory.department,
         dni: dni ?? null,
         role: "user",
         isActive: true,
@@ -500,13 +515,40 @@ export function verifyToken(token: string): {
   }
 }
 
+// ── Helper: usuario autenticado de la request ────────────────────────────────
+// `req.jwtUser` es opcional porque no todas las rutas exigen sesión. Cuando
+// la ruta YA pasó por `requireAuth`, su presencia está garantizada; este
+// helper lo expresa en el tipo y evita repetir `req.jwtUser!` por todo el
+// backend (que era el sustituto del `as any`).
+export function currentUser(req: Request): JwtUser {
+  const user = req.jwtUser;
+  if (!user) {
+    throw new Error(
+      "currentUser(): la ruta debe usar requireAuth antes de leer el usuario.",
+    );
+  }
+  return user;
+}
+
 // ── Middleware: optional auth (attaches user if token valid) ─────────────────
+// No consulta la base de datos: solo decodea el token. Por eso `name` y
+// `displayName` NO quedan disponibles aquí (vienen de la ficha del usuario y
+// pueden cambiar). Si una ruta necesita esos datos, debe usar `requireAuth`.
 export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     try {
-      const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as any;
-      (req as any).jwtUser = payload;
+      const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as JwtPayload;
+      if (typeof payload !== "object" || !payload.sub) {
+        return next();
+      }
+      req.jwtUser = {
+        sub: String(payload.sub),
+        email: String(payload.email ?? ""),
+        role: String(payload.role ?? "user"),
+        district: String(payload.district ?? ""),
+        districtId: Number(payload.districtId ?? 0),
+      };
     } catch {
       /* ignore */
     }
@@ -534,8 +576,12 @@ export async function requireAuth(
     const [user] = await db
       .select({
         id: usersTable.id,
+        email: usersTable.email,
+        name: usersTable.name,
+        displayName: usersTable.displayName,
         isActive: usersTable.isActive,
         role: usersTable.role,
+        district: usersTable.district,
         districtId: usersTable.districtId,
         suspendedUntil: usersTable.suspendedUntil,
       })
@@ -564,11 +610,18 @@ export async function requireAuth(
       });
     }
 
-    // Attach full user info from DB (more reliable than JWT alone)
-    (req as any).jwtUser = {
-      ...payload,
+    // Attach full user info from DB (more reliable than JWT alone).
+    // `name`/`displayName` NO viajan en el token: se leen de la ficha del
+    // usuario para que el dato que se muestra (p. ej. quién resolvió un
+    // reporte) sea el vigente y no el del momento de emitir el token.
+    req.jwtUser = {
+      sub: String(user.id),
+      email: user.email,
       role: user.role,
+      district: user.district,
       districtId: user.districtId,
+      name: user.name,
+      displayName: user.displayName,
     };
     return next();
   } catch (err) {
@@ -587,7 +640,7 @@ export async function requireAuth(
 // super_admin, admin y municipal. Antes excluía a `municipal` (bug: las
 // municipalidades no podían administrar su distrito) e incluía a `moderator`.
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!isMunicipalityLevel(user?.role)) {
     return res
       .status(403)
@@ -603,7 +656,7 @@ export function requireBackoffice(
   res: Response,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!isModeratorLevel(user?.role)) {
     return res
       .status(403)
@@ -619,7 +672,7 @@ export function requireMunicipal(
   res: Response,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!isMunicipalityLevel(user?.role)) {
     return res
       .status(403)
@@ -636,7 +689,7 @@ export function requireViewerOrAbove(
   res: Response,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!isModeratorLevel(user?.role)) {
     return res.status(403).json({ error: "Acceso denegado." });
   }
@@ -649,7 +702,7 @@ export function requireSuperAdmin(
   res: Response,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!isSuperAdmin(user?.role)) {
     return res
       .status(403)
@@ -671,7 +724,7 @@ export function requireSameDistrict(
   res: Response,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
   if (!user) {
     return res.status(401).json({ error: "Autenticación requerida." });
   }
@@ -705,7 +758,7 @@ export function requireDistrictFilter(
   res: Response,
   next: NextFunction,
 ) {
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
 
   if (user?.role === "super_admin") {
     // super_admin puede pedir explícitamente un distrito o ver todo
@@ -755,12 +808,10 @@ router.post(
       });
     }
     if (!isValidClaimSecret(req.body?.secret, claimSecret)) {
-      return res
-        .status(403)
-        .json({ error: "Clave de activación incorrecta." });
+      return res.status(403).json({ error: "Clave de activación incorrecta." });
     }
 
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
 
     try {
       // Verificar que el email del usuario autenticado coincida

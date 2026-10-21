@@ -27,7 +27,7 @@ import {
   districtsTable,
 } from "@workspace/db/schema";
 import { eq, and, gt, gte, lt, lte, sql, asc, desc } from "drizzle-orm";
-import { optionalAuth, requireAuth } from "./auth";
+import { optionalAuth, requireAuth, currentUser } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { isMunicipalityLevel } from "../lib/roles";
 import { sendProximityPush } from "../lib/fcm";
@@ -207,7 +207,7 @@ async function expireStaleProviders() {
 // Herramienta de diagnóstico para pruebas: ve las transmisiones de todos los
 // distritos con su distrito, para confirmar dónde quedó una transmisión.
 router.get("/live/all", requireAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   if (user?.role !== "super_admin") {
     return res.status(403).json({ error: "Solo super_admin." });
   }
@@ -315,7 +315,7 @@ router.post("/live/start", optionalAuth, async (req, res) => {
       .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
   const data = parsed.data;
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
 
   // Distrito: usuarios de backoffice quedan atados al suyo; el resto lo envía.
   let districtId: number;
@@ -771,9 +771,7 @@ router.post("/live/devices", requireAuth, async (req, res) => {
         type: parsed.data.type,
         label: parsed.data.label,
         deviceKey,
-        createdById: (req as any).jwtUser?.sub
-          ? Number((req as any).jwtUser.sub)
-          : null,
+        createdById: req.jwtUser?.sub ? Number(req.jwtUser.sub) : null,
       })
       .returning();
     return res.status(201).json({
@@ -789,7 +787,7 @@ router.post("/live/devices", requireAuth, async (req, res) => {
 
 // ── PATCH /live/devices/:id — renombrar / habilitar-deshabilitar ────────────
 router.patch("/live/devices/:id", requireAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   if (!user || !isMunicipalityLevel(user.role)) {
     return res.status(403).json({ error: "Solo la municipalidad." });
   }
@@ -851,7 +849,7 @@ router.patch("/live/devices/:id", requireAuth, async (req, res) => {
 
 // ── DELETE /live/devices/:id — eliminar dispositivo ─────────────────────────
 router.delete("/live/devices/:id", requireAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   if (!user || !isMunicipalityLevel(user.role)) {
     return res.status(403).json({ error: "Solo la municipalidad." });
   }
@@ -1191,9 +1189,7 @@ router.put("/live/voice-clips", requireAuth, async (req, res) => {
       .json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
   }
   const { type, audioUrl, phrase, enabled } = parsed.data;
-  const userId = (req as any).jwtUser?.sub
-    ? Number((req as any).jwtUser.sub)
-    : null;
+  const userId = req.jwtUser?.sub ? Number(req.jwtUser.sub) : null;
   try {
     // Upsert manual (único por distrito+tipo).
     const [existing] = await db
@@ -1246,7 +1242,7 @@ router.put("/live/voice-clips", requireAuth, async (req, res) => {
 
 // ── DELETE /live/voice-clips/:id — eliminar un clip (municipalidad) ──────────
 router.delete("/live/voice-clips/:id", requireAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   if (!user || !isMunicipalityLevel(user.role)) {
     return res.status(403).json({ error: "Solo la municipalidad." });
   }

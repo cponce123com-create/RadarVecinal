@@ -28,17 +28,24 @@ function createFakeDb(rows: {
   district?: Array<{ name: string }>;
 }) {
   const returningFn = vi.fn().mockResolvedValue(rows.updated ?? []);
-  const setFn = vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ returning: returningFn }) });
+  const setFn = vi.fn().mockReturnValue({
+    where: vi.fn().mockReturnValue({ returning: returningFn }),
+  });
   const updateFn = vi.fn().mockReturnValue({ set: setFn });
 
   // Cada consulta select() devuelve una cadena encadenable distinta.
-  const selectFn = vi
-    .fn()
-    .mockImplementationOnce(() => selectChain(rows.backlog ?? []))
-    .mockImplementationOnce(() => selectChain(rows.admins ?? []))
-    .mockImplementationOnce(() => selectChain(rows.district ?? []));
+  const selectFn = vi.fn();
+  selectFn.mockImplementationOnce(() => selectChain(rows.backlog ?? []));
+  selectFn.mockImplementationOnce(() => selectChain(rows.admins ?? []));
+  selectFn.mockImplementationOnce(() => selectChain(rows.district ?? []));
 
-  return { db: { update: updateFn, select: selectFn }, updateFn, setFn, returningFn, selectFn };
+  return {
+    db: { update: updateFn, select: selectFn },
+    updateFn,
+    setFn,
+    returningFn,
+    selectFn,
+  };
 }
 
 function selectChain(result: unknown[]) {
@@ -55,9 +62,12 @@ function selectChain(result: unknown[]) {
 // El tipo real de la base de datos es enorme; el doble solo necesita la forma
 // que consume el código, así que se declara con la misma firma que el cliente.
 type FakeDb = ReturnType<typeof createFakeDb>["db"];
-const asClient = (fake: FakeDb) => fake as unknown as Parameters<typeof escalateStaleReports>[0];
+const asClient = (fake: FakeDb) =>
+  fake as unknown as Parameters<typeof escalateStaleReports>[0];
 
-function createFakeTasks(overrides: Partial<MaintenanceTasks> = {}): MaintenanceTasks {
+function createFakeTasks(
+  overrides: Partial<MaintenanceTasks> = {},
+): MaintenanceTasks {
   return {
     escalate: vi.fn().mockResolvedValue(0),
     expirePanicAlerts: vi.fn().mockResolvedValue(0),
@@ -96,7 +106,10 @@ describe("Reglas de mantenimiento", () => {
 
     expect(count).toBe(1);
     expect(fake.updateFn).toHaveBeenCalledWith(panicAlertsTable);
-    expect(fake.setFn).toHaveBeenCalledWith({ status: "expired", isActive: false });
+    expect(fake.setFn).toHaveBeenCalledWith({
+      status: "expired",
+      isActive: false,
+    });
   });
 
   it("avisa a los admins de cada distrito con más de 5 reportes recientes", async () => {
@@ -117,7 +130,9 @@ describe("Reglas de mantenimiento", () => {
   it("no avisa a nadie si ningún distrito supera el umbral", async () => {
     const fake = createFakeDb({ backlog: [] });
 
-    await expect(remindAdminsOfPendingReports(asClient(fake.db))).resolves.toBe(0);
+    await expect(remindAdminsOfPendingReports(asClient(fake.db))).resolves.toBe(
+      0,
+    );
     expect(fake.selectFn).toHaveBeenCalledTimes(1);
   });
 });
@@ -149,7 +164,9 @@ describe("Programador interno (sin Redis)", () => {
     expect(tasks.escalate).toHaveBeenCalledTimes(2);
     expect(tasks.remindAdmins).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(REMINDER_INTERVAL_MS - ESCALATION_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(
+      REMINDER_INTERVAL_MS - ESCALATION_INTERVAL_MS,
+    );
     expect(tasks.remindAdmins).toHaveBeenCalledTimes(1);
   });
 
@@ -159,7 +176,9 @@ describe("Programador interno (sin Redis)", () => {
     startMaintenanceTasks(tasks);
     startMaintenanceTasks(tasks);
 
-    await vi.advanceTimersByTimeAsync(STARTUP_DELAY_MS + ESCALATION_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(
+      STARTUP_DELAY_MS + ESCALATION_INTERVAL_MS,
+    );
     expect(tasks.escalate).toHaveBeenCalledTimes(2); // primer ciclo + 1 hora
   });
 

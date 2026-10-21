@@ -9,7 +9,7 @@ import {
   auditLogTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, isNull } from "drizzle-orm";
-import { requireAuth, requireViewerOrAbove } from "./auth";
+import { requireAuth, requireViewerOrAbove, currentUser } from "./auth";
 import { checkTenant } from "./tenant";
 import { sendCustomMessageEmail } from "../lib/email";
 import { sendMunicipalPushToUser } from "../lib/fcm";
@@ -37,7 +37,7 @@ router.post(
     }
 
     const { channel, content } = parsed.data;
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
 
     try {
       // Obtener reporte con datos de contacto

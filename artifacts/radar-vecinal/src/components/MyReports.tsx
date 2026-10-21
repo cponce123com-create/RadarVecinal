@@ -22,10 +22,10 @@ interface MyReport {
 }
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  active:    { label: "Activo",    cls: "bg-destructive/15 text-red-400" },
-  reviewing: { label: "Revisión",  cls: "bg-warning/15 text-amber-400" },
-  resolved:  { label: "Resuelto",  cls: "bg-success/15 text-success" },
-  archived:  { label: "Archivado", cls: "bg-white/8 text-muted-foreground" },
+  active: { label: "Activo", cls: "bg-destructive/15 text-red-400" },
+  reviewing: { label: "Revisión", cls: "bg-warning/15 text-amber-400" },
+  resolved: { label: "Resuelto", cls: "bg-success/15 text-success" },
+  archived: { label: "Archivado", cls: "bg-white/8 text-muted-foreground" },
 };
 
 async function fetchMine(): Promise<{ reports: MyReport[]; total: number }> {
@@ -52,18 +52,30 @@ export default function MyReports() {
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-primary" />
           <span className="text-sm font-bold text-white">Mis reportes</span>
-          {data?.total ? <span className="text-[11px] text-muted-foreground">({data.total})</span> : null}
+          {data?.total ? (
+            <span className="text-[11px] text-muted-foreground">
+              ({data.total})
+            </span>
+          ) : null}
         </div>
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
+        <div className="flex flex-col gap-2">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-14" />
+          ))}
+        </div>
       ) : isError ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">No se pudieron cargar tus reportes.</p>
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          No se pudieron cargar tus reportes.
+        </p>
       ) : reports.length === 0 ? (
         <div className="py-8 flex flex-col items-center text-center gap-3">
           <FileText className="w-8 h-8 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground max-w-[240px]">Aún no has hecho reportes. Cuando reportes algo, aparecerá aquí.</p>
+          <p className="text-sm text-muted-foreground max-w-[240px]">
+            Aún no has hecho reportes. Cuando reportes algo, aparecerá aquí.
+          </p>
           <Link href="/reportar">
             <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/15 border border-primary/40 text-primary text-sm font-semibold hover:bg-primary/25 transition-colors cursor-pointer">
               <Plus className="w-4 h-4" /> Hacer mi primer reporte
@@ -73,25 +85,48 @@ export default function MyReports() {
       ) : (
         <div className="flex flex-col gap-2">
           {reports.map((r) => {
-            const cfg = CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
+            const cfg =
+              CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
             const color = CAT_HEX[r.category] ?? "#6b7280";
             const Icon = cfg?.icon ?? FileText;
             const st = STATUS_META[r.status] ?? STATUS_META.active;
             return (
-              <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/6">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}22` }}>
+              <div
+                key={r.id}
+                className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/6"
+              >
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${color}22` }}
+                >
                   <Icon className="w-4 h-4" style={{ color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-white truncate">{r.title}</p>
+                  <p className="text-[13px] font-semibold text-white truncate">
+                    {r.title}
+                  </p>
                   <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                     <MapPin className="w-3 h-3" /> {r.sector}
                     <span className="text-[#4a5568]">·</span>
-                    {formatDistanceToNow(new Date(r.createdAt), { locale: es, addSuffix: true })}
-                    {r.confirmedCount > 0 && <><span className="text-[#4a5568]">·</span><span className="text-success/60">✓ {r.confirmedCount}</span></>}
+                    {formatDistanceToNow(new Date(r.createdAt), {
+                      locale: es,
+                      addSuffix: true,
+                    })}
+                    {r.confirmedCount > 0 && (
+                      <>
+                        <span className="text-[#4a5568]">·</span>
+                        <span className="text-success/60">
+                          ✓ {r.confirmedCount}
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
-                <span className={`text-[10px] font-semibold px-2 py-[3px] rounded-full whitespace-nowrap flex-shrink-0 ${st.cls}`}>{st.label}</span>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-[3px] rounded-full whitespace-nowrap flex-shrink-0 ${st.cls}`}
+                >
+                  {st.label}
+                </span>
               </div>
             );
           })}

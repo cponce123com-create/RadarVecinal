@@ -34,7 +34,11 @@ export default function PasswordRecovery() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm"
+      >
         <div className="rounded-2xl bg-card border border-white/8 p-7">
           {sent ? (
             <div className="flex flex-col items-center text-center gap-4">
@@ -42,9 +46,13 @@ export default function PasswordRecovery() {
                 <CheckCircle2 className="w-8 h-8 text-success" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white mb-1">Revisa tu correo</h2>
+                <h2 className="text-lg font-bold text-white mb-1">
+                  Revisa tu correo
+                </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Si <b className="text-white/80">{email}</b> está registrado, te enviamos un enlace para restablecer tu contraseña. Vence en 30 minutos.
+                  Si <b className="text-white/80">{email}</b> está registrado,
+                  te enviamos un enlace para restablecer tu contraseña. Vence en
+                  30 minutos.
                 </p>
               </div>
               <Link href="/home">
@@ -55,20 +63,38 @@ export default function PasswordRecovery() {
             </div>
           ) : (
             <>
-              <h2 className="text-lg font-bold text-white mb-1">Recuperar contraseña</h2>
-              <p className="text-sm text-muted-foreground mb-5">Ingresa tu correo y te enviaremos un enlace para crear una nueva.</p>
+              <h2 className="text-lg font-bold text-white mb-1">
+                Recuperar contraseña
+              </h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Ingresa tu correo y te enviaremos un enlace para crear una
+                nueva.
+              </p>
               <form onSubmit={submit} className="flex flex-col gap-3">
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input
-                    type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
                     placeholder="tu@correo.com"
                     className="w-full pl-9 pr-3 py-2.5 bg-background border border-white/10 rounded-xl text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
-                <button type="submit" disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-50">
-                  {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</> : "Enviar enlace"}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Enviando…
+                    </>
+                  ) : (
+                    "Enviar enlace"
+                  )}
                 </button>
               </form>
               <Link href="/home">

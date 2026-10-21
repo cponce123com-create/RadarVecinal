@@ -2,105 +2,85 @@
 
 > Lee este archivo primero si retomas el trabajo. No vuelvas a empezar desde cero.
 
-**Actualizado:** 2026-10-21 · **Ciclo actual:** 001 (cerrado) · **Rama:** `feature/audit-cycle-001`
+**Actualizado:** 2026-10-21 · **Ciclo actual:** 002 (cerrado) · **Rama:** `feature/audit-cycle-002`
 
 ---
 
 ## 1. Estado
 
-| Elemento                                     | Valor                                                                                             |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Rama base                                    | `main` @ `cf366234`                                                                               |
-| Rama de trabajo                              | `feature/audit-cycle-001`                                                                         |
-| Iteraciones completadas                      | **1**                                                                                             |
-| Objetivo global                              | ≥ 9.8/10 en 25 áreas                                                                              |
-| Puntuación global estimada tras el ciclo 001 | **8.56 / 10** (ver `QUALITY_SCORECARD.md`)                                                        |
-| Última verificación                          | ✅ typecheck · ✅ 26/26 suites backend · ✅ 4/4 frontend · ✅ build · ✅ audit 0 críticas/0 altas |
+| Elemento                            | Valor                                                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Rama base                           | `main` @ `cf366234` (sin tocar)                                                                                   |
+| Rama del ciclo 001                  | `feature/audit-cycle-001` @ `4e02cbe1` — PR #35 abierto, **no fusionado**                                         |
+| Rama del ciclo 002                  | `feature/audit-cycle-002` — PR #36, apilada sobre la del 001                                                      |
+| Iteraciones completadas             | **2**                                                                                                             |
+| Objetivo global                     | ≥ 9.8/10 en 25 áreas                                                                                              |
+| Puntuación global tras el ciclo 002 | **8.67 / 10** (ver `QUALITY_SCORECARD.md`)                                                                        |
+| Última verificación                 | ✅ typecheck · ✅ 28/28 suites backend (180) · ✅ 5/5 frontend (21) · ✅ builds · ✅ 0 críticas/altas · ✅ CI 9/9 |
+
+> **No fusionar sin autorización.** `render.yaml` tiene `branch: main`, así que
+> el merge de cualquiera de los dos PR dispara un despliegue en Render.
 
 ---
 
 ## 2. Puntuaciones
 
-Las 25 áreas están en `QUALITY_SCORECARD.md`. Resumen del ciclo 001:
-
-| Área                              | Antes | Después |
-| --------------------------------- | ----: | ------: |
-| Arquitectura general              |   8.0 |     8.4 |
-| Organización del código           |   8.2 |     8.8 |
-| Backend y API                     |   8.1 |     8.9 |
-| Frontend                          |   8.0 |     8.5 |
-| Diseño UI/UX                      |   8.5 |     8.5 |
-| Panel administrativo              |   8.0 |     8.0 |
-| Autenticación y autorización      |   7.8 |     8.7 |
-| Ciberseguridad                    |   7.5 |     9.0 |
-| Base de datos                     |   7.6 |     9.0 |
-| Aislamiento entre municipalidades |   8.5 |     8.5 |
-| Reportes ciudadanos               |   8.3 |     8.6 |
-| Geolocalización y mapas           |   8.4 |     8.4 |
-| Alertas y emergencias             |   8.0 |     9.0 |
-| Personas desaparecidas            |   8.2 |     8.2 |
-| Notificaciones                    |   8.0 |     8.0 |
-| Android y PWA                     |   7.5 |     8.3 |
-| Rendimiento                       |   8.2 |     8.4 |
-| Escalabilidad                     |   8.0 |     8.5 |
-| Accesibilidad                     |   7.8 |     8.0 |
-| SEO y metadatos                   |   9.0 |     9.0 |
-| Pruebas automatizadas             |   7.0 |     8.6 |
-| CI/CD y despliegue                |   5.0 |     8.8 |
-| Documentación                     |   8.0 |     9.0 |
-| Privacidad y protección de datos  |   8.0 |     8.4 |
-| Observabilidad y mantenimiento    |   7.8 |     8.4 |
+| Área                              | Ciclo 001 | Ciclo 002 |
+| --------------------------------- | --------: | --------: |
+| Arquitectura general              |       8.4 |       8.5 |
+| Organización del código           |       8.8 |       8.9 |
+| Backend y API                     |       8.9 |       9.0 |
+| Frontend                          |       8.5 |       8.8 |
+| Diseño UI/UX                      |       8.5 |       8.5 |
+| Panel administrativo              |       8.0 |       8.0 |
+| Autenticación y autorización      |       8.7 |       9.2 |
+| Ciberseguridad                    |       9.0 |       9.1 |
+| Base de datos                     |       9.0 |       9.4 |
+| Aislamiento entre municipalidades |       8.5 |       8.5 |
+| Reportes ciudadanos               |       8.6 |       8.8 |
+| Geolocalización y mapas           |       8.4 |       8.4 |
+| Alertas y emergencias             |       9.0 |       9.0 |
+| Personas desaparecidas            |       8.2 |       8.2 |
+| Notificaciones                    |       8.0 |       8.0 |
+| Android y PWA                     |       8.3 |       8.4 |
+| Rendimiento                       |       8.4 |       8.4 |
+| Escalabilidad                     |       8.5 |       8.5 |
+| Accesibilidad                     |       8.0 |       8.0 |
+| SEO y metadatos                   |       9.0 |       9.0 |
+| Pruebas automatizadas             |       8.6 |       8.8 |
+| CI/CD y despliegue                |       8.8 |       9.2 |
+| Documentación                     |       9.0 |       9.1 |
+| Privacidad y protección de datos  |       8.4 |       8.6 |
+| Observabilidad y mantenimiento    |       8.4 |       8.5 |
+| **GLOBAL**                        |  **8.56** |  **8.67** |
 
 ---
 
-## 3. Cambios del ciclo 001
+## 3. Qué se hizo en el ciclo 002
 
-### Correcciones de comportamiento (bugs reales)
+1. **Recuperación de contraseña + "Mis reportes"** (`c4f408d1`), con cuatro
+   correcciones de seguridad que el diff original no traía:
+   - el token de reset ya no sirve como token de sesión (`purpose: "access"`);
+   - límite por IP **y** por correo destino en `forgot-password` (antes rotar el
+     correo esquivaba el límite);
+   - el envío del correo no se espera (sin oráculo de tiempo);
+   - la URL de reset no se escribe en logs de producción.
+2. **`customFetch` en las tres pantallas nuevas** (`55afd23f`) y error visible
+   ante fallo de red o 429 (`3b69725a`).
+3. **OpenAPI** de los tres endpoints + cliente regenerado (`f1d611d9`). El
+   bloqueador de orval quedó documentado: zod v3, react-query v5 y
+   `dom.iterable`.
+4. **`timestamptz`** en las 51 columnas, con migración idempotente y revert
+   (`89819ee6`).
+5. **Deriva esquema ↔ migraciones** (`40471305`): `user_consents`, 5 columnas
+   `NOT NULL` y las 3 de cobranding.
+6. **CI y despliegue** (`e6434044`, `d3ea8190`): PRs apilados verificados, job de
+   migraciones desde cero, `run_all_migrations.js` con fail-fast real por
+   SQLSTATE, `--frozen-lockfile` en producción.
+7. **Preflight del runner de Drizzle** + `tsx` declarado: `pnpm migrate` ya no
+   puede decir "success" habiendo aplicado 3 de 37.
 
-| Archivo                                                 | Cambio                                                                                                                                                |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lib/db/src/index.ts`                                   | Sesión de Postgres en UTC (`options: "-c timezone=UTC"`). **Arregla que "Servicios en vivo" no mostrara emisores y duplicara transmisiones.**         |
-| `artifacts/api-server/src/lib/timezone.ts` _(nuevo)_    | `process.env.TZ = "UTC"`; alinea el `Date` en SQL crudo con el resto de vías.                                                                         |
-| `artifacts/api-server/src/app.ts`                       | Import de `timezone` primero; CSP sin `'unsafe-inline'` en `scriptSrc`; `frameAncestors`/`formAction`; CORS sin fallback de desarrollo en producción. |
-| `artifacts/api-server/src/index.ts`                     | Import de `timezone` primero.                                                                                                                         |
-| `artifacts/api-server/src/lib/district.ts` _(nuevo)_    | `getDistrictTerritory()`: resuelve distrito/provincia/departamento desde el catálogo.                                                                 |
-| `artifacts/api-server/src/routes/auth.ts`               | Territorio derivado del catálogo en el registro; `requireAuth` adjunta `name`/`displayName`; `currentUser()`; `optionalAuth` tipado.                  |
-| `artifacts/api-server/src/routes/reports.ts`            | Territorio derivado del catálogo al crear el reporte.                                                                                                 |
-| `artifacts/api-server/src/routes/alerts.ts`             | Territorio del reporte espejo de la alerta de pánico.                                                                                                 |
-| `artifacts/api-server/src/routes/users.ts`              | Territorio del catálogo al crear un visor (antes leía `province`/`department` del JWT, que no existen).                                               |
-| `artifacts/api-server/src/types/express.d.ts` _(nuevo)_ | Augmentación de `Express.Request` con `jwtUser`.                                                                                                      |
-| `artifacts/api-server/src/lib/authTypes.ts` _(nuevo)_   | Tipo `JwtUser`.                                                                                                                                       |
-| `artifacts/api-server/src/vitest.config.ts`             | `maxWorkers: 3`, timeouts de 30 s.                                                                                                                    |
-
-### Infraestructura
-
-| Archivo                                | Cambio                                                                                                                                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm-lock.yaml`                       | Regenerado con pnpm 11.9.0 (arregla el `LOCKFILE_CONFIG_MISMATCH` que rompía **toda** la CI).                                                                                                  |
-| `pnpm-workspace.yaml`                  | `supportedArchitectures` en vez de ~80 overrides por plataforma; overrides de seguridad; se elimina el override `ioredis` obsoleto.                                                            |
-| `package.json`                         | `preinstall` cross-platform (`tools/enforce-pnpm.mjs`); pnpm 11.9.0.                                                                                                                           |
-| `tools/enforce-pnpm.mjs` _(nuevo)_     | Sustituye al `sh -c` que rompía Windows.                                                                                                                                                       |
-| `.prettierrc.json` _(nuevo)_           | `endOfLine: "auto"` (el gate de formato era inalcanzable en Windows).                                                                                                                          |
-| `.github/workflows/ci.yml`             | Reescrito: instalación reproducible, formato de backend **y** frontend, auditoría de deps bloqueante, typecheck del monorepo, tests de frontend, tests de integración, hardening del workflow. |
-| `artifacts/api-server/package.json`    | `nodemailer@^10.0.6`, `openapi-types`, `vitest@^4.1.12`.                                                                                                                                       |
-| `artifacts/radar-vecinal/package.json` | `@capacitor/push-notifications@^7.0.7`, `vitest@^4.1.12`.                                                                                                                                      |
-| `lib/api-spec/package.json`            | `orval@^8.22.0`.                                                                                                                                                                               |
-| `package.json` (root)                  | `@capacitor/*@^7.6.9`.                                                                                                                                                                         |
-
-### Tests
-
-| Archivo                                                 | Cambio                                                       |
-| ------------------------------------------------------- | ------------------------------------------------------------ |
-| `src/__tests__/db-timezone.test.ts` _(nuevo)_           | Invariante de zona horaria de la sesión.                     |
-| `src/__tests__/cors.test.ts`                            | Test de que producción no admite los orígenes de desarrollo. |
-| `src/__tests__/maintenance.test.ts`                     | Cadena de mocks reescrita (prettier era inestable con ella). |
-| `src/__tests__/auth.test.ts`, `middleware-auth.test.ts` | Tipado del `jwtUser`.                                        |
-
-### Formato
-
-Se formatearon con Prettier los **79 archivos del frontend** que nunca se
-habían formateado (el gate de CI solo cubría el backend). Cambio 100%
-cosmético, en commit propio.
+El detalle con evidencia está en `ITERATION-002.md`.
 
 ---
 
@@ -108,42 +88,53 @@ cosmético, en commit propio.
 
 - [ ] E2E de navegador (Playwright): registro → login → reporte con foto →
       recepción administrativa → cambio de estado → cierre de sesión.
+- [ ] E2E del recorrido de recuperación (el token de reset no debe abrir sesión).
 - [ ] Pruebas de carga por endpoint con objetivos de latencia p95 definidos.
 - [ ] Lighthouse CI (Performance / Accessibility / Best Practices / SEO).
 - [ ] Auditoría de contraste con axe (cierra AC5 / UX-AC5).
 - [ ] Validación en dispositivo Android real (tablas admin, PWA, push).
-- [ ] Verificación de que `pnpm run codegen` (orval) no rompe el contrato
-      tras el salto de orval 8.19 → 8.22+.
+- [ ] Cobertura medida (`vitest --coverage`) y umbral mínimo.
+- [ ] Tests de contrato generados desde OpenAPI.
 
 ---
 
 ## 5. Problemas pendientes (abiertos)
 
-| #   | Problema                                                                                                                                                                                                                                                                                                                 | Severidad | Dónde                                         |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- | --------------------------------------------- |
-| 1   | La rama `claude/production-readiness-audit-3pgip6` usa `fetch("/api/...")` desnudo: en el APK nativo (origen `https://localhost`) la petición no sale del dispositivo y la UI muestra "Revisa tu correo" sin enviar nada. `MyReports` además lee el token a mano del `localStorage` (sin URL base ni refresco ante 401). | 🔴        | Rama `claude/...`, pendiente de rebase        |
-| 2   | La misma rama está 15 commits atrás: su diff **revierte** la protección `SUPER_ADMIN_CLAIM_SECRET` y el refresco de token de `main`. **No mergear tal cual** — hacer rebase de `531dac12`.                                                                                                                               | 🔴        | Git                                           |
-| 3   | El esquema usa `timestamp without time zone` en las 30 tablas. El arreglo actual alinea las tres vías de escritura, pero el esquema sigue siendo ambiguo.                                                                                                                                                                | 🟠        | `lib/db/src/schema/reports.ts`                |
-| 4   | `GET /reports/mine` y los endpoints de auth no están en el contrato OpenAPI (deriva de contrato, F4 de la auditoría previa).                                                                                                                                                                                             | 🟡        | `lib/api-spec/openapi.yaml`                   |
-| 5   | `routes/admin.ts` define un `requireSuperAdmin` local con `any`, duplicando el de `routes/auth.ts`.                                                                                                                                                                                                                      | 🔵        | `artifacts/api-server/src/routes/admin.ts:34` |
-| 6   | 6 avisos moderados y 1 bajo de dependencias, todos transitorios y sin ruta de explotación en el contexto de la app.                                                                                                                                                                                                      | 🔵        | `pnpm audit`                                  |
-| 7   | El docs OpenAPI no cubre ~60% de los endpoints reales (solo 24 paths frente a 20 ficheros de rutas).                                                                                                                                                                                                                     | 🟡        | `lib/api-spec/openapi.yaml`                   |
-| 8   | Sin objetivos de latencia p95 por endpoint ni pruebas de carga.                                                                                                                                                                                                                                                          | 🟡        | —                                             |
+| #   | Problema                                                                                                                                                                | Severidad | Dónde                                    |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------- |
+| 1   | `drizzle-kit push` borra los 32 índices que las migraciones crean y el esquema no declara. Un `push` contra una base real degradaría el rendimiento en silencio (R-19). | 🟠        | `lib/db/src/schema/*`                    |
+| 2   | El token de sesión sigue en `localStorage` (XSS) y sin cookies HttpOnly/CSRF (R-05).                                                                                    | 🟠        | `artifacts/radar-vecinal/src/contexts`   |
+| 3   | El aislamiento multi-tenant depende de que cada ruta llame a los helpers (R-06).                                                                                        | 🟠        | `artifacts/api-server/src/routes`        |
+| 4   | `0034` toma un lock por tabla al convertir a `timestamptz`; no está medido con el volumen de producción (R-18).                                                         | 🟡        | `lib/db/migrations/0034_timestamptz.sql` |
+| 5   | Sin E2E de navegador (R-09).                                                                                                                                            | 🟡        | —                                        |
+| 6   | Sin métricas de rendimiento ni objetivos p95 (R-10).                                                                                                                    | 🟡        | —                                        |
+| 7   | Accesibilidad sin evidencia objetiva (R-11).                                                                                                                            | 🟡        | —                                        |
+| 8   | `/api-docs` se sirve en producción (R-17).                                                                                                                              | 🟡        | `artifacts/api-server/src/app.ts`        |
+| 9   | El OpenAPI cubre ~45 % de los endpoints (R-07, mitigado).                                                                                                               | 🟡        | `lib/api-spec/openapi.yaml`              |
+| 10  | 4 avisos moderados y 1 bajo en dependencias de producción (R-14).                                                                                                       | 🔵        | `pnpm audit`                             |
+| 11  | `routes/admin.ts` define un `requireSuperAdmin` local con `any`, duplicando el de `routes/auth.ts`.                                                                     | 🔵        | `routes/admin.ts:34`                     |
+| 12  | El journal de Drizzle sigue incompleto (3 de 37); el preflight lo detecta, pero no lo arregla (R-20).                                                                   | 🔵        | `lib/db/migrations/meta/_journal.json`   |
 
 ---
 
 ## 6. Próxima tarea
 
-**Ciclo 002 — foco: integración de la rama de recuperación de contraseña +
-mapa y alertas.**
+**Ciclo 003 — foco: cerrar las altas restantes y empezar a medir.**
 
-1. Rebase de `531dac12` sobre `main` en una rama nueva.
-2. Sustituir el `fetch` desnudo por `customFetch` en `PasswordRecovery`,
-   `ResetPassword` y `MyReports` (corrige el fallo silencioso en Android).
-3. Añadir `GET /reports/mine`, `/auth/forgot-password` y `/auth/reset-password`
-   al contrato OpenAPI y regenerar.
-4. Migración a `timestamp with time zone` con script reversible y prueba.
-5. Playwright E2E del recorrido ciudadano.
+Orden propuesto:
+
+1. **R-19**: declarar los 32 índices en el esquema Drizzle (`index()` con los
+   mismos nombres) y comprobar que `push` sobre una base migrada dice
+   `No changes detected`. Si es inviable, añadir un guardia que impida `push`
+   sobre una base con tablas.
+2. **R-05**: migrar la sesión a cookies HttpOnly + CSRF (afecta a web y APK;
+   requiere coordinar con Capacitor).
+3. **R-18**: medir el tiempo de `0034` con un volumen representativo; si excede
+   lo aceptable, convertir por lotes.
+4. **Cobertura**: instalar `@vitest/coverage-v8`, medir y fijar un umbral.
+5. **E2E**: Playwright para los flujos críticos.
+6. **R-14**: overrides de `qs`, `uuid`, `protobufjs` con verificación completa.
+7. **R-17**: montar `/api-docs` solo fuera de producción.
 
 ---
 
@@ -158,31 +149,30 @@ corepack pnpm run typecheck
 corepack pnpm exec prettier --check "artifacts/api-server/src/**/*.ts" \
   "artifacts/radar-vecinal/src/**/*.{ts,tsx}" \
   "artifacts/radar-vecinal/__tests__/**/*.{ts,tsx}" \
-  "lib/**/*.ts" "tools/*.mjs" --no-error-on-unmatched-pattern
+  "lib/**/*.ts" "tools/*.mjs" "run_all_migrations.js" --no-error-on-unmatched-pattern
 corepack pnpm --filter @workspace/api-server run test
 corepack pnpm --filter @workspace/radar-vecinal run test
 corepack pnpm --filter @workspace/api-server run build
 corepack pnpm --filter @workspace/radar-vecinal run build
 corepack pnpm audit --prod --audit-level high
-corepack pnpm peers check
 ```
 
 ### Base de datos local para los tests
 
-El Postgres 17 local (`C:\Program Files\PostgreSQL\17`) sirve con el usuario
-`postgres`. Base de datos de test dedicada: **`radarvecinal_test`** (creada
-para esta auditoría; no contiene datos de otros proyectos).
+Postgres 17 local (`C:\Program Files\PostgreSQL\17`), usuario `postgres`.
 
 ```bash
-# Recrear la base de test desde cero
-PGPASSWORD=<password> psql -U postgres -h 127.0.0.1 -p 5432 -c "DROP DATABASE radarvecinal_test;"
+# Base de test (esquema por push)
 PGPASSWORD=<password> psql -U postgres -h 127.0.0.1 -p 5432 -c "CREATE DATABASE radarvecinal_test;"
-
-# Aplicar el esquema
 $env:DATABASE_URL="postgresql://postgres:<password>@127.0.0.1:5432/radarvecinal_test"
 corepack pnpm --filter @workspace/db run push
 
-# Ejecutar los tests con BD
+# Base para probar SOLO la cadena de migraciones (camino de producción)
+PGPASSWORD=<password> psql -U postgres -h 127.0.0.1 -p 5432 -c "CREATE DATABASE radarvecinal_mig3;"
+$env:DATABASE_URL="postgresql://postgres:<password>@127.0.0.1:5432/radarvecinal_mig3"
+node run_all_migrations.js
+
+# Tests con BD
 $env:DATABASE_URL="postgresql://postgres:<password>@127.0.0.1:5432/radarvecinal_test"
 $env:JWT_SECRET="test-secret-for-audit-cycle-001-min32"
 corepack pnpm --filter @workspace/api-server run test
@@ -191,38 +181,98 @@ corepack pnpm --filter @workspace/api-server run test
 > `JWT_SECRET` debe tener **al menos 32 caracteres**: el servidor lo exige al
 > arrancar (`throw` si falta).
 
+> En PowerShell, `psql -c "SET ...; SELECT ..."` no devuelve el SELECT. Usar
+> `$env:PGOPTIONS="-c timezone=..."` y una sentencia por `-c`.
+
 ---
 
 ## 8. Bloqueos
 
-| Bloqueo                                                                   | Impacto                                                 | Cómo desbloquearlo                                                       |
-| ------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Sin credenciales de producción (Neon, Cloudinary, Firebase, SMTP, Render) | No se puede validar en el entorno real                  | Pedir acceso o un entorno de staging                                     |
-| Sin `gh` (GitHub CLI)                                                     | No se pueden abrir PRs desde la CLI                     | `winget install GitHub.cli` o usar la web                                |
-| Sin Lighthouse/Playwright instalados                                      | No hay métricas de rendimiento ni E2E                   | `corepack pnpm add -D -w @playwright/test` (y descargar los navegadores) |
-| `pnpm install` en Windows requiere `corepack pnpm`                        | El `pnpm` global es 9.15.4 y no soporta el lockfile v11 | Usar `corepack pnpm` o actualizar el global                              |
-| `sh` no existe en el PATH de Windows                                      | Los scripts con `sh -c` fallan                          | Ya resuelto para `preinstall`; revisar cualquier script nuevo            |
+| Bloqueo                                                                   | Impacto                                             | Cómo desbloquearlo                                                       |
+| ------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
+| Sin credenciales de producción (Neon, Cloudinary, Firebase, SMTP, Render) | No se puede validar en el entorno real              | Pedir acceso o un entorno de staging                                     |
+| Sin `gh` (GitHub CLI)                                                     | Los PRs se abren por API REST con el token de `git` | `winget install GitHub.cli` o usar la web                                |
+| Sin Lighthouse/Playwright instalados                                      | No hay métricas de rendimiento ni E2E               | `corepack pnpm add -D -w @playwright/test` (y descargar los navegadores) |
+| `pnpm` global 9.15.4                                                      | No soporta el lockfile v11                          | Usar `corepack pnpm`                                                     |
+| PowerShell 5.1 estropea el UTF-8 al hacer piping                          | Los scripts con acentos fallan al imprimir          | Escribir a archivo con `[System.IO.File]::ReadAllText(..., UTF8)`        |
 
 ---
 
-## 9. Riesgos conocidos
+## 9. Riesgos conocidos y decisiones
 
-1. **El arreglo de zona horaria alinea las tres vías, pero el esquema sigue
-   usando `timestamp without time zone`.** Si alguien configura la sesión de
-   Postgres fuera de UTC por fuera del pool (p. ej. un `ALTER DATABASE`), el
-   bug vuelve. El test `db-timezone.test.ts` lo detecta.
-2. **`process.env.TZ = "UTC"` debe ejecutarse antes del primer `Date`.** Está
-   en el primer import de `app.ts` e `index.ts`; si alguien lo mueve, hay que
-   volver a comprobarlo.
-3. **El salto de orval (8.19 → 8.22+) puede cambiar el código generado.** El
-   `codegen` no se ejecuta en CI, así que el contrato commiteado no se
-   regenera solo; hay que revisarlo a mano la próxima vez que se use.
-4. **El salto de vitest 3 → 4 cambia el comportamiento de `mockReset`.** La
-   suite pasa, pero conviene vigilarla al añadir mocks nuevos.
-5. **El formateo masivo del frontend** (79 archivos) ensucia el historial de
-   `git blame`. Está en un commit propio para poder revertirlo sin arrastrar
-   los cambios funcionales.
+1. **`timestamptz` mantiene `TZ=UTC` como defensa en profundidad.** Ya no es la
+   única protección, pero `CURRENT_DATE`/`date_trunc` y columnas legacy siguen
+   dependiendo de la sesión.
+2. **No fusionar los PRs sin autorización.** El merge dispara Render.
+3. **`drizzle-kit push` no es el camino de producción.** Producción usa
+   `run_all_migrations.js`; el CI usa `push` solo sobre base vacía. Con R-19
+   abierto, nunca ejecutar `push` contra una base con datos.
+4. **Las migraciones se reaplican enteras en cada despliegue.** Cualquier
+   migración nueva tiene que ser idempotente (`IF NOT EXISTS`, `DO $$`, etc.).
+5. **El fail-fast del runner depende de SQLSTATE.** Si se añade una migración que
+   espera un error benigno distinto, hay que ampliar `BENIGN_CODES` en
+   `run_all_migrations.js`; nunca comparar el texto.
+6. **El cliente generado por orval cambió la cabecera** (`Generated by orval
+v8.19.0` → `Generated by orval`) en ~50 archivos: es cosmético, no revertir a
+   mano.
 
 ---
 
-_Última actualización: 2026-10-21, tras el cierre del ciclo 001._
+## 10. Punto exacto de continuación (handoff)
+
+**Estado al guardar la sesión:** ciclo 002 cerrado, todo commiteado y empujado.
+
+| Elemento             | Valor                                                                    |
+| -------------------- | ------------------------------------------------------------------------ |
+| Rama                 | `feature/audit-cycle-002` (origin, sin cambios locales)                  |
+| HEAD (código)        | `26a82ead` · `fix(db): 0035 comprueba la FK por columna y no por nombre` |
+| HEAD (documentación) | el commit que añade este apartado; no toca código                        |
+| Base                 | `feature/audit-cycle-001` @ `4e02cbe1` (PR #35, sin fusionar)            |
+| PR                   | #36, cuerpo actualizado, **no fusionar sin autorización**                |
+| CI del código        | run `39600787424` en `26a82ead` → **9/9 jobs success**                   |
+| `main`               | intacto en `cf366234`                                                    |
+| Árbol de trabajo     | limpio tras commitear este documento                                     |
+
+**Bases locales**
+
+| Base                | Contenido                                                        | Estado                                         |
+| ------------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
+| `radarvecinal_test` | Esquema aplicado con `drizzle-kit push` + columnas de cobranding | Lista para tests                               |
+| `radarvecinal_mig3` | Solo `run_all_migrations.js` (37 migraciones)                    | 29 tablas, 51 `timestamptz`, 1 FK, idempotente |
+| `radarvecinal_mig`  | Migraciones + push (usada para comparar índices)                 | Desechable                                     |
+| `radarvecinal_mig2` | Migraciones + push (comparación de `NOT NULL`)                   | Desechable                                     |
+
+**Comprobaciones que ya están hechas y no hay que repetir**
+
+- CI 9/9 en el HEAD, incluido el job `migrations`.
+- Typecheck, Prettier, 28/180 backend, 5/21 frontend, ambos builds y
+  `pnpm audit --prod --audit-level high` en verde.
+- Cadena de migraciones desde cero e idempotente; epoch preservado.
+- `drizzle-kit push` contra la base migrada: `No changes detected`.
+- Preflight del journal de Drizzle: exit 1 con las 34 migraciones que faltan.
+
+**Lo que queda para el siguiente ciclo (003)**
+
+1. **R-19** (alta): declarar los 32 índices en el esquema o bloquear `push`
+   sobre bases con datos. Es la primera tarea (3.1/3.2 en `WORK_PLAN.md`).
+2. **R-06** (alta): middleware de aislamiento por defecto + test que recorra las
+   rutas.
+3. **R-18** (media): medir el lock de `0034` con volumen representativo.
+4. Cobertura medida y Playwright E2E.
+5. R-14 (4 moderados) y R-17 (`/api-docs` en producción).
+
+**Si retomas y algo no cuadra**
+
+```bash
+git log --oneline -5          # HEAD debe ser 26a82ead o posterior
+git status                    # debe estar limpio
+corepack pnpm install --frozen-lockfile
+corepack pnpm run typecheck
+```
+
+Si el CI del HEAD no aparece en verde, mirar el run `39600787424` y comparar con
+el estado local antes de tocar nada.
+
+---
+
+_Última actualización: 2026-10-21, tras el cierre del ciclo 002._

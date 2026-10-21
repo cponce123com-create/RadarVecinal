@@ -3,8 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+  # Sin filtro de rama base: los PR apilados (por ejemplo
+  # feature/audit-cycle-002 -> feature/audit-cycle-001) también tienen que
+  # pasar el CI. Antes solo se ejecutaba contra main y un ciclo apilado podía
+  # llegar a revisión sin ninguna verificación.
   pull_request:
-    branches: [main]
 
 # Solo lectura: ningún job necesita escribir en el repo.
 permissions:
@@ -70,6 +73,7 @@ jobs:
             "artifacts/radar-vecinal/__tests__/**/*.{ts,tsx}" \
             "lib/**/*.ts" \
             "tools/*.mjs" \
+            "run_all_migrations.js" \
             --no-error-on-unmatched-pattern
 
   audit:
@@ -87,8 +91,8 @@ jobs:
       # El gate BLOQUEA con vulnerabilidades altas o críticas en las
       # dependencias de PRODUCCIÓN (lo que de verdad llega al usuario).
       # El informe completo (incluidas las de herramientas de build) se
-      # publica como artefacto sin romper el pipeline: son打击 por
-      # herramienta local, sin superficie de ataque en producción.
+      # publica como artefacto sin romper el pipeline: son de herramienta
+      # local, sin superficie de ataque en producción.
       - name: Auditoría de dependencias de producción
         run: pnpm audit --prod --audit-level high
       - name: Informe completo de auditoría
@@ -203,10 +207,70 @@ jobs:
           path: artifacts/api-server/test-results/**
           if-no-files-found: ignore
 
+  # Producción aplica `run_all_migrations.js` en cada despliegue, NO
+  # `drizzle-kit push`. Este job recorre exactamente ese camino sobre una base
+  # vacía: si una tabla o una columna solo existe en el esquema Drizzle (pasó
+  # con `user_consents`), aquí se ve, en vez de aparecer como un error en la
+  # primera escritura real.
+  migrations:
+    name: 🧱 Migraciones desde cero
+    runs-on: ubuntu-latest
+    needs: [install]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: radarvecinal_mig
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/radarvecinal_mig
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Aplicar la cadena completa
+        run: node run_all_migrations.js
+      # Todas las migraciones son idempotentes porque se reaplican enteras en
+      # cada despliegue. Si una deja de serlo, el segundo pase lo delata.
+      - name: Reaplicar (idempotencia)
+        run: node run_all_migrations.js
+      - name: Comprobar el esquema resultante
+        run: |
+          set -euo pipefail
+          q() { psql "$DATABASE_URL" -tAc "$1"; }
+
+          TABLES=$(q "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")
+          TZ=$(q "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND data_type='timestamp with time zone'")
+          CONSENTS=$(q "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='user_consents'")
+          BRANDING=$(q "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='districts' AND column_name IN ('brand_name','logo_url','primary_color')")
+          NOTNULL=$(q "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND is_nullable='NO' AND ((table_name='community_flags' AND column_name='created_at') OR (table_name='user_strikes' AND column_name IN ('created_at','activo')) OR (table_name='users' AND column_name IN ('login_attempts','trust_score')))")
+
+          echo "tablas=$TABLES timestamptz=$TZ user_consents=$CONSENTS cobranding=$BRANDING not_null=$NOTNULL"
+
+          # Suelo, no igualdad exacta: las migraciones futuras pueden añadir más.
+          test "$TABLES" -ge 29
+          test "$TZ" -ge 51
+          # Regresiones concretas que ya ocurrieron (migraciones 0035 y 0036).
+          test "$CONSENTS" -eq 1
+          test "$BRANDING" -eq 3
+          test "$NOTNULL" -eq 5
+
   build:
     name: 📦 Build (API + Frontend)
     runs-on: ubuntu-latest
-    needs: [typecheck, test-api, test-frontend, test-integration]
+    needs: [typecheck, test-api, test-frontend, test-integration, migrations]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

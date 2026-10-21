@@ -36,6 +36,10 @@ export interface DistrictInfo {
   centerLng?: number | null;
   defaultZoom?: number | null;
   isActive: boolean;
+  /** Cobranding del distrito (migración 0008). Opcionales: una BD antigua puede no tenerlos. */
+  brandName?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
 }
 
 interface DistrictContextValue {

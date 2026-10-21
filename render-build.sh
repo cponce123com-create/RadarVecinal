@@ -11,10 +11,17 @@ set -euo pipefail
 PNPM="corepack pnpm"
 
 echo "=== 1. pnpm install ==="
-$PNPM install --no-frozen-lockfile
+# --frozen-lockfile: el despliegue instala EXACTAMENTE el lockfile revisado en
+# CI. Antes usaba --no-frozen-lockfile, que permite resolver versiones nuevas
+# durante el build de producción: el artefacto desplegado podía no ser el que
+# pasó los tests.
+$PNPM install --frozen-lockfile
 
 echo "=== 1.5. Migraciones de BD ==="
-# Ejecuta todas las migraciones SQL pendientes (0000 a 0015)
+# Aplica TODAS las migraciones de lib/db/migrations (idempotentes, se
+# reejecutan en cada despliegue). Si alguna falla, el script termina con código
+# distinto de cero y Render cancela el despliegue: no se sirve tráfico con un
+# esquema a medias.
 # Requiere DATABASE_URL configurada en las variables de entorno de Render
 node run_all_migrations.js
 

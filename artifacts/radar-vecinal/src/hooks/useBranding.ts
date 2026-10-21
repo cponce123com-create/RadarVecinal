@@ -16,8 +16,8 @@ export default function useBranding() {
   useEffect(() => {
     if (!districtInfo) return;
 
-    const color = (districtInfo as any).primaryColor || "#3b82f6";
-    const brandName = (districtInfo as any).brandName || "Radar Vecinal";
+    const color = districtInfo.primaryColor || "#3b82f6";
+    const brandName = districtInfo.brandName || "Radar Vecinal";
 
     // Aplicar color primario como CSS custom property
     document.documentElement.style.setProperty("--brand-primary", color);

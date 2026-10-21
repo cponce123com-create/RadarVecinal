@@ -1,7 +1,7 @@
 # Scorecard de calidad — Radar Vecinal
 
 > Metodología, pesos y puntuaciones de las 25 áreas de la auditoría continua.
-> **Ciclo 001** · 2026-10-21 · Base `main@cf366234` · Rama `feature/audit-cycle-001`
+> **Ciclo 002** · 2026-10-21 · Base `main@cf366234` · Rama `feature/audit-cycle-002` (apilada sobre `feature/audit-cycle-001`)
 
 ---
 
@@ -48,86 +48,92 @@ Global = (Σ las 25 áreas) / 25
 
 ## 2. Puntuación por área
 
-|   # | Área                              | Antes | Después |    Δ | Evidencia principal del ciclo 001                                                                                                                                                                                                        |
-| --: | --------------------------------- | ----: | ------: | ---: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|   1 | Arquitectura general              |   8.0 |     8.4 | +0.4 | Monorepo coherente; separación rutas/lib/frontend correcta. Pendiente: modularizar `routes/reports.ts` (1.762 líneas) y `routes/live.ts` (1.193).                                                                                        |
-|   2 | Organización del código           |   8.2 | **8.8** | +0.6 | 82 `as any` eliminados del backend; `JwtUser` tipado; `currentUser()`; 79 archivos del frontend formateados (antes el gate de formato no los cubría).                                                                                    |     | 3   | Backend y API | 8.1 | **8.9** | +0.8 | `requireAuth` revalida contra BD (isActive + suspensión); `checkTenant`/`getDistrictId` centralizados; validación Zod uniforme; error handler global. |
-|   4 | Frontend                          |   8.0 |     8.5 | +0.5 | React Query con `staleTime`; code-splitting por vendor; estados de carga/error. Pendiente: el `fetch` desnudo de la rama de recuperación de contraseña rompe el APK nativo.                                                              |
-|   5 | Diseño UI/UX                      |   8.5 |     8.5 |    = | Sistema de diseño coherente (tokens HSL, shadcn/ui); bottom-nav móvil; safe-area. **NO VERIFICADO**: sin auditoría visual ni de contraste con axe.                                                                                       |
-|   6 | Panel administrativo              |   8.0 |     8.0 |    = | Tabs, filtros, paginación en reportes y usuarios. Pendiente: sin filtros en visores, sin acciones masivas, sin export. **NO VERIFICADO**: sin prueba de la consistencia backend↔frontend.                                                |
-|   7 | Autenticación y autorización      |   7.8 | **8.7** | +0.9 | `SUPER_ADMIN_CLAIM_SECRET` fail-closed; refresh tokens con hash SHA-256 en BD; `requireAuth` revalida `isActive`/`suspendedUntil`; RBAC de 4 niveles en `lib/roles.ts`. Pendiente: tokens en `localStorage` (XSS), sin cookies HttpOnly. |
-|   8 | Ciberseguridad                    |   7.5 | **9.0** | +1.5 | CSP sin `unsafe-inline` en scripts; CORS sin fallback de desarrollo en producción; rate limiting por endpoint; helmet; `proxy-addr` parcheado (evita evadir el rate limit de login).                                                     |
-|   9 | Base de datos                     |   7.6 | **9.0** | +1.4 | Sesión UTC (bug crítico de servicios en vivo); territorio derivado del catálogo; 30 tablas con FK e índices; migraciones reproducibles. Pendiente: `timestamp without time zone` en el esquema.                                          |
-|  10 | Aislamiento entre municipalidades |   8.5 |     8.5 |    = | `checkTenant` + `getDistrictId` + tests `tenant-isolation`/`rls-tenant-isolation`; RLS como defensa estática. Pendiente: la mayoría de rutas resuelven el tenant a mano.                                                                 |
-|  11 | Reportes ciudadanos               |   8.3 |     8.6 | +0.3 | Categorías sensibles con anonimato forzado; confirmaciones `kind` separadas; `GET /reports/mine` pendiente de integrar; sin autoguardado de borrador.                                                                                    |
-|  12 | Geolocalización y mapas           |   8.4 |     8.4 |    = | Leaflet con teselas de Esri (sin clave); `LocationPicker` con mapa + geocoder + GPS; caché de geocodificación con TTL y timeout. Pendiente: sin agrupamiento de marcadores, sin heatmap.                                                 |
-|  13 | Alertas y emergencias             |   8.0 | **9.0** | +1.0 | **Bug crítico corregido**: las emisiones no aparecían en el mapa y cada ping duplicaba la transmisión. Ciclo de vida con `status`/`resolved_at`/`expires_at`; SSE.                                                                       |
-|  14 | Personas desaparecidas            |   8.2 |     8.2 |    = | Contacto público con decisión de diseño documentada; `reported_by_id` para autoría; soft-delete con `audit_log`. Pendiente: sin verificación de publicaciones, sin flujo de moderación específico.                                       |
-|  15 | Notificaciones                    |   8.0 |     8.0 |    = | FCM con canal Android; preferencias; proximity-push con cooldown de 8 min. Pendiente: sin bandeja de preferencias por categoría, sin deduplicación probada.                                                                              |
-|  16 | Android y PWA                     |   7.5 |     8.3 | +0.8 | Capacitor 7.6.9; PWA con service worker (44 entradas precacheadas) y `autoUpdate`; `supportedArchitectures` desbloquea el build en Windows. Pendiente: sin E2E en dispositivo, sin verificación de la app nativa.                        |
-|  17 | Rendimiento                       |   8.2 |     8.4 | +0.2 | Bundle de la app 287 kB (82.7 kB gzip) + vendors cacheables; `esbuild.pure` elimina `console.log` del bundle; caché en memoria en `/stats` y `/districts`. **NO VERIFICADO**: sin Lighthouse ni p95 medidos.                             |
-|  18 | Escalabilidad                     |   8.0 |     8.5 | +0.5 | Pool de 3 conexiones (Neon free tier); índices de rendimiento (migración 0021); sin Redis/Kafka; servicios en vivo con muestreo de breadcrumbs (≤5.000 puntos).                                                                          |
-|  19 | Accesibilidad                     |   7.8 |     8.0 | +0.2 | `aria-label`, `aria-current`, `aria-expanded`, "Saltar al contenido", sin `maximum-scale` (zoom permitido), focus visible. **NO VERIFICADO**: contraste de micro-labels `text-[9px]` (AC5) y `:focus-visible`.                           |
-|  20 | SEO y metadatos                   |   9.0 |     9.0 |    = | Title y description descriptivos, Open Graph, Twitter Card, `lang="es"`, `theme-color`, manifest PWA.                                                                                                                                    |
-|  21 | Pruebas automatizadas             |   7.0 | **8.6** | +1.6 | 26 suites backend / 173 tests contra Postgres real + 4 suites frontend / 17 tests; suite que fallaba de forma intermitente arreglada; test de regresión de zona horaria. Pendiente: sin E2E de navegador, sin cobertura medida.          |
-|  22 | CI/CD y despliegue                |   5.0 | **8.8** | +3.8 | El pipeline **estaba roto** (lockfile incompatible → los 6 jobs fallaban). Rehecho: instalación reproducible, formato completo, auditoría bloqueante, typecheck del monorepo, tests de frontend, tests de integración, hardening.        |
-|  23 | Documentación                     |   8.0 | **9.0** | +1.0 | README completo; `docs/AUDITORIAS.md` consolidado; `docs/SERVICIOS_EN_VIVO.md`; nuevos `docs/audit/*`. Pendiente: el OpenAPI no cubre ~60% de los endpoints.                                                                             |
-|  24 | Privacidad y protección de datos  |   8.0 |     8.4 | +0.4 | Consentimiento versionado en BD (`user_consents`); PII proyectada (contacto solo al dueño / backoffice); alias público; `Ley 29733` citada. Pendiente: sin política formal de retención ni exercise de derechos ARCO.                    |
-|  25 | Observabilidad y mantenimiento    |   7.8 |     8.4 | +0.6 | Logs estructurados con pino + `req.id`; healthcheck; tasks de mantenimiento; `audit_log` en las operaciones sensibles. Pendiente: sin métricas ni trazas, sin alertas operativas.                                                        |
+|   # | Área                              | Ciclo 001 | Ciclo 002 |    Δ | Evidencia del ciclo 002                                                                                                                                                                                                                                                                                       |
+| --: | --------------------------------- | --------: | --------: | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|   1 | Arquitectura general              |       8.4 |       8.5 | +0.1 | La cadena de migraciones pasa a ser el camino de despliegue **verificado**: job de CI que la aplica desde cero y comprueba el esquema resultante. Pendiente: `routes/reports.ts` (1.762 líneas) y `routes/live.ts` (1.193).                                                                                   |
+|   2 | Organización del código           |       8.8 |       8.9 | +0.1 | `as any` eliminados en `useBranding` y `/reports/mine`; `DistrictInfo` y el payload del token de reset tipados; `ApiError`/`ResponseParseError` exportados para distinguir error HTTP de fallo de red. Pendiente: archivos de rutas enormes.                                                                  |
+|   3 | Backend y API                     |       8.9 |       9.0 | +0.1 | Tres endpoints nuevos con validación Zod, rate limit y contrato OpenAPI; `/reports/mine` usa `currentUser()` y valida el `sub`. Pendiente: versionado del contrato y modularización.                                                                                                                          |
+|   4 | Frontend                          |       8.5 |       8.8 | +0.3 | `customFetch` en recuperar/restablecer/mis reportes; los fallos de red y el 429 ya se muestran (antes: "Revisa tu correo" con la petición perdida); el cobranding por distrito vuelve a funcionar (columnas restauradas); test de Capacitor.                                                                  |
+|   5 | Diseño UI/UX                      |       8.5 |       8.5 |    = | Sin cambios visuales. **NO VERIFICADO**: sigue sin auditoría de contraste con axe ni revisión visual.                                                                                                                                                                                                         |
+|   6 | Panel administrativo              |       8.0 |       8.0 |    = | Sin cambios. **NO VERIFICADO**: sin prueba de consistencia backend↔frontend ni auditoría de la tabla en móvil.                                                                                                                                                                                                |
+|   7 | Autenticación y autorización      |       8.7 |       9.2 | +0.5 | Token de recuperación separado del de sesión (`purpose: "access"`): el enlace del correo ya no sirve como credencial. Límite doble en `forgot-password` (10/15 min por IP, 3/hora por correo). Envío sin esperar (sin oráculo de tiempo). URL de reset nunca en logs de producción. Single-use atado al hash. |
+|   8 | Ciberseguridad                    |       9.0 |       9.1 | +0.1 | Cerrados: uso del token de reset como sesión, fuga del enlace en logs y amplificación de correos con enumeración por tiempo. Pendiente: 4 avisos moderados (R-14), CSP con nonce, `/api-docs` público (R-17).                                                                                                 |
+|   9 | Base de datos                     |       9.0 |       9.4 | +0.4 | 51 columnas `timestamptz` con prueba de epoch; migración idempotente + revert; `user_consents` y 5 `NOT NULL` alineados; la cadena desde cero reproduce el esquema (29 tablas / 51 timestamptz) y se verifica en CI; el runner falla de verdad. **Pendiente**: R-19 y R-20, `EXPLAIN` sobre datos reales.     |
+|  10 | Aislamiento entre municipalidades |       8.5 |       8.5 |    = | Sin cambios estructurales; se añade cobertura de aislamiento de `/reports/mine`. Pendiente: middleware obligatorio en vez de disciplina por ruta (R-06).                                                                                                                                                      |
+|  11 | Reportes ciudadanos               |       8.6 |       8.8 | +0.2 | `GET /reports/mine` está en el contrato OpenAPI, lo consume `MyReports` y su aislamiento está probado. Pendiente: autoguardado de borrador y prevención de duplicados.                                                                                                                                        |
+|  12 | Geolocalización y mapas           |       8.4 |       8.4 |    = | Sin cambios. Pendiente: agrupamiento de marcadores, heatmap y filtros.                                                                                                                                                                                                                                        |
+|  13 | Alertas y emergencias             |       9.0 |       9.0 |    = | La causa raíz del bug de emisiones queda cerrada en el esquema (`timestamptz`), sin cambios funcionales nuevos. Pendiente: idempotencia explícita y cola de reintentos.                                                                                                                                       |
+|  14 | Personas desaparecidas            |       8.2 |       8.2 |    = | Sin cambios. Pendiente: verificación de publicaciones y flujo de moderación específico.                                                                                                                                                                                                                       |
+|  15 | Notificaciones                    |       8.0 |       8.0 |    = | Sin cambios. Pendiente: preferencias por categoría, deduplicación y bandeja histórica.                                                                                                                                                                                                                        |
+|  16 | Android y PWA                     |       8.3 |       8.4 | +0.1 | Test de URL base y token con `window.Capacitor` definido (4 casos); las pantallas nuevas ya no rompen dentro del APK. Pendiente: E2E en dispositivo real (R-09).                                                                                                                                              |
+|  17 | Rendimiento                       |       8.4 |       8.4 |    = | Sin medición nueva. **NO VERIFICADO**: sin Lighthouse ni p95. Nota: R-19 (32 índices que `push` borraría) afecta a esta área si se ejecuta `push` contra una base real.                                                                                                                                       |
+|  18 | Escalabilidad                     |       8.5 |       8.5 |    = | Sin cambios. Pendiente: objetivos de p95 por endpoint y pruebas de carga.                                                                                                                                                                                                                                     |
+|  19 | Accesibilidad                     |       8.0 |       8.0 |    = | Sin cambios. **NO VERIFICADO**: contraste de micro-labels y `:focus-visible` siguen sin auditoría WCAG.                                                                                                                                                                                                       |
+|  20 | SEO y metadatos                   |       9.0 |       9.0 |    = | Sin cambios. Pendiente: sitemap, `robots.txt` y schema.org.                                                                                                                                                                                                                                                   |
+|  21 | Pruebas automatizadas             |       8.6 |       8.8 | +0.2 | 28 suites / 180 tests backend (antes 26/173) y 5 suites / 21 tests frontend (antes 4/17). Nuevos: aislamiento de `/reports/mine`, token de reset que no sirve como sesión, rate limit 429, Capacitor y regresión de cobranding. Pendiente: E2E y cobertura medida.                                            |
+|  22 | CI/CD y despliegue                |       8.8 |       9.2 | +0.4 | 9 jobs. Nuevo job de migraciones desde cero + idempotencia + aserciones de esquema. Los PR apilados ya se verifican. El build de producción usa `--frozen-lockfile`. Una migración rota aborta el despliegue (exit 1). Pendiente: staging/CD, smoke tests post-deploy y rollback automatizado.                |
+|  23 | Documentación                     |       9.0 |       9.1 | +0.1 | OpenAPI con recuperación de contraseña y "mis reportes"; cliente regenerado; `docs/audit/*` al día con evidencia. Pendiente: ~55 % de endpoints fuera del contrato y runbooks de operación.                                                                                                                   |
+|  24 | Privacidad y protección de datos  |       8.4 |       8.6 | +0.2 | `user_consents` la crea una migración: en una base nueva el registro ya puede guardar el consentimiento (antes fallaba). El enlace de reset no se escribe en logs de producción. `/reports/mine` solo devuelve datos propios. Pendiente: retención y derechos ARCO.                                           |
+|  25 | Observabilidad y mantenimiento    |       8.4 |       8.5 | +0.1 | El runner de migraciones deja de tragarse errores: resumen, código de salida 1 y clasificación por SQLSTATE (independiente del idioma del servidor). Job de CI dedicado. Pendiente: métricas, trazas y alertas operativas.                                                                                    |
 
 ---
 
 ## 3. Resultado global
 
-|                                    |           Antes |       Después |
-| ---------------------------------- | --------------: | ------------: |
-| **GLOBAL** (media de 25 áreas)     |   **7.90 / 10** | **8.56 / 10** |
-| Áreas por debajo de 9.8            |         25 / 25 |   **25 / 25** |
-| Áreas por debajo de 9.0            |              13 |             8 |
-| Vulnerabilidades críticas abiertas |  1 (+14 en dev) |         **0** |
-| Vulnerabilidades altas abiertas    | 33 (+18 en dev) |         **0** |
+|                                    |     Ciclo 001 |     Ciclo 002 |
+| ---------------------------------- | ------------: | ------------: |
+| **GLOBAL** (media de 25 áreas)     | **8.56 / 10** | **8.67 / 10** |
+| Áreas por debajo de 9.8            |       25 / 25 |       25 / 25 |
+| Áreas por debajo de 9.0            |            20 |            17 |
+| Vulnerabilidades críticas abiertas |             0 |         **0** |
+| Vulnerabilidades altas abiertas    |             0 |         **0** |
 
-### Distribución tras el ciclo 001
+> Corrección respecto al ciclo 001: la tabla anterior decía «8 áreas por debajo
+> de 9.0» y «7 áreas en 9.0–10», pero las puntuaciones de esa misma tabla daban
+> 20 y 5. Recalculado desde los valores, no desde el texto.
 
-| Rango   | Áreas                                                                                                                                                           |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9.0–10  | Backend y API · Ciberseguridad · Base de datos · Alertas y emergencias · SEO · CI/CD · Documentación                                                            |
-| 8.5–8.9 | Organización · Frontend · Autenticación · Reportes · Escalabilidad · Pruebas · Observabilidad · Privacidad                                                      |
-| 8.0–8.4 | Arquitectura · Diseño UI/UX · Panel admin · Aislamiento · Geolocalización · Personas desaparecidas · Notificaciones · Android/PWA · Rendimiento · Accesibilidad |
+### Distribución tras el ciclo 002
+
+| Rango   | Áreas                                                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 9.0–10  | Backend y API · Autenticación · Ciberseguridad · Base de datos · Alertas · SEO · CI/CD · Documentación (8)                                  |
+| 8.5–8.9 | Arquitectura · Organización · Frontend · Diseño UI/UX · Aislamiento · Reportes · Escalabilidad · Pruebas · Privacidad · Observabilidad (10) |
+| 8.0–8.4 | Panel admin · Geolocalización · Personas desaparecidas · Notificaciones · Android/PWA · Rendimiento · Accesibilidad (7)                     |
 
 ---
 
 ## 4. Áreas que bloquean el objetivo 9.8
 
-Para declarar el objetivo alcanzado hacen falta las 25 áreas ≥ 9.8. Las que
-exigen más trabajo (ordenadas por brecha):
+Para declarar el objetivo alcanzado hacen falta las 25 áreas ≥ 9.8. Ordenadas
+por brecha:
 
-| Área                     | Actual | Brecha | Qué falta para 9.8                                                                                     |
-| ------------------------ | -----: | -----: | ------------------------------------------------------------------------------------------------------ |
-| Diseño UI/UX             |    8.5 |    1.3 | Auditoría de contraste con axe; estados vacíos en todas las pantallas; tabla admin responsive en móvil |
-| Panel administrativo     |    8.0 |    1.8 | Filtros y acciones masivas; export; verificación de consistencia backend↔frontend                      |
-| Notificaciones           |    8.0 |    1.8 | Preferencias por categoría; deduplicación; bandeja con histórico                                       |
-| Accesibilidad            |    8.0 |    1.8 | Contraste de micro-labels; `:focus-visible`; auditoría WCAG 2.2 AA con axe                             |
-| Personas desaparecidas   |    8.2 |    1.6 | Flujo de verificación de publicaciones; moderación específica; retirada rápida                         |
-| Geolocalización y mapas  |    8.4 |    1.4 | Agrupamiento de marcadores; popups informativos; filtro por tipo/estado                                |
-| Aislamiento multi-tenant |    8.5 |    1.3 | Migrar el tenant a middleware en vez de helpers en línea; cubrir con tests cada ruta nueva             |
-| Frontend                 |    8.5 |    1.3 | Corregir el `fetch` desnudo de la rama de recuperación; unificar el acceso a datos                     |
-| Reportes ciudadanos      |    8.6 |    1.2 | Autoguardado de borrador; prevención de duplicados; historial de cambios                               |
-| Autenticación            |    8.7 |    1.1 | Migrar a cookies HttpOnly + CSRF; proteger el almacenamiento en Android                                |
-| Privacidad               |    8.4 |    1.4 | Política de retención; mecanismo ARCO; minimizing de PII                                               |
-| Observabilidad           |    8.4 |    1.4 | Métricas de latencia y error; alertas; trazas                                                          |
-| Escalabilidad            |    8.5 |    1.3 | Objetivos de p95 por endpoint; pruebas de carga; caché si se pasa a >1 instancia                       |
-| Rendimiento              |    8.4 |    1.4 | Lighthouse CI; medir LCP/INP/CLS en condiciones documentadas                                           |
-| Android/PWA              |    8.3 |    1.5 | E2E en dispositivo real; verificación de la app nativa; estrategia de actualización                    |
-| Pruebas                  |    8.6 |    1.2 | E2E de navegador; cobertura medida; tests de contrato                                                  |
-| Base de datos            |    9.0 |    0.8 | Migración a `timestamptz`; `EXPLAIN ANALYZE` sobre consultas reales                                    |
-| Backend y API            |    8.9 |    0.9 | Modularizar `reports.ts`/`live.ts`; versionado del contrato; idempotencia                              |
-| Organización             |    8.8 |    1.0 | Eliminar los `any` restantes; extraer módulos grandes                                                  |
-| Ciberseguridad           |    9.0 |    0.8 | CSP con nonce; CSP de reporte; endurecer la configuración de FCM                                       |
-| Alertas y emergencias    |    9.0 |    0.8 | Idempotencia explícita; cola de reintentos; estados de entrega verificables                            |
-| Arquitectura             |    8.4 |    1.4 | Extraer capas (servicio/repositorio) en los dominios grandes                                           |
-| Documentación            |    9.0 |    0.8 | OpenAPI completo; runbooks de operación                                                                |
-| SEO                      |    9.0 |    0.8 | Sitemap; `robots.txt`; schema.org                                                                      |
+| Área                     | Ciclo 002 | Brecha | Qué falta para 9.8                                                                                     |
+| ------------------------ | --------: | -----: | ------------------------------------------------------------------------------------------------------ |
+| Panel administrativo     |       8.0 |    1.8 | Filtros y acciones masivas; export; verificación de consistencia backend↔frontend                      |
+| Notificaciones           |       8.0 |    1.8 | Preferencias por categoría; deduplicación; bandeja con histórico                                       |
+| Accesibilidad            |       8.0 |    1.8 | Contraste de micro-labels; `:focus-visible`; auditoría WCAG 2.2 AA con axe                             |
+| Personas desaparecidas   |       8.2 |    1.6 | Flujo de verificación de publicaciones; moderación específica; retirada rápida                         |
+| Geolocalización y mapas  |       8.4 |    1.4 | Agrupamiento de marcadores; popups informativos; filtro por tipo/estado                                |
+| Android/PWA              |       8.4 |    1.4 | E2E en dispositivo real; verificación de la app nativa; estrategia de actualización                    |
+| Rendimiento              |       8.4 |    1.4 | Lighthouse CI; medir LCP/INP/CLS en condiciones documentadas                                           |
+| Arquitectura             |       8.5 |    1.3 | Extraer capas (servicio/repositorio) en los dominios grandes                                           |
+| Diseño UI/UX             |       8.5 |    1.3 | Auditoría de contraste con axe; estados vacíos en todas las pantallas; tabla admin responsive en móvil |
+| Aislamiento multi-tenant |       8.5 |    1.3 | Migrar el tenant a middleware en vez de helpers en línea; cubrir con tests cada ruta nueva             |
+| Escalabilidad            |       8.5 |    1.3 | Objetivos de p95 por endpoint; pruebas de carga; caché si se pasa a >1 instancia                       |
+| Observabilidad           |       8.5 |    1.3 | Métricas de latencia y error; alertas; trazas                                                          |
+| Privacidad               |       8.6 |    1.2 | Política de retención; mecanismo ARCO; minimizing de PII                                               |
+| Frontend                 |       8.8 |    1.0 | E2E de las pantallas críticas; unificar el acceso a datos; migrar a cookies HttpOnly                   |
+| Reportes ciudadanos      |       8.8 |    1.0 | Autoguardado de borrador; prevención de duplicados; historial de cambios                               |
+| Pruebas                  |       8.8 |    1.0 | E2E de navegador; cobertura medida; tests de contrato                                                  |
+| Organización             |       8.9 |    0.9 | Eliminar los `any` restantes; extraer módulos grandes                                                  |
+| Backend y API            |       9.0 |    0.8 | Modularizar `reports.ts`/`live.ts`; versionado del contrato; idempotencia                              |
+| Alertas y emergencias    |       9.0 |    0.8 | Idempotencia explícita; cola de reintentos; estados de entrega verificables                            |
+| SEO                      |       9.0 |    0.8 | Sitemap; `robots.txt`; schema.org                                                                      |
+| Ciberseguridad           |       9.1 |    0.7 | CSP con nonce; CSP de reporte; cerrar R-14 y R-17                                                      |
+| Documentación            |       9.1 |    0.7 | OpenAPI completo; runbooks de operación                                                                |
+| Autenticación            |       9.2 |    0.6 | Migrar a cookies HttpOnly + CSRF; proteger el almacenamiento en Android (R-05)                         |
+| CI/CD                    |       9.2 |    0.6 | Staging con despliegue automático; smoke tests post-deploy; rollback verificado                        |
+| Base de datos            |       9.4 |    0.4 | Declarar los 32 índices en el esquema (R-19); journal completo (R-20); `EXPLAIN` sobre datos reales    |
 
 ---
 
@@ -136,7 +142,8 @@ exigen más trabajo (ordenadas por brecha):
 | Ciclo    | Fecha      |   Global | Críticas | Altas | Áreas ≥ 9.8 |        Suites backend | Tests backend |
 | -------- | ---------- | -------: | -------: | ----: | ----------: | --------------------: | ------------: |
 | Baseline | 2026-10-21 |     7.90 |       15 |    51 |        0/25 | 18/25 (7 con timeout) |     163 / 171 |
-| 001      | 2026-10-21 | **8.56** |    **0** | **0** |        0/25 |             **26/26** |       **173** |
+| 001      | 2026-10-21 |     8.56 |        0 |     0 |        0/25 |                 26/26 |           173 |
+| 002      | 2026-10-21 | **8.67** |    **0** | **0** |        0/25 |             **28/28** |       **180** |
 
 ---
 

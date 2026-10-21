@@ -30,6 +30,12 @@ export default defineConfig({
       clean: true,
       prettier: true,
       override: {
+        // El proyecto usa @tanstack/react-query 5 (catálogo del workspace).
+        // Sin declararlo, orval no puede resolver la versión desde el
+        // package.json (la dependencia usa `catalog:`) y genera tipos de v4.
+        query: {
+          version: 5,
+        },
         fetch: {
           includeHttpResponseReturnType: false,
         },
@@ -57,6 +63,10 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
+          // El workspace usa zod 3 (catálogo). La detección automática de
+          // orval no puede leer `"zod": "catalog:"` y asume v4, cuyo API
+          // (`z.coerce.int`, `z.string().email`) no existe en zod 3.
+          version: 3,
           coerce: {
             query: ["boolean", "number", "string"],
             param: ["boolean", "number", "string"],

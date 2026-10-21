@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -37,6 +38,7 @@ const LOGIN_WARNING =
 
 export default function AuthModal({ open, onClose }: Props) {
   const { login } = useAuth();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   // Lista real de distritos activos (cargada desde /api/districts por el
   // contexto). Permite registrarse desde CUALQUIER distrito habilitado, no
@@ -577,6 +579,20 @@ export default function AuthModal({ open, onClose }: Props) {
                       )}
                     </button>
                   </div>
+                  {mode === "login" && (
+                    <div className="text-right mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          setLocation("/recuperar");
+                        }}
+                        className="text-[11.5px] text-primary/80 hover:text-primary hover:underline"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit */}

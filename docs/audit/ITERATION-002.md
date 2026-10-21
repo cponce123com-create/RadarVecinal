@@ -182,7 +182,7 @@ Todos los comandos se ejecutaron en este equipo, salvo donde se indica.
 | Esquema ↔ migraciones (columnas)       | `information_schema` vs `drizzle-kit push`         | ✅ sin diferencias                                                |
 | `drizzle-kit push` sobre la BD migrada | `pnpm --filter @workspace/db run push`             | ✅ `No changes detected`                                          |
 | Preflight del runner de Drizzle        | `pnpm --filter @workspace/db run migrate`          | ✅ exit 1 · «conoce 3 de 37»                                      |
-| CI                                     | run `39599226541` en `d3ea819`                     | ✅ **9/9 jobs success**                                           |
+| CI                                     | run `39600787424` en `26a82ead`                    | ✅ **9/9 jobs success**                                           |
 
 ### Pruebas nuevas o ampliadas
 
@@ -224,17 +224,20 @@ Ninguna vulnerabilidad crítica o alta de dependencias queda abierta.
 
 ## 7. Commits del ciclo
 
-| Commit      | Contenido                                                                        |
-| ----------- | -------------------------------------------------------------------------------- |
-| `c4f408d1`  | Recuperación de contraseña + "mis reportes" + endurecimiento de tokens y límites |
-| `55afd23f`  | `customFetch` en recuperar, restablecer y mis reportes                           |
-| `f1d611d9`  | Contrato OpenAPI de los 3 endpoints + cliente regenerado                         |
-| `89819ee6`  | `timestamptz` en las 51 columnas                                                 |
-| `e6434044`  | CI en PRs apilados                                                               |
-| `3b69725a`  | No ocultar el fallo de red en "recuperar contraseña"                             |
-| `40471305`  | Deriva de esquema: `user_consents`, `NOT NULL`, cobranding                       |
-| `d3ea8190`  | Migraciones verificadas desde cero; el runner falla de verdad                    |
-| (pendiente) | Preflight del runner de Drizzle + `tsx` declarado                                |
+| Commit     | Contenido                                                                        |
+| ---------- | -------------------------------------------------------------------------------- |
+| `c4f408d1` | Recuperación de contraseña + "mis reportes" + endurecimiento de tokens y límites |
+| `55afd23f` | `customFetch` en recuperar, restablecer y mis reportes                           |
+| `f1d611d9` | Contrato OpenAPI de los 3 endpoints + cliente regenerado                         |
+| `89819ee6` | `timestamptz` en las 51 columnas                                                 |
+| `e6434044` | CI en PRs apilados                                                               |
+| `3b69725a` | No ocultar el fallo de red en "recuperar contraseña"                             |
+| `40471305` | Deriva de esquema: `user_consents`, `NOT NULL`, cobranding                       |
+| `d3ea8190` | Migraciones verificadas desde cero; el runner falla de verdad                    |
+| `88e1c44e` | Preflight del journal de Drizzle + `tsx` declarado                               |
+| `7ef61ff6` | Documentación de cierre del ciclo 002                                            |
+| `6d3c21ce` | Formato de `migrate.ts` (lo detectó el gate de CI)                               |
+| `26a82ead` | `0035` comprueba la FK por columna, no por nombre                                |
 
 PR: <https://github.com/cponce123com-create/RadarVecinal/pull/36> (base
 `feature/audit-cycle-001`, **no fusionar sin autorización**: `render.yaml` apunta

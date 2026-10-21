@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface NearbyAlert {
   id: string;
@@ -38,10 +38,15 @@ const DEFAULT_CONFIG: GeofenceConfig = {
   // Antes estaba hardcodeado a 1 (San Ramón) y consultaba el distrito equivocado.
 };
 
-export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherState {
+export function useGeofenceWatcher(
+  config?: GeofenceConfig,
+): GeofenceWatcherState {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const [watching, setWatching] = useState(false);
-  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentPosition, setCurrentPosition] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [nearbyAlerts, setNearbyAlerts] = useState<NearbyAlert[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,66 +54,85 @@ export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherStat
   const notifiedIdsRef = useRef<Set<string>>(new Set());
   const lastFetchPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  const fetchNearby = useCallback(async (lat: number, lng: number) => {
-    try {
-      const radius = cfg.radius ?? 1000;
-      const districtId = cfg.districtId;
-      if (!districtId) return; // sin distrito resuelto no hay nada que consultar
-      const res = await fetch(`/api/reports/nearby?lat=${lat}&lng=${lng}&radius=${radius}&districtId=${districtId}`);
-      if (!res.ok) {
-        console.warn('[Geofence] nearby fetch failed:', res.status, res.statusText);
-        return;
+  const fetchNearby = useCallback(
+    async (lat: number, lng: number) => {
+      try {
+        const radius = cfg.radius ?? 1000;
+        const districtId = cfg.districtId;
+        if (!districtId) return; // sin distrito resuelto no hay nada que consultar
+        const res = await fetch(
+          `/api/reports/nearby?lat=${lat}&lng=${lng}&radius=${radius}&districtId=${districtId}`,
+        );
+        if (!res.ok) {
+          console.warn(
+            "[Geofence] nearby fetch failed:",
+            res.status,
+            res.statusText,
+          );
+          return;
+        }
+        const data = await res.json();
+        const alerts: NearbyAlert[] = data.reports ?? [];
+
+        // Filter out already notified IDs
+        const newAlerts = alerts.filter(
+          (a) => !notifiedIdsRef.current.has(a.id),
+        );
+        alerts.forEach((a) => notifiedIdsRef.current.add(a.id));
+
+        setNearbyAlerts((prev) => {
+          const merged = [
+            ...newAlerts,
+            ...prev.filter((a) => !newAlerts.find((n) => n.id === a.id)),
+          ];
+          return merged.slice(0, 20); // keep max 20
+        });
+      } catch {
+        // silent fail
       }
-      const data = await res.json();
-      const alerts: NearbyAlert[] = data.reports ?? [];
+    },
+    [cfg.radius, cfg.districtId],
+  );
 
-      // Filter out already notified IDs
-      const newAlerts = alerts.filter(a => !notifiedIdsRef.current.has(a.id));
-      alerts.forEach(a => notifiedIdsRef.current.add(a.id));
+  const handlePosition = useCallback(
+    (pos: GeolocationPosition) => {
+      const { latitude, longitude } = pos.coords;
+      setCurrentPosition({ lat: latitude, lng: longitude });
+      setError(null);
 
-      setNearbyAlerts(prev => {
-        const merged = [...newAlerts, ...prev.filter(a => !newAlerts.find(n => n.id === a.id))];
-        return merged.slice(0, 20); // keep max 20
-      });
-    } catch {
-      // silent fail
-    }
-  }, [cfg.radius, cfg.districtId]);
+      const last = lastFetchPosRef.current;
+      const distFilter = cfg.distanceFilter ?? 50;
 
-  const handlePosition = useCallback((pos: GeolocationPosition) => {
-    const { latitude, longitude } = pos.coords;
-    setCurrentPosition({ lat: latitude, lng: longitude });
-    setError(null);
-
-    const last = lastFetchPosRef.current;
-    const distFilter = cfg.distanceFilter ?? 50;
-
-    // Only fetch if moved enough
-    if (!last) {
-      lastFetchPosRef.current = { lat: latitude, lng: longitude };
-      fetchNearby(latitude, longitude);
-    } else {
-      const dLat = latitude - last.lat;
-      const dLng = longitude - last.lng;
-      const moved = Math.sqrt(dLat * dLat + dLng * dLng) * 111320; // rough meters
-      if (moved > distFilter) {
+      // Only fetch if moved enough
+      if (!last) {
         lastFetchPosRef.current = { lat: latitude, lng: longitude };
         fetchNearby(latitude, longitude);
+      } else {
+        const dLat = latitude - last.lat;
+        const dLng = longitude - last.lng;
+        const moved = Math.sqrt(dLat * dLat + dLng * dLng) * 111320; // rough meters
+        if (moved > distFilter) {
+          lastFetchPosRef.current = { lat: latitude, lng: longitude };
+          fetchNearby(latitude, longitude);
+        }
       }
-    }
-  }, [cfg.distanceFilter, fetchNearby]);
+    },
+    [cfg.distanceFilter, fetchNearby],
+  );
 
   const handleError = useCallback((err: GeolocationPositionError) => {
     setError(
-      err.code === 1 ? 'Permiso de ubicación denegado' :
-      err.code === 2 ? 'No se pudo obtener ubicación' :
-      'Error de geolocalización'
+      err.code === 1
+        ? "Permiso de ubicación denegado"
+        : err.code === 2
+          ? "No se pudo obtener ubicación"
+          : "Error de geolocalización",
     );
   }, []);
 
   const start = useCallback(() => {
     if (!navigator.geolocation) {
-      setError('Tu dispositivo no soporta geolocalización');
+      setError("Tu dispositivo no soporta geolocalización");
       return;
     }
 
@@ -127,7 +151,7 @@ export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherStat
             enableHighAccuracy: cfg.enableHighAccuracy ?? true,
             maximumAge: cfg.maximumAge ?? 10000,
             timeout: 15000,
-          }
+          },
         );
         setWatching(true);
       },
@@ -135,7 +159,7 @@ export function useGeofenceWatcher(config?: GeofenceConfig): GeofenceWatcherStat
         handleError(err);
         setWatching(false);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
   }, [cfg.enableHighAccuracy, cfg.maximumAge, handlePosition, handleError]);
 

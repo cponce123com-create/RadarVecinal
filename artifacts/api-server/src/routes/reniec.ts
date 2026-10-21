@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { requireAuth, requireBackoffice } from "./auth";
+import { requireAuth, requireBackoffice, currentUser } from "./auth";
 import { MemoryCache } from "../lib/memoryCache";
 import { db } from "@workspace/db";
 import { auditLogTable } from "@workspace/db/schema";
@@ -33,7 +33,7 @@ const reniecLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const jwtUser = (req as any).jwtUser;
+    const jwtUser = req.jwtUser;
     if (jwtUser?.sub) return `reniec_user_${jwtUser.sub}`;
     return `reniec_ip_${ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "")}`;
   },
@@ -61,7 +61,7 @@ router.get(
     }
 
     const { dni } = parsed.data;
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
 
     // Verificar cache primero
     const cached = reniecCache.get(dni);

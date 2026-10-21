@@ -16,7 +16,10 @@ const RENDER_URL = "https://radarvecinal.onrender.com";
  * Compatible con Capacitor 3+ (window.Capacitor es undefined en web normal).
  */
 function isCapacitorNative(): boolean {
-  return typeof window !== "undefined" && typeof (window as any).Capacitor !== "undefined";
+  return (
+    typeof window !== "undefined" &&
+    typeof (window as any).Capacitor !== "undefined"
+  );
 }
 
 /**
@@ -28,7 +31,8 @@ export function initApiBaseUrl(): void {
     // Modo APK nativo: la web vive en https://localhost,
     // necesita URL absoluta del backend en Render
     setBaseUrl(RENDER_URL);
-    if (import.meta.env.DEV) console.log("[API] Modo Capacitor nativo → base URL:", RENDER_URL);
+    if (import.meta.env.DEV)
+      console.log("[API] Modo Capacitor nativo → base URL:", RENDER_URL);
   } else {
     // Modo web: mismo origen (Express sirve frontend + API)
     setBaseUrl(null);

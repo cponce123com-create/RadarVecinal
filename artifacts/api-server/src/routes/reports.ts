@@ -30,10 +30,12 @@ import {
   requireAdmin,
   requireViewerOrAbove,
   optionalAuth,
+  currentUser,
 } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 import { sendStatusChangeEmail } from "../lib/email";
 import { notifyReportToTelegram } from "../lib/telegram";
+import { getDistrictTerritory } from "../lib/district";
 
 const router: IRouter = Router();
 
@@ -203,7 +205,7 @@ router.get("/reports", optionalAuth, async (req, res) => {
       .limit(limitNum)
       .offset(offsetNum);
 
-    const user = (req as any).jwtUser;
+    const user = req.jwtUser;
     const userId = user?.sub ? parseInt(user.sub) : null;
 
     return res.json({
@@ -246,7 +248,7 @@ router.post("/reports", optionalAuth, async (req, res) => {
   }
 
   const data = parsed.data;
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
 
   // M-04: Determinar districtId
   let districtId: number;
@@ -332,6 +334,17 @@ router.post("/reports", optionalAuth, async (req, res) => {
       // Usuario no autenticado: se publica con identidad genérica
       authorName = data.authorName?.trim() || "Vecino";
     }
+    // Territorio del distrito: se deriva del catálogo (`districtId` es la
+    // autoridad). Sin esto, `province`/`department` quedaban con los valores
+    // por defecto nationwide ("Chanchamayo" / "Junín") en cualquier reporte
+    // de otra provincia, y el nombre del distrito podía no cuadrar con su id.
+    const territory = await getDistrictTerritory(districtId);
+    if (!territory) {
+      return res.status(400).json({
+        error: "Distrito no válido. Verifica e intenta de nuevo.",
+      });
+    }
+
     const [report] = await db
       .insert(reportsTable)
       .values({
@@ -345,7 +358,9 @@ router.post("/reports", optionalAuth, async (req, res) => {
         address: data.address ?? "",
         sector: data.sector,
         districtId,
-        district: data.district ?? "San Ramón",
+        district: territory.name,
+        province: territory.province,
+        department: territory.department,
         authorName: isAnonymous ? "Anónimo" : authorName,
         authorUserId: authorUserId ?? undefined,
         contactPhone: isAnonymous ? null : (data.contactPhone ?? null),
@@ -470,7 +485,7 @@ router.get("/reports/nearby", optionalAuth, async (req, res) => {
   }
 
   const { lat, lng, radius, category } = parsed.data;
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
 
   // M-04: Determinar districtId
   let districtId: number;
@@ -583,7 +598,7 @@ router.get("/reports/:id", optionalAuth, async (req, res) => {
       return res.status(404).json({ error: "Reporte no encontrado." });
 
     // M-04: Si el usuario está autenticado, verificar que pertenezca al mismo distrito
-    const user = (req as any).jwtUser;
+    const user = req.jwtUser;
     if (user && !checkTenant(req, report.districtId)) {
       return res
         .status(403)
@@ -646,7 +661,7 @@ router.patch(
         .returning();
 
       // Audit log para cambios de estado
-      const user = (req as any).jwtUser;
+      const user = currentUser(req);
       if (parsed.data.status) {
         await db
           .insert(auditLogTable)
@@ -710,7 +725,7 @@ router.delete("/reports/:id", requireAuth, requireAdmin, async (req, res) => {
     }
 
     // Soft delete: marcar como eliminado en lugar de borrar físicamente
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const now = new Date().toISOString();
     await db
       .update(reportsTable)
@@ -760,13 +775,13 @@ router.post("/reports/:id/confirm", optionalAuth, async (req, res) => {
       return res.status(404).json({ error: "Reporte no encontrado." });
 
     // M-04: Verificar tenant si el usuario está autenticado
-    if ((req as any).jwtUser && !checkTenant(req, report.districtId)) {
+    if (req.jwtUser && !checkTenant(req, report.districtId)) {
       return res
         .status(403)
         .json({ error: "No puedes confirmar reportes de otro distrito." });
     }
 
-    const user = (req as any).jwtUser;
+    const user = req.jwtUser;
     const userId = user?.sub ? Number(user.sub) : null;
     const userIp =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
@@ -891,7 +906,7 @@ router.post(
         });
       }
 
-      const user = (req as any).jwtUser;
+      const user = req.jwtUser;
       if (user && !checkTenant(req, report.districtId)) {
         return res
           .status(403)
@@ -1039,7 +1054,7 @@ router.post(
           .json({ error: "No puedes resolver reportes de otro distrito." });
       }
 
-      const user = (req as any).jwtUser;
+      const user = currentUser(req);
       const resolutionMsg = `🟢 RESUELTO — ${parsed.data.message}`;
       const updatedDescription = report.description
         ? `${report.description}\n\n---\n${resolutionMsg}\n— ${user?.name ?? "Administrador municipal"}`
@@ -1089,7 +1104,7 @@ router.post(
 router.post("/reports/:id/mark-found", requireAuth, async (req, res) => {
   try {
     const reportId = parseInt(req.params.id as string);
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const userId = parseInt(user.sub);
 
     const [report] = await db
@@ -1339,7 +1354,7 @@ router.post(
           .json({ error: "No puedes moderar reportes de otro distrito." });
       }
 
-      const adminUser = (req as any).jwtUser;
+      const adminUser = currentUser(req);
       const adminId = adminUser ? Number(adminUser.sub) : 0;
 
       // Archivar el reporte
@@ -1454,7 +1469,7 @@ const COMMUNITY_FLAG_THRESHOLD = 3;
 router.post("/reports/:id/flag-community", requireAuth, async (req, res) => {
   try {
     const reportId = parseInt(req.params.id as string);
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const userId = parseInt(user.sub);
 
     const [report] = await db
@@ -1558,7 +1573,7 @@ router.post(
   async (req, res) => {
     try {
       const strikeId = parseInt(req.params.id as string);
-      const adminUser = (req as any).jwtUser;
+      const adminUser = currentUser(req);
 
       const [strike] = await db
         .select()
@@ -1655,7 +1670,7 @@ router.post("/reports/strikes/:id/appeal", requireAuth, async (req, res) => {
 
   try {
     const strikeId = parseInt(req.params.id as string);
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const userId = parseInt(user.sub);
 
     const [strike] = await db
@@ -1840,7 +1855,7 @@ router.post(
           .json({ error: "No puedes aprobar reportes de otro distrito." });
       }
 
-      const adminUser = (req as any).jwtUser;
+      const adminUser = currentUser(req);
 
       // Volver a activo
       const [updated] = await db

@@ -7,7 +7,7 @@
  * Reads DATABASE_URL from the environment and applies pending migrations.
  */
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { db, pool } from "./index";
+import { db, pool, assertDatabaseConfigured } from "./index";
 
 async function runMigrations() {
   const migrationsFolder = new URL("../migrations", import.meta.url).pathname;
@@ -15,6 +15,7 @@ async function runMigrations() {
   console.log(`[migrate] Applying migrations from ${migrationsFolder} ...`);
 
   try {
+    assertDatabaseConfigured();
     await migrate(db, { migrationsFolder });
     console.log("[migrate] ✅ Migrations applied successfully.");
   } catch (err) {

@@ -1,8 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, MessageSquare, Send, Loader2, MessageCircle, Mail, Bell,
-  Check, History, FileText,
+  X,
+  MessageSquare,
+  Send,
+  Loader2,
+  MessageCircle,
+  Mail,
+  Bell,
+  Check,
+  History,
+  FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,19 +49,23 @@ interface Props {
 const QUICK_TEMPLATES = [
   {
     label: "Revisión en curso",
-    content: "Estimado vecino, su reporte ha sido recibido y estamos evaluando la situación. Nuestro personal se encuentra en camino para atender la incidencia. Agradecemos su paciencia y colaboración.",
+    content:
+      "Estimado vecino, su reporte ha sido recibido y estamos evaluando la situación. Nuestro personal se encuentra en camino para atender la incidencia. Agradecemos su paciencia y colaboración.",
   },
   {
     label: "Más información",
-    content: "Estimado vecino, para poder atender su reporte de manera eficiente, necesitamos información adicional. Por favor, comuníquese con nuestra central al 987-654-321 o acérquese a la oficina de atención al vecino. Gracias.",
+    content:
+      "Estimado vecino, para poder atender su reporte de manera eficiente, necesitamos información adicional. Por favor, comuníquese con nuestra central al 987-654-321 o acérquese a la oficina de atención al vecino. Gracias.",
   },
   {
     label: "Incidencia resuelta",
-    content: "Estimado vecino, le informamos que su reporte ha sido atendido y la incidencia se encuentra resuelta. El personal municipal verificó la zona y tomó las acciones correspondientes. Agradecemos su compromiso con la seguridad de nuestro distrito.",
+    content:
+      "Estimado vecino, le informamos que su reporte ha sido atendido y la incidencia se encuentra resuelta. El personal municipal verificó la zona y tomó las acciones correspondientes. Agradecemos su compromiso con la seguridad de nuestro distrito.",
   },
   {
     label: "Derivado a otra área",
-    content: "Estimado vecino, su reporte ha sido derivado al área correspondiente para su atención. Le mantendremos informado sobre el avance. Para cualquier consulta, puede comunicarse con nuestra central. Gracias.",
+    content:
+      "Estimado vecino, su reporte ha sido derivado al área correspondiente para su atención. Le mantendremos informado sobre el avance. Para cualquier consulta, puede comunicarse con nuestra central. Gracias.",
   },
 ];
 
@@ -94,8 +106,15 @@ function formatPhoneForWa(phone: string): string {
 }
 
 // ── Componente principal ────────────────────────────────────────────────────
-export default function ContactNeighborModal({ report, open, onClose, onSent }: Props) {
-  const [channel, setChannel] = useState<"whatsapp" | "app" | "email">("whatsapp");
+export default function ContactNeighborModal({
+  report,
+  open,
+  onClose,
+  onSent,
+}: Props) {
+  const [channel, setChannel] = useState<"whatsapp" | "app" | "email">(
+    "whatsapp",
+  );
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -125,7 +144,9 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
         const data = await res.json();
         setMessages(data.messages ?? []);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setLoadingHistory(false);
   };
 
@@ -138,9 +159,21 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
   const isEmailAvailable = hasEmail;
 
   const channels = [
-    { id: "whatsapp" as const, available: isWhatsappAvailable, reason: "El vecino no registró número telefónico" },
-    { id: "app" as const, available: isAppAvailable, reason: "El reporte fue realizado de forma anónima" },
-    { id: "email" as const, available: isEmailAvailable, reason: "El vecino no registró correo electrónico" },
+    {
+      id: "whatsapp" as const,
+      available: isWhatsappAvailable,
+      reason: "El vecino no registró número telefónico",
+    },
+    {
+      id: "app" as const,
+      available: isAppAvailable,
+      reason: "El reporte fue realizado de forma anónima",
+    },
+    {
+      id: "email" as const,
+      available: isEmailAvailable,
+      reason: "El vecino no registró correo electrónico",
+    },
   ];
 
   // Manejar envío
@@ -155,14 +188,14 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
         `🏛️ *Municipalidad de ${districtName}*
 
 ` +
-        `Reporte: "${report.title}"
+          `Reporte: "${report.title}"
 ` +
-        `Categoría: ${report.category}
+          `Categoría: ${report.category}
 ` +
-        `Sector: ${report.sector}
+          `Sector: ${report.sector}
 
 ` +
-        `${content.trim()}`
+          `${content.trim()}`,
       );
       window.open(`https://wa.me/${phone}?text=${waMsg}`, "_blank");
 
@@ -175,11 +208,19 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ channel: "whatsapp", content: content.trim() }),
+          body: JSON.stringify({
+            channel: "whatsapp",
+            content: content.trim(),
+          }),
         });
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
 
-      toast({ title: "WhatsApp abierto", description: "El mensaje se ha prellenado en WhatsApp." });
+      toast({
+        title: "WhatsApp abierto",
+        description: "El mensaje se ha prellenado en WhatsApp.",
+      });
       onSent();
       onClose();
       return;
@@ -246,7 +287,10 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
     <AnimatePresence>
       {open && (
         <>
-          <div className="fixed inset-0 bg-black/70 z-[9998]" onClick={onClose} />
+          <div
+            className="fixed inset-0 bg-black/70 z-[9998]"
+            onClick={onClose}
+          />
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -261,8 +305,12 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                   <MessageSquare className="w-4.5 h-4.5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white truncate">Contactar vecino</h3>
-                  <p className="text-[11px] text-muted-foreground truncate">{report.title}</p>
+                  <h3 className="text-sm font-bold text-white truncate">
+                    Contactar vecino
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {report.title}
+                  </p>
                 </div>
               </div>
               <button
@@ -280,7 +328,7 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                   Canal de comunicación
                 </label>
                 <div className="flex flex-col gap-1.5">
-                  {channels.map(ch => {
+                  {channels.map((ch) => {
                     const meta = CHANNEL_META[ch.id];
                     const Icon = meta.icon;
                     const active = channel === ch.id;
@@ -293,8 +341,8 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                           active
                             ? "bg-primary/10 border-primary/40"
                             : ch.available
-                            ? "bg-white/[0.03] border-white/8 hover:border-white/15"
-                            : "bg-white/[0.02] border-white/5 opacity-40 cursor-not-allowed"
+                              ? "bg-white/[0.03] border-white/8 hover:border-white/15"
+                              : "bg-white/[0.02] border-white/5 opacity-40 cursor-not-allowed"
                         }`}
                         title={!ch.available ? ch.reason : undefined}
                       >
@@ -302,7 +350,10 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                           className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ background: meta.bg }}
                         >
-                          <Icon className="w-4 h-4" style={{ color: meta.color }} />
+                          <Icon
+                            className="w-4 h-4"
+                            style={{ color: meta.color }}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -336,7 +387,7 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                   Plantillas rápidas
                 </label>
                 <div className="flex flex-wrap gap-1.5">
-                  {QUICK_TEMPLATES.map(tpl => (
+                  {QUICK_TEMPLATES.map((tpl) => (
                     <button
                       key={tpl.label}
                       onClick={() => applyTemplate(tpl.content)}
@@ -369,7 +420,9 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                     {content.length}/2000 caracteres
                   </span>
                   <span className="text-[10px] text-muted-foreground/40">
-                    {content.trim() ? `${content.trim().split(/\s+/).length} palabras` : ""}
+                    {content.trim()
+                      ? `${content.trim().split(/\s+/).length} palabras`
+                      : ""}
                   </span>
                 </div>
               </div>
@@ -396,7 +449,7 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {messages.map(msg => {
+                    {messages.map((msg) => {
                       const meta = CHANNEL_META[msg.channel];
                       const Icon = meta?.icon ?? MessageSquare;
                       return (
@@ -406,9 +459,14 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                         >
                           <div
                             className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{ background: meta?.bg ?? "rgba(107,114,128,0.15)" }}
+                            style={{
+                              background: meta?.bg ?? "rgba(107,114,128,0.15)",
+                            }}
                           >
-                            <Icon className="w-3.5 h-3.5" style={{ color: meta?.color ?? "#6b7280" }} />
+                            <Icon
+                              className="w-3.5 h-3.5"
+                              style={{ color: meta?.color ?? "#6b7280" }}
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -417,7 +475,10 @@ export default function ContactNeighborModal({ report, open, onClose, onSent }: 
                               </span>
                               <span
                                 className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
-                                style={{ background: meta?.bg, color: meta?.color }}
+                                style={{
+                                  background: meta?.bg,
+                                  color: meta?.color,
+                                }}
                               >
                                 {meta?.label ?? msg.channel}
                               </span>

@@ -23,14 +23,15 @@ export async function ensurePushPlugin() {
     PushNotifications = mod.PushNotifications;
     return true;
   } catch {
-    console.warn("[PushRegistration] @capacitor/push-notifications no instalado");
+    console.warn(
+      "[PushRegistration] @capacitor/push-notifications no instalado",
+    );
     return false;
   }
 }
 
 export type PushRegistrationResult =
-  | { ok: true; token: string }
-  | { ok: false; error: string };
+  { ok: true; token: string } | { ok: false; error: string };
 
 /**
  * Solicita permiso y registra el dispositivo para recibir push.
@@ -42,10 +43,19 @@ export type PushRegistrationResult =
  */
 export async function ensureNotificationChannels(): Promise<void> {
   const available = await ensurePushPlugin();
-  if (!available || typeof PushNotifications.createChannel !== "function") return;
+  if (!available || typeof PushNotifications.createChannel !== "function")
+    return;
   const channels = [
-    { id: "panic-alerts", name: "Alertas de pánico", description: "Emergencias de vecinos cercanos" },
-    { id: "live-services", name: "Servicios en vivo", description: "Avisos cuando un servicio se acerca a tu casa" },
+    {
+      id: "panic-alerts",
+      name: "Alertas de pánico",
+      description: "Emergencias de vecinos cercanos",
+    },
+    {
+      id: "live-services",
+      name: "Servicios en vivo",
+      description: "Avisos cuando un servicio se acerca a tu casa",
+    },
   ];
   for (const ch of channels) {
     try {
@@ -87,17 +97,23 @@ export async function registerForPush(): Promise<PushRegistrationResult> {
         resolve({ ok: false, error: "Timeout esperando token FCM" });
       }, 10000);
 
-      PushNotifications.addListener("registration", (token: { value: string }) => {
-        clearTimeout(timeout);
-        PushNotifications.removeAllListeners();
-        resolve({ ok: true, token: token.value });
-      });
+      PushNotifications.addListener(
+        "registration",
+        (token: { value: string }) => {
+          clearTimeout(timeout);
+          PushNotifications.removeAllListeners();
+          resolve({ ok: true, token: token.value });
+        },
+      );
 
-      PushNotifications.addListener("registrationError", (err: { error: string }) => {
-        clearTimeout(timeout);
-        PushNotifications.removeAllListeners();
-        resolve({ ok: false, error: err.error });
-      });
+      PushNotifications.addListener(
+        "registrationError",
+        (err: { error: string }) => {
+          clearTimeout(timeout);
+          PushNotifications.removeAllListeners();
+          resolve({ ok: false, error: err.error });
+        },
+      );
     });
   } catch (err: any) {
     return { ok: false, error: err?.message ?? "Unknown error" };

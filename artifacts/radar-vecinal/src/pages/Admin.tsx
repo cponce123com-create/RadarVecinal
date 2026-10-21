@@ -36,9 +36,12 @@ export default function Admin() {
               <Lock className="w-7 h-7 text-accent" />
             </div>
             <div className="text-center">
-              <h2 className="text-xl font-bold text-white mb-1">Acceso Restringido</h2>
+              <h2 className="text-xl font-bold text-white mb-1">
+                Acceso Restringido
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Inicia sesión con una cuenta de administrador para acceder al panel de control.
+                Inicia sesión con una cuenta de administrador para acceder al
+                panel de control.
               </p>
             </div>
             <button
@@ -69,9 +72,12 @@ export default function Admin() {
               <ShieldOff className="w-7 h-7 text-red-400" />
             </div>
             <div className="text-center">
-              <h2 className="text-xl font-bold text-white mb-1">Acceso Denegado</h2>
+              <h2 className="text-xl font-bold text-white mb-1">
+                Acceso Denegado
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Necesitas permisos de administrador o moderador para acceder a esta sección.
+                Necesitas permisos de administrador o moderador para acceder a
+                esta sección.
               </p>
             </div>
           </div>

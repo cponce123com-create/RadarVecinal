@@ -14,8 +14,9 @@ import {
   userStrikesTable,
 } from "@workspace/db/schema";
 import { eq, desc, and, gt, sql, inArray, isNull } from "drizzle-orm";
-import { requireAuth, requireAdmin, optionalAuth } from "./auth";
+import { requireAuth, requireAdmin, optionalAuth, currentUser } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
+import { getDistrictTerritory } from "../lib/district";
 import { isMunicipalityLevel, isModeratorLevel } from "../lib/roles";
 import { sendPanicAlertPush } from "../lib/fcm";
 import { expireStalePanicAlerts } from "../workers/maintenance";
@@ -208,7 +209,7 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
   }
 
   const data = parsed.data;
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
 
   let districtId: number;
   if (user?.districtId && user.role !== "super_admin") {
@@ -332,15 +333,9 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
       other: "🚨 Alerta de Pánico - Otra Emergencia",
     };
 
-    const [district] = await db
-      .select({
-        name: districtsTable.name,
-        province: districtsTable.province,
-        department: districtsTable.department,
-      })
-      .from(districtsTable)
-      .where(eq(districtsTable.id, districtId))
-      .limit(1);
+    // Territorio del distrito (catálogo `districts`): el reporte espejo hereda
+    // la demarcación real, no los valores por defecto nationwide.
+    const territory = await getDistrictTerritory(districtId);
 
     // Nota: .catch() puede devolver null; se evita desestructurar null
     // directamente (lanzaría "null is not iterable" en runtime si falla el insert).
@@ -357,9 +352,9 @@ router.post("/panic-alerts", optionalAuth, async (req, res) => {
         address: data.address ?? "",
         sector: data.sector,
         districtId,
-        district: district?.name ?? "San Ramón",
-        province: district?.province ?? "Chanchamayo",
-        department: district?.department ?? "Junín",
+        district: territory?.name ?? "San Ramón",
+        province: territory?.province ?? "Chanchamayo",
+        department: territory?.department ?? "Junín",
         authorName: data.authorName,
         panicAlertId: alert.id,
       })
@@ -423,7 +418,7 @@ router.patch(
     }
 
     const { status: newStatus, resolutionNote } = parsed.data;
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
 
     try {
       const alertId = parseInt(req.params.id as string);
@@ -522,7 +517,7 @@ router.delete(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     if (user.role !== "super_admin") {
       return res
         .status(403)
@@ -616,7 +611,7 @@ router.post(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     if (user.role !== "super_admin") {
       return res
         .status(403)
@@ -725,7 +720,7 @@ router.get("/missing-persons", optionalAuth, async (req, res) => {
       );
     }
 
-    const user = (req as any).jwtUser;
+    const user = req.jwtUser;
     const isBackofficeSameDistrict =
       !!user &&
       !!districtId &&
@@ -782,7 +777,7 @@ router.post("/missing-persons", optionalAuth, async (req, res) => {
   }
 
   const data = parsed.data;
-  const user = (req as any).jwtUser;
+  const user = req.jwtUser;
 
   let districtId: number;
   if (user?.districtId && user.role !== "super_admin") {
@@ -828,7 +823,7 @@ router.post("/missing-persons", optionalAuth, async (req, res) => {
 
 // ── PATCH /missing-persons/:id — Autor, admin del distrito, o super_admin ──
 router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
 
   try {
     const personId = parseInt(req.params.id as string);
@@ -890,7 +885,7 @@ router.patch("/missing-persons/:id", requireAuth, async (req, res) => {
 // ── DELETE /missing-persons/:id — municipalidad (mismo distrito) o super_admin ─
 // ELIMINAR es nivel municipalidad+ (los moderadores no eliminan). Borrado suave.
 router.delete("/missing-persons/:id", requireAuth, async (req, res) => {
-  const user = (req as any).jwtUser;
+  const user = currentUser(req);
   try {
     const personId = parseInt(req.params.id as string);
     const [person] = await db

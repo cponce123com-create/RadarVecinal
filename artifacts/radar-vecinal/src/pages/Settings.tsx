@@ -1,10 +1,28 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Settings as SettingsIcon, Bell, Volume2, Map, Shield,
-  Smartphone, Globe, Trash2, Download, ChevronRight, AlertTriangle,
-  Moon, SunMedium, Navigation, Thermometer, Radar, HelpCircle,
-  Home as HomeIcon, Volume2 as VoiceIcon, Loader2, CheckCircle2, MapPin,
+  Settings as SettingsIcon,
+  Bell,
+  Volume2,
+  Map,
+  Shield,
+  Smartphone,
+  Globe,
+  Trash2,
+  Download,
+  ChevronRight,
+  AlertTriangle,
+  Moon,
+  SunMedium,
+  Navigation,
+  Thermometer,
+  Radar,
+  HelpCircle,
+  Home as HomeIcon,
+  Volume2 as VoiceIcon,
+  Loader2,
+  CheckCircle2,
+  MapPin,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDistrict } from "@/contexts/DistrictContext";
@@ -12,42 +30,71 @@ import DistrictPicker from "@/components/DistrictPicker";
 import { playAlertSound } from "@/lib/alertSound";
 import { openWelcome } from "@/components/WelcomeModal";
 import {
-  getHome, setHome as saveHome, clearHome, getVoicePrefs, setVoicePrefs,
-  isVoiceSupported, unlockAndTestVoice, speak,
+  getHome,
+  setHome as saveHome,
+  clearHome,
+  getVoicePrefs,
+  setVoicePrefs,
+  isVoiceSupported,
+  unlockAndTestVoice,
+  speak,
 } from "@/lib/voiceAlerts";
 import { PROVIDER_META, type LiveProviderType } from "@/lib/liveProviders";
 import { syncProximitySubscription } from "@/lib/proximityPush";
 
 // Lightweight local persistence (UI demo)
 function useSetting<T>(key: string, defaultVal: T) {
-  const stored = typeof localStorage !== "undefined" ? localStorage.getItem(`rvs_${key}`) : null;
-  const [val, setVal] = useState<T>(stored !== null ? JSON.parse(stored) : defaultVal);
+  const stored =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem(`rvs_${key}`)
+      : null;
+  const [val, setVal] = useState<T>(
+    stored !== null ? JSON.parse(stored) : defaultVal,
+  );
   const update = (v: T) => {
     setVal(v);
-    if (typeof localStorage !== "undefined") localStorage.setItem(`rvs_${key}`, JSON.stringify(v));
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem(`rvs_${key}`, JSON.stringify(v));
   };
   return [val, update] as const;
 }
 
-interface ToggleProps { checked: boolean; onChange: (v: boolean) => void; }
+interface ToggleProps {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}
 function Toggle({ checked, onChange }: ToggleProps) {
   return (
     <button
       onClick={() => onChange(!checked)}
       className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-all duration-300 ${checked ? "bg-primary" : "bg-white/10"}`}
     >
-      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${checked ? "left-[22px]" : "left-0.5"}`} />
+      <span
+        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${checked ? "left-[22px]" : "left-0.5"}`}
+      />
     </button>
   );
 }
 
-interface SettingSectionProps { title: string; icon: React.ElementType; iconColor?: string; children: React.ReactNode; }
-function SettingSection({ title, icon: Icon, iconColor = "text-primary", children }: SettingSectionProps) {
+interface SettingSectionProps {
+  title: string;
+  icon: React.ElementType;
+  iconColor?: string;
+  children: React.ReactNode;
+}
+function SettingSection({
+  title,
+  icon: Icon,
+  iconColor = "text-primary",
+  children,
+}: SettingSectionProps) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2 px-1 mb-2">
         <Icon className={`w-4 h-4 ${iconColor}`} />
-        <h3 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest">{title}</h3>
+        <h3 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest">
+          {title}
+        </h3>
       </div>
       <div className="rounded-2xl bg-card border border-white/5 overflow-hidden divide-y divide-white/5">
         {children}
@@ -63,7 +110,13 @@ interface SettingRowProps {
   danger?: boolean;
   onClick?: () => void;
 }
-function SettingRow({ label, sub, children, danger, onClick }: SettingRowProps) {
+function SettingRow({
+  label,
+  sub,
+  children,
+  danger,
+  onClick,
+}: SettingRowProps) {
   const isClickable = !!onClick;
   return (
     <div
@@ -73,8 +126,16 @@ function SettingRow({ label, sub, children, danger, onClick }: SettingRowProps) 
       onClick={onClick}
     >
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${danger ? "text-red-400" : "text-white"}`}>{label}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{sub}</p>}
+        <p
+          className={`text-sm font-medium ${danger ? "text-red-400" : "text-white"}`}
+        >
+          {label}
+        </p>
+        {sub && (
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            {sub}
+          </p>
+        )}
       </div>
       {children && <div className="flex-shrink-0">{children}</div>}
     </div>
@@ -83,19 +144,19 @@ function SettingRow({ label, sub, children, danger, onClick }: SettingRowProps) 
 
 const ALERT_RADII = ["500m", "1 km", "2 km", "5 km", "Todo el distrito"];
 const DEFAULT_VIEWS = [
-  { id: "map",   label: "Mapa de calles", icon: Map },
+  { id: "map", label: "Mapa de calles", icon: Map },
   { id: "radar", label: "Radar circular", icon: Radar },
-  { id: "heat",  label: "Mapa de calor",  icon: Thermometer },
+  { id: "heat", label: "Mapa de calor", icon: Thermometer },
 ];
 const INCIDENT_CATEGORIES = [
-  { id: "robbery",           label: "Robo / Asalto",        color: "#ef4444" },
-  { id: "fight",             label: "Pelea callejera",       color: "#f97316" },
-  { id: "suspicious",        label: "Actitud sospechosa",   color: "#eab308" },
-  { id: "fire",              label: "Incendio",              color: "#ef4444" },
-  { id: "medical_emergency", label: "Emergencia médica",     color: "#3b82f6" },
-  { id: "missing_person",    label: "Persona extraviada",   color: "#f59e0b" },
-  { id: "noise",             label: "Ruidos molestos",       color: "#6b7280" },
-  { id: "water_cut",         label: "Corte de agua",         color: "#3b82f6" },
+  { id: "robbery", label: "Robo / Asalto", color: "#ef4444" },
+  { id: "fight", label: "Pelea callejera", color: "#f97316" },
+  { id: "suspicious", label: "Actitud sospechosa", color: "#eab308" },
+  { id: "fire", label: "Incendio", color: "#ef4444" },
+  { id: "medical_emergency", label: "Emergencia médica", color: "#3b82f6" },
+  { id: "missing_person", label: "Persona extraviada", color: "#f59e0b" },
+  { id: "noise", label: "Ruidos molestos", color: "#6b7280" },
+  { id: "water_cut", label: "Corte de agua", color: "#3b82f6" },
 ];
 
 function applyTheme(dark: boolean) {
@@ -120,30 +181,36 @@ export default function Settings() {
   };
 
   // Notification prefs
-  const [pushEnabled,     setPushEnabled]     = useSetting("push",          true);
-  const [soundEnabled,    setSoundEnabled]     = useSetting("sound",         true);
-  const [panicAlerts,     setPanicAlerts]      = useSetting("panic",         true);
-  const [missingAlerts,   setMissingAlerts]    = useSetting("missing",       true);
-  const [quietHours,      setQuietHours]       = useSetting("quietHours",    false);
-  const [quietStart,      setQuietStart]       = useSetting("quietStart",    "22:00");
-  const [quietEnd,        setQuietEnd]         = useSetting("quietEnd",      "07:00");
-  const [alertRadius,     setAlertRadius]      = useSetting("alertRadius",   "2 km");
-  const [alertCategories, setAlertCategories]  = useSetting<string[]>("alertCats", ["robbery","fight","fire","medical_emergency","missing_person"]);
+  const [pushEnabled, setPushEnabled] = useSetting("push", true);
+  const [soundEnabled, setSoundEnabled] = useSetting("sound", true);
+  const [panicAlerts, setPanicAlerts] = useSetting("panic", true);
+  const [missingAlerts, setMissingAlerts] = useSetting("missing", true);
+  const [quietHours, setQuietHours] = useSetting("quietHours", false);
+  const [quietStart, setQuietStart] = useSetting("quietStart", "22:00");
+  const [quietEnd, setQuietEnd] = useSetting("quietEnd", "07:00");
+  const [alertRadius, setAlertRadius] = useSetting("alertRadius", "2 km");
+  const [alertCategories, setAlertCategories] = useSetting<string[]>(
+    "alertCats",
+    ["robbery", "fight", "fire", "medical_emergency", "missing_person"],
+  );
 
   // Privacy prefs
-  const [defaultAnon,     setDefaultAnon]      = useSetting("defaultAnon",   false);
-  const [showInConfirms,  setShowInConfirms]   = useSetting("showInConfirms", true);
-  const [shareLocation,   setShareLocation]    = useSetting("shareLocation", true);
+  const [defaultAnon, setDefaultAnon] = useSetting("defaultAnon", false);
+  const [showInConfirms, setShowInConfirms] = useSetting(
+    "showInConfirms",
+    true,
+  );
+  const [shareLocation, setShareLocation] = useSetting("shareLocation", true);
 
   // Map prefs
-  const [defaultView,     setDefaultView]      = useSetting("defaultView",   "map");
-  const [autoCenter,      setAutoCenter]       = useSetting("autoCenter",    true);
+  const [defaultView, setDefaultView] = useSetting("defaultView", "map");
+  const [autoCenter, setAutoCenter] = useSetting("autoCenter", true);
 
   const toggleCategory = (id: string) => {
     setAlertCategories(
       alertCategories.includes(id)
-        ? alertCategories.filter(c => c !== id)
-        : [...alertCategories, id]
+        ? alertCategories.filter((c) => c !== id)
+        : [...alertCategories, id],
     );
   };
 
@@ -151,33 +218,57 @@ export default function Settings() {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   // ── Avisos por voz (v1) ──
-  const [voiceEnabled, setVoiceEnabled]   = useState(() => getVoicePrefs().enabled);
-  const [voiceDistance, setVoiceDistance] = useState(() => getVoicePrefs().distanceM);
-  const [voiceTypes, setVoiceTypes]       = useState<LiveProviderType[]>(() => getVoicePrefs().types);
-  const [home, setHomeState]              = useState(() => getHome());
-  const [locatingHome, setLocatingHome]   = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(
+    () => getVoicePrefs().enabled,
+  );
+  const [voiceDistance, setVoiceDistance] = useState(
+    () => getVoicePrefs().distanceM,
+  );
+  const [voiceTypes, setVoiceTypes] = useState<LiveProviderType[]>(
+    () => getVoicePrefs().types,
+  );
+  const [home, setHomeState] = useState(() => getHome());
+  const [locatingHome, setLocatingHome] = useState(false);
 
   const toggleVoice = (v: boolean) => {
     if (v && !isVoiceSupported()) {
-      toast({ title: "Voz no disponible", description: "Tu dispositivo no soporta avisos por voz.", variant: "destructive" });
+      toast({
+        title: "Voz no disponible",
+        description: "Tu dispositivo no soporta avisos por voz.",
+        variant: "destructive",
+      });
       return;
     }
     setVoiceEnabled(v);
     setVoicePrefs({ enabled: v });
     if (v) {
       unlockAndTestVoice("Avisos por voz activados.");
-      if (!home) toast({ title: "Marca tu casa", description: "Para avisarte, primero marca la ubicación de tu casa abajo." });
+      if (!home)
+        toast({
+          title: "Marca tu casa",
+          description:
+            "Para avisarte, primero marca la ubicación de tu casa abajo.",
+        });
     }
   };
-  const changeVoiceDistance = (m: number) => { setVoiceDistance(m); setVoicePrefs({ distanceM: m }); };
+  const changeVoiceDistance = (m: number) => {
+    setVoiceDistance(m);
+    setVoicePrefs({ distanceM: m });
+  };
   const toggleVoiceType = (t: LiveProviderType) => {
-    const next = voiceTypes.includes(t) ? voiceTypes.filter(x => x !== t) : [...voiceTypes, t];
+    const next = voiceTypes.includes(t)
+      ? voiceTypes.filter((x) => x !== t)
+      : [...voiceTypes, t];
     setVoiceTypes(next);
     setVoicePrefs({ types: next });
   };
   const markHome = () => {
     if (!navigator.geolocation) {
-      toast({ title: "Sin GPS", description: "Tu dispositivo no permite geolocalización.", variant: "destructive" });
+      toast({
+        title: "Sin GPS",
+        description: "Tu dispositivo no permite geolocalización.",
+        variant: "destructive",
+      });
       return;
     }
     setLocatingHome(true);
@@ -185,16 +276,37 @@ export default function Settings() {
       (pos) => {
         setHomeState(saveHome(pos.coords.latitude, pos.coords.longitude));
         setLocatingHome(false);
-        toast({ title: "🏠 Casa guardada", description: "Te avisaremos cuando un servicio se acerque." });
+        toast({
+          title: "🏠 Casa guardada",
+          description: "Te avisaremos cuando un servicio se acerque.",
+        });
       },
-      () => { setLocatingHome(false); toast({ title: "No se pudo ubicar", description: "Revisa el permiso de ubicación.", variant: "destructive" }); },
+      () => {
+        setLocatingHome(false);
+        toast({
+          title: "No se pudo ubicar",
+          description: "Revisa el permiso de ubicación.",
+          variant: "destructive",
+        });
+      },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
     );
   };
-  const removeHome = () => { clearHome(); setHomeState(null); toast({ title: "Casa eliminada" }); };
+  const removeHome = () => {
+    clearHome();
+    setHomeState(null);
+    toast({ title: "Casa eliminada" });
+  };
 
   // Servicios que se pueden anunciar (los ambulantes que recorren el distrito).
-  const VOICE_TYPES: LiveProviderType[] = ["recolector", "panadero", "lechero", "tamalero", "gasero", "agua"];
+  const VOICE_TYPES: LiveProviderType[] = [
+    "recolector",
+    "panadero",
+    "lechero",
+    "tamalero",
+    "gasero",
+    "agua",
+  ];
 
   // Sincroniza la suscripción de proximidad (avisos push con la app cerrada).
   // Solo hace algo en el APK nativo; en web es un no-op silencioso.
@@ -212,13 +324,23 @@ export default function Settings() {
     }).catch(() => {});
   }, [voiceEnabled, home, voiceDistance, voiceTypes, districtInfo?.id]);
 
-  const save = () => toast({ title: "✓ Configuración guardada", description: "Tus preferencias fueron actualizadas." });
+  const save = () =>
+    toast({
+      title: "✓ Configuración guardada",
+      description: "Tus preferencias fueron actualizadas.",
+    });
 
-  const cardVariants = { hidden: { opacity: 0, y: 16 }, visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07 } }) };
+  const cardVariants = {
+    hidden: { opacity: 0, y: 16 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.07 },
+    }),
+  };
 
   return (
     <div className="max-w-2xl mx-auto pb-8 flex flex-col gap-6">
-
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -239,11 +361,24 @@ export default function Settings() {
       </div>
 
       {/* ── Apariencia ── */}
-      <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Apariencia" icon={darkMode ? Moon : SunMedium} iconColor={darkMode ? "text-blue-400" : "text-yellow-400"}>
+      <motion.div
+        custom={0}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Apariencia"
+          icon={darkMode ? Moon : SunMedium}
+          iconColor={darkMode ? "text-blue-400" : "text-yellow-400"}
+        >
           <SettingRow
             label="Modo oscuro"
-            sub={darkMode ? "Modo oscuro activo — diseñado para usar de noche" : "Modo claro activo — mejor visibilidad de día"}
+            sub={
+              darkMode
+                ? "Modo oscuro activo — diseñado para usar de noche"
+                : "Modo claro activo — mejor visibilidad de día"
+            }
           >
             <Toggle checked={darkMode} onChange={toggleDarkMode} />
           </SettingRow>
@@ -251,7 +386,12 @@ export default function Settings() {
       </motion.div>
 
       {/* ── Notificaciones ── */}
-      <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible">
+      <motion.div
+        custom={1}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
         <SettingSection title="Notificaciones" icon={Bell}>
           <SettingRow
             label="Notificaciones push"
@@ -291,14 +431,24 @@ export default function Settings() {
       </motion.div>
 
       {/* ── Radio de Alertas ── */}
-      <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Radio de alertas" icon={Navigation} iconColor="text-green-400">
+      <motion.div
+        custom={1}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Radio de alertas"
+          icon={Navigation}
+          iconColor="text-green-400"
+        >
           <div className="px-4 py-4">
             <p className="text-xs text-muted-foreground mb-3">
-              Solo recibirás alertas de incidentes dentro del radio seleccionado desde tu ubicación actual.
+              Solo recibirás alertas de incidentes dentro del radio seleccionado
+              desde tu ubicación actual.
             </p>
             <div className="flex flex-wrap gap-2">
-              {ALERT_RADII.map(r => (
+              {ALERT_RADII.map((r) => (
                 <button
                   key={r}
                   onClick={() => setAlertRadius(r)}
@@ -317,11 +467,15 @@ export default function Settings() {
           {/* Categorías que generan alerta — chips compactos (marca/desmarca) */}
           <div className="px-4 pb-4">
             <div className="flex items-center justify-between mb-2.5">
-              <p className="text-xs font-semibold text-white/60 uppercase tracking-wide">Categorías que generan alerta</p>
-              <span className="text-[10px] text-muted-foreground">{alertCategories.length} de {INCIDENT_CATEGORIES.length}</span>
+              <p className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                Categorías que generan alerta
+              </p>
+              <span className="text-[10px] text-muted-foreground">
+                {alertCategories.length} de {INCIDENT_CATEGORIES.length}
+              </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {INCIDENT_CATEGORIES.map(cat => {
+              {INCIDENT_CATEGORIES.map((cat) => {
                 const active = alertCategories.includes(cat.id);
                 return (
                   <button
@@ -329,11 +483,27 @@ export default function Settings() {
                     onClick={() => toggleCategory(cat.id)}
                     aria-pressed={active}
                     className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-full text-[12px] font-medium border transition-all ${
-                      active ? "text-white" : "bg-white/[0.03] border-white/10 text-muted-foreground hover:text-white"
+                      active
+                        ? "text-white"
+                        : "bg-white/[0.03] border-white/10 text-muted-foreground hover:text-white"
                     }`}
-                    style={active ? { background: cat.color + "1f", borderColor: cat.color + "55" } : {}}
+                    style={
+                      active
+                        ? {
+                            background: cat.color + "1f",
+                            borderColor: cat.color + "55",
+                          }
+                        : {}
+                    }
                   >
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: active ? cat.color : "rgba(255,255,255,0.2)" }} />
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{
+                        background: active
+                          ? cat.color
+                          : "rgba(255,255,255,0.2)",
+                      }}
+                    />
                     {cat.label}
                   </button>
                 );
@@ -351,21 +521,25 @@ export default function Settings() {
           {quietHours && (
             <div className="px-4 pb-4 flex items-center gap-3">
               <div className="flex-1">
-                <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">Desde</label>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">
+                  Desde
+                </label>
                 <input
                   type="time"
                   value={quietStart}
-                  onChange={e => setQuietStart(e.target.value)}
+                  onChange={(e) => setQuietStart(e.target.value)}
                   className="w-full bg-background border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div className="text-muted-foreground text-sm mt-5">—</div>
               <div className="flex-1">
-                <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">Hasta</label>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide block mb-1">
+                  Hasta
+                </label>
                 <input
                   type="time"
                   value={quietEnd}
-                  onChange={e => setQuietEnd(e.target.value)}
+                  onChange={(e) => setQuietEnd(e.target.value)}
                   className="w-full bg-background border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -375,8 +549,17 @@ export default function Settings() {
       </motion.div>
 
       {/* ── Avisos por voz ── */}
-      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Avisos por voz" icon={VoiceIcon} iconColor="text-emerald-400">
+      <motion.div
+        custom={2}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Avisos por voz"
+          icon={VoiceIcon}
+          iconColor="text-emerald-400"
+        >
           <SettingRow
             label="Avisar cuando un servicio se acerque"
             sub="Con la app abierta, te anuncia en voz alta (ej: “El camión recolector está a 300 metros de tu casa”)."
@@ -387,17 +570,33 @@ export default function Settings() {
           {/* Marcar la casa */}
           <SettingRow
             label="Mi casa"
-            sub={home ? `Guardada (${home.lat.toFixed(4)}, ${home.lng.toFixed(4)})` : "Marca tu casa para recibir los avisos."}
+            sub={
+              home
+                ? `Guardada (${home.lat.toFixed(4)}, ${home.lng.toFixed(4)})`
+                : "Marca tu casa para recibir los avisos."
+            }
           >
             <div className="flex items-center gap-1.5">
               {home && (
-                <button onClick={removeHome} className="text-[11px] text-muted-foreground hover:text-red-400 px-2 py-1.5">Quitar</button>
+                <button
+                  onClick={removeHome}
+                  className="text-[11px] text-muted-foreground hover:text-red-400 px-2 py-1.5"
+                >
+                  Quitar
+                </button>
               )}
               <button
-                onClick={markHome} disabled={locatingHome}
+                onClick={markHome}
+                disabled={locatingHome}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[12px] font-semibold hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
               >
-                {locatingHome ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : home ? <CheckCircle2 className="w-3.5 h-3.5" /> : <HomeIcon className="w-3.5 h-3.5" />}
+                {locatingHome ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : home ? (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                ) : (
+                  <HomeIcon className="w-3.5 h-3.5" />
+                )}
                 {home ? "Actualizar" : "Marcar mi casa"}
               </button>
             </div>
@@ -405,13 +604,21 @@ export default function Settings() {
 
           {/* Distancia del aviso */}
           {voiceEnabled && (
-            <SettingRow label="Avisar cuando esté a" sub="Distancia a tu casa para lanzar el aviso.">
+            <SettingRow
+              label="Avisar cuando esté a"
+              sub="Distancia a tu casa para lanzar el aviso."
+            >
               <div className="flex items-center gap-1">
-                {[200, 300, 500].map(m => (
-                  <button key={m} onClick={() => changeVoiceDistance(m)}
+                {[200, 300, 500].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => changeVoiceDistance(m)}
                     className={`px-3 py-2 min-h-[38px] rounded-lg text-[12px] font-semibold transition-all border ${
-                      voiceDistance === m ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
-                    }`}>
+                      voiceDistance === m
+                        ? "bg-primary/20 border-primary/50 text-primary"
+                        : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
+                    }`}
+                  >
                     {m} m
                   </button>
                 ))}
@@ -422,25 +629,43 @@ export default function Settings() {
           {/* Qué servicios anunciar */}
           {voiceEnabled && (
             <div className="px-4 py-3.5">
-              <p className="text-sm font-medium text-white mb-2">¿Qué servicios anunciar?</p>
+              <p className="text-sm font-medium text-white mb-2">
+                ¿Qué servicios anunciar?
+              </p>
               <div className="flex flex-wrap gap-1.5">
-                {VOICE_TYPES.map(t => {
-                  const meta = PROVIDER_META.find(m => m.type === t)!;
+                {VOICE_TYPES.map((t) => {
+                  const meta = PROVIDER_META.find((m) => m.type === t)!;
                   const on = voiceTypes.includes(t);
                   return (
-                    <button key={t} onClick={() => toggleVoiceType(t)}
+                    <button
+                      key={t}
+                      onClick={() => toggleVoiceType(t)}
                       className={`flex items-center gap-1.5 px-3 py-2 min-h-[38px] rounded-full text-[12px] font-medium border transition-all ${
-                        on ? "bg-emerald-500/15 border-emerald-500/45 text-emerald-200" : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
-                      }`}>
+                        on
+                          ? "bg-emerald-500/15 border-emerald-500/45 text-emerald-200"
+                          : "bg-white/[0.04] border-white/10 text-muted-foreground hover:text-white"
+                      }`}
+                    >
                       <span>{meta.emoji}</span> {meta.label}
                     </button>
                   );
                 })}
               </div>
               <div className="flex items-center justify-between mt-3">
-                <p className="text-[11px] text-muted-foreground">Con la app instalada (Android) también te avisa con la app cerrada.</p>
-                <button onClick={() => speak("Prueba de voz. El camión recolector está a 300 metros de tu casa.")}
-                  className="text-[11px] text-primary hover:underline">Probar voz</button>
+                <p className="text-[11px] text-muted-foreground">
+                  Con la app instalada (Android) también te avisa con la app
+                  cerrada.
+                </p>
+                <button
+                  onClick={() =>
+                    speak(
+                      "Prueba de voz. El camión recolector está a 300 metros de tu casa.",
+                    )
+                  }
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Probar voz
+                </button>
               </div>
             </div>
           )}
@@ -448,8 +673,17 @@ export default function Settings() {
       </motion.div>
 
       {/* ── Privacidad ── */}
-      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Privacidad" icon={Shield} iconColor="text-accent">
+      <motion.div
+        custom={2}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Privacidad"
+          icon={Shield}
+          iconColor="text-accent"
+        >
           <SettingRow
             label="Modo anónimo por defecto"
             sub="Todos tus reportes se enviarán anónimamente"
@@ -469,10 +703,16 @@ export default function Settings() {
             <Toggle checked={shareLocation} onChange={setShareLocation} />
           </SettingRow>
           <div className="px-4 py-3 flex gap-4 text-xs">
-            <a href="/privacidad" className="text-primary hover:underline flex items-center gap-1">
+            <a
+              href="/privacidad"
+              className="text-primary hover:underline flex items-center gap-1"
+            >
               📜 Política de Privacidad
             </a>
-            <a href="/terminos" className="text-primary hover:underline flex items-center gap-1">
+            <a
+              href="/terminos"
+              className="text-primary hover:underline flex items-center gap-1"
+            >
               📋 Términos y Condiciones
             </a>
           </div>
@@ -480,12 +720,23 @@ export default function Settings() {
       </motion.div>
 
       {/* ── Mapa ── */}
-      <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Preferencias del mapa" icon={Map} iconColor="text-blue-400">
+      <motion.div
+        custom={3}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Preferencias del mapa"
+          icon={Map}
+          iconColor="text-blue-400"
+        >
           <div className="px-4 py-4">
-            <p className="text-xs font-semibold text-white/60 mb-3 uppercase tracking-wide">Vista por defecto al abrir /mapa</p>
+            <p className="text-xs font-semibold text-white/60 mb-3 uppercase tracking-wide">
+              Vista por defecto al abrir /mapa
+            </p>
             <div className="flex gap-2">
-              {DEFAULT_VIEWS.map(v => {
+              {DEFAULT_VIEWS.map((v) => {
                 const Icon = v.icon;
                 const active = defaultView === v.id;
                 return (
@@ -515,31 +766,40 @@ export default function Settings() {
       </motion.div>
 
       {/* ── Distrito ── */}
-      <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Distrito y territorio" icon={Globe} iconColor="text-yellow-400">
+      <motion.div
+        custom={4}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Distrito y territorio"
+          icon={Globe}
+          iconColor="text-yellow-400"
+        >
           <SettingRow
             label="Distrito activo"
             sub="Todos los reportes y alertas corresponden a esta zona"
           >
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className="text-white font-medium">{districtInfo?.name ?? "Sin seleccionar"}</span>
+              <span className="text-white font-medium">
+                {districtInfo?.name ?? "Sin seleccionar"}
+              </span>
             </div>
           </SettingRow>
-          <SettingRow
-            label="Provincia"
-            sub=""
-          >
-            <span className="text-sm text-white font-medium">{districtInfo?.province ?? "—"}</span>
+          <SettingRow label="Provincia" sub="">
+            <span className="text-sm text-white font-medium">
+              {districtInfo?.province ?? "—"}
+            </span>
           </SettingRow>
-          <SettingRow
-            label="Región"
-            sub=""
-          >
-            <span className="text-sm text-white font-medium">{districtInfo?.department ?? "—"}</span>
+          <SettingRow label="Región" sub="">
+            <span className="text-sm text-white font-medium">
+              {districtInfo?.department ?? "—"}
+            </span>
           </SettingRow>
           <div className="px-4 py-3.5">
             <button
-              onClick={() => setPickerOpen(p => !p)}
+              onClick={() => setPickerOpen((p) => !p)}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/15 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/25 transition-all"
             >
               <MapPin className="w-4 h-4" />
@@ -547,12 +807,24 @@ export default function Settings() {
             </button>
           </div>
         </SettingSection>
-        <DistrictPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} />
+        <DistrictPicker
+          isOpen={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+        />
       </motion.div>
 
       {/* ── Cuenta ── */}
-      <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible">
-        <SettingSection title="Cuenta" icon={Smartphone} iconColor="text-muted-foreground">
+      <motion.div
+        custom={5}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <SettingSection
+          title="Cuenta"
+          icon={Smartphone}
+          iconColor="text-muted-foreground"
+        >
           <SettingRow
             label="Ver introducción"
             sub="Repasa cómo funciona Radar Vecinal"
@@ -566,35 +838,53 @@ export default function Settings() {
           <SettingRow
             label="Exportar mis datos"
             sub="Descarga un archivo con todos tus reportes y actividad"
-            onClick={() => toast({ title: "Exportación solicitada", description: "Recibirás un archivo en tu correo registrado." })}
+            onClick={() =>
+              toast({
+                title: "Exportación solicitada",
+                description: "Recibirás un archivo en tu correo registrado.",
+              })
+            }
           >
             <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-white">
               <Download className="w-4 h-4" />
               <ChevronRight className="w-4 h-4" />
             </div>
           </SettingRow>
-          <SettingRow
-            label="Versión de la app"
-            sub=""
-          >
-            <span className="text-xs text-muted-foreground font-mono">v2.1.0-beta</span>
+          <SettingRow label="Versión de la app" sub="">
+            <span className="text-xs text-muted-foreground font-mono">
+              v2.1.0-beta
+            </span>
           </SettingRow>
         </SettingSection>
       </motion.div>
 
       {/* ── Zona de peligro ── */}
-      <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible">
+      <motion.div
+        custom={6}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+      >
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 px-1 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-400" />
-            <h3 className="text-xs font-bold text-red-400/60 uppercase tracking-widest">Zona de peligro</h3>
+            <h3 className="text-xs font-bold text-red-400/60 uppercase tracking-widest">
+              Zona de peligro
+            </h3>
           </div>
           <div className="rounded-2xl bg-red-950/15 border border-red-900/25 overflow-hidden divide-y divide-red-900/20">
             <SettingRow
               label="Eliminar mi cuenta"
               sub="Esta acción es irreversible. Se eliminarán todos tus datos del sistema."
               danger
-              onClick={() => toast({ title: "Contacta al administrador", description: "Para eliminar tu cuenta, escribe a soporte@radarvecinal.app.", variant: "destructive" })}
+              onClick={() =>
+                toast({
+                  title: "Contacta al administrador",
+                  description:
+                    "Para eliminar tu cuenta, escribe a soporte@radarvecinal.app.",
+                  variant: "destructive",
+                })
+              }
             >
               <div className="flex items-center gap-1.5 text-red-400/50">
                 <Trash2 className="w-4 h-4" />

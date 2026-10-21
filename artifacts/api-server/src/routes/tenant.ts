@@ -21,7 +21,7 @@ export interface JwtUser {
  * Retorna null si no se puede determinar.
  */
 export function getDistrictId(req: Request): number | null {
-  const jwtUser = (req as any).jwtUser as JwtUser | undefined;
+  const jwtUser = req.jwtUser as JwtUser | undefined;
   if (jwtUser?.districtId && jwtUser.role !== "super_admin") {
     return Number(jwtUser.districtId);
   }
@@ -35,7 +35,7 @@ export function getDistrictId(req: Request): number | null {
  * que el recurso solicitado. super_admin puede acceder a todos.
  */
 export function checkTenant(req: Request, resourceDistrictId: number): boolean {
-  const jwtUser = (req as any).jwtUser as JwtUser | undefined;
+  const jwtUser = req.jwtUser as JwtUser | undefined;
   if (!jwtUser) return false;
   if (jwtUser.role === "super_admin") return true;
   return Number(jwtUser.districtId) === Number(resourceDistrictId);

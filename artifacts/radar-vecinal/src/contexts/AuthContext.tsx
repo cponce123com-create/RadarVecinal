@@ -13,32 +13,32 @@ import {
 } from "@workspace/api-client-react";
 
 export interface AuthUser {
-  id:           string;
-  name:         string;
-  email:        string;
-  role:         string;
-  sector:       string;
-  district:     string;
-  districtId:   number;
-  isActive:     boolean;
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  sector: string;
+  district: string;
+  districtId: number;
+  isActive: boolean;
   reportsCount: number;
   /** true solo para la cuenta del superadministrador que aún no tiene el rol */
   canClaimSuperAdmin?: boolean;
   /** Nombre en clave editable; si es null se usa "Vecino {vecinoId}" */
-  alias?:       string | null;
+  alias?: string | null;
   /** Código público autogenerado de 6 dígitos */
-  vecinoId?:    number | null;
-  createdAt:    string;
+  vecinoId?: number | null;
+  createdAt: string;
 }
 
 interface AuthContextValue {
-  user:       AuthUser | null;
-  token:      string | null;
+  user: AuthUser | null;
+  token: string | null;
   /** Guarda la sesión: access token, refresh token y usuario. */
-  login:      (token: string, refreshToken: string | null, user: AuthUser) => void;
-  logout:     () => void;
+  login: (token: string, refreshToken: string | null, user: AuthUser) => void;
+  logout: () => void;
   /** Nivel municipalidad o superior: gestiona y ELIMINA su distrito. */
-  isAdmin:    boolean;
+  isAdmin: boolean;
   /** Nivel moderador o superior: ve y edita/modera (sin eliminar). */
   isModerator: boolean;
   isSuperAdmin: boolean;

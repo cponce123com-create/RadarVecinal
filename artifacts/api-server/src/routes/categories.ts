@@ -16,7 +16,7 @@ import {
   subscriptionsTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "./auth";
+import { requireAuth, requireAdmin, currentUser } from "./auth";
 import { getDistrictId, checkTenant } from "./tenant";
 
 const router: IRouter = Router();
@@ -128,7 +128,7 @@ router.patch(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const user = (req as any).jwtUser;
+    const user = currentUser(req);
     const reportId = parseInt(req.params.id as string);
     const parsed = z
       .object({ departmentId: z.number().int().nullable() })

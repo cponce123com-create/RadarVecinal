@@ -16,12 +16,12 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
 const PANIC_LABEL: Record<string, { emoji: string; label: string }> = {
-  robbery:        { emoji: "🚨", label: "Asalto en progreso" },
-  medical:        { emoji: "🚑", label: "Emergencia médica" },
-  fight:          { emoji: "⚔️", label: "Violencia física" },
-  fire:           { emoji: "🔥", label: "Incendio" },
+  robbery: { emoji: "🚨", label: "Asalto en progreso" },
+  medical: { emoji: "🚑", label: "Emergencia médica" },
+  fight: { emoji: "⚔️", label: "Violencia física" },
+  fire: { emoji: "🔥", label: "Incendio" },
   missing_person: { emoji: "🔍", label: "Persona extraviada" },
-  other:          { emoji: "⚠️", label: "Emergencia" },
+  other: { emoji: "⚠️", label: "Emergencia" },
 };
 
 function makePanicIcon(emoji: string): L.DivIcon {
@@ -52,27 +52,31 @@ export function PanicAlertsLayer() {
   const map = useMap();
 
   const { data } = useGetPanicAlerts(
-    currentDistrictId ? { districtId: currentDistrictId, active: true } : undefined,
+    currentDistrictId
+      ? { districtId: currentDistrictId, active: true }
+      : undefined,
     // Cast necesario: el tipo generado por Orval exige queryKey, pero el hook lo construye internamente.
     // refetchInterval es el respaldo por si el SSE se cae.
     { query: { refetchInterval: 20000 } as any },
   );
 
-  const alerts = (data?.alerts ?? []).filter(a => a.isActive);
+  const alerts = (data?.alerts ?? []).filter((a) => a.isActive);
 
   // Al aparecer la PRIMERA alerta activa, centrar suavemente el mapa en ella
   // (solo cuando pasa de 0 a 1+, para no pelear con el usuario mientras navega)
   useEffect(() => {
     if (alerts.length === 1) {
       const a = alerts[0];
-      map.flyTo([a.latitude, a.longitude], Math.max(map.getZoom(), 15), { duration: 1 });
+      map.flyTo([a.latitude, a.longitude], Math.max(map.getZoom(), 15), {
+        duration: 1,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alerts.length]);
 
   return (
     <>
-      {alerts.map(alert => {
+      {alerts.map((alert) => {
         const meta = PANIC_LABEL[alert.type] ?? PANIC_LABEL.other;
         return (
           <Marker
@@ -83,16 +87,38 @@ export function PanicAlertsLayer() {
           >
             <Popup closeButton={false} maxWidth={240}>
               <div style={{ fontFamily: "inherit", minWidth: 190 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 6,
+                  }}
+                >
                   <span style={{ fontSize: 18 }}>{meta.emoji}</span>
-                  <strong style={{ fontSize: 13, color: "#ef4444" }}>{meta.label}</strong>
+                  <strong style={{ fontSize: 13, color: "#ef4444" }}>
+                    {meta.label}
+                  </strong>
                 </div>
                 <div style={{ fontSize: 11, lineHeight: 1.5, color: "#444" }}>
-                  <div><b>Reportado por:</b> {alert.authorName}</div>
-                  {alert.sector && <div><b>Sector:</b> {alert.sector}</div>}
-                  {alert.address && <div><b>Referencia:</b> {alert.address}</div>}
+                  <div>
+                    <b>Reportado por:</b> {alert.authorName}
+                  </div>
+                  {alert.sector && (
+                    <div>
+                      <b>Sector:</b> {alert.sector}
+                    </div>
+                  )}
+                  {alert.address && (
+                    <div>
+                      <b>Referencia:</b> {alert.address}
+                    </div>
+                  )}
                   <div style={{ marginTop: 4, color: "#888" }}>
-                    Hace {formatDistanceToNow(new Date(alert.createdAt), { locale: es })}
+                    Hace{" "}
+                    {formatDistanceToNow(new Date(alert.createdAt), {
+                      locale: es,
+                    })}
                   </div>
                 </div>
               </div>

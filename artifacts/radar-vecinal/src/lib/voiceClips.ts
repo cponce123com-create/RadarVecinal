@@ -17,7 +17,9 @@ export interface VoiceClip {
 }
 
 export async function listVoiceClips(districtId: number): Promise<VoiceClip[]> {
-  const data = await customFetch<{ clips: VoiceClip[] }>(`/api/live/voice-clips?districtId=${districtId}`);
+  const data = await customFetch<{ clips: VoiceClip[] }>(
+    `/api/live/voice-clips?districtId=${districtId}`,
+  );
   return data.clips ?? [];
 }
 

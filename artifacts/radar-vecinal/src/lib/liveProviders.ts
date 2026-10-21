@@ -43,7 +43,12 @@ export interface ProviderMeta {
 
 // El orden define cómo aparecen en el selector de transmisión.
 export const PROVIDER_META: ProviderMeta[] = [
-  { type: "recolector", emoji: "🚛", label: "Camión recolector", color: "#22c55e" },
+  {
+    type: "recolector",
+    emoji: "🚛",
+    label: "Camión recolector",
+    color: "#22c55e",
+  },
   { type: "panadero", emoji: "🍞", label: "Panadero", color: "#d97706" },
   { type: "lechero", emoji: "🥛", label: "Lechero", color: "#38bdf8" },
   { type: "tamalero", emoji: "🫔", label: "Tamalero", color: "#eab308" },
@@ -162,7 +167,9 @@ export interface LiveRoute {
 
 /** Puntos de la ruta de una transmisión (para la línea en vivo o el historial). */
 export async function getProviderTrack(id: string): Promise<TrackPoint[]> {
-  const data = await customFetch<{ points: TrackPoint[] }>(`/api/live/${id}/track`);
+  const data = await customFetch<{ points: TrackPoint[] }>(
+    `/api/live/${id}/track`,
+  );
   return data.points ?? [];
 }
 
@@ -205,7 +212,9 @@ export async function listLiveHistory(params: {
     to: params.to,
   });
   if (params.type) q.set("type", params.type);
-  const data = await customFetch<{ routes: LiveRoute[] }>(`/api/live/history?${q.toString()}`);
+  const data = await customFetch<{ routes: LiveRoute[] }>(
+    `/api/live/history?${q.toString()}`,
+  );
   return data.routes ?? [];
 }
 
@@ -232,7 +241,9 @@ export interface DeviceInfo {
 
 export async function listDevices(districtId?: number): Promise<LiveDevice[]> {
   const q = districtId ? `?districtId=${districtId}` : "";
-  const data = await customFetch<{ devices: LiveDevice[] }>(`/api/live/devices${q}`);
+  const data = await customFetch<{ devices: LiveDevice[] }>(
+    `/api/live/devices${q}`,
+  );
   return data.devices ?? [];
 }
 
@@ -266,7 +277,11 @@ export async function getDeviceInfo(deviceKey: string): Promise<DeviceInfo> {
   return customFetch<DeviceInfo>(`/api/live/device/${deviceKey}`);
 }
 
-export async function devicePing(deviceKey: string, latitude: number, longitude: number): Promise<void> {
+export async function devicePing(
+  deviceKey: string,
+  latitude: number,
+  longitude: number,
+): Promise<void> {
   await customFetch(`/api/live/device/${deviceKey}/ping`, {
     method: "POST",
     body: JSON.stringify({ latitude, longitude }),

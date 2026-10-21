@@ -26,88 +26,71 @@ catalog:
 
 minimumReleaseAge: 0
 
+# ── Solo las dependencias opcionales de la plataforma actual ───────────────
+# Antes se resolvía con ~80 overrides del tipo "rollup>@rollup/rollup-win32-
+# x64-msvc: '-'", que excluían a mano los binarios nativos de otras
+# plataformas. Eso adelgazaba la instalación, pero rompía Windows: rollup
+# exige su binario nativo y sin él vitest/vite no arrancan ("Cannot find
+# module @rollup/rollup-win32-x64-msvc"). `supportedArchitectures` consigue
+# lo mismo (instalar solo lo de la plataforma que se está usando) sin
+# romper ningún sistema operativo, y sin mantener una lista brittle.
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - current
+
 overrides:
+  # Alias heredado de Expo: no se usa, pero se fija para no arrastrar el
+  # esm-loader (que exige un build nativo).
   '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
-  '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-x64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-linux-arm': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-linux-arm64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-linux-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-sunos-x64': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-win32-ia32': '-'
-  '@expo/ngrok-bin>@expo/ngrok-bin-win32-x64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-android-arm64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-darwin-arm64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-darwin-x64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-freebsd-x64': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm-gnueabihf': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-gnu': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-musl': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-linux-x64-musl': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-win32-arm64-msvc': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
+  # Versión única de esbuild para todo el monorepo (build del api-server y
+  # vite comparten el mismo binario nativo).
   esbuild: 0.27.3
-  esbuild>@esbuild/aix-ppc64: '-'
-  esbuild>@esbuild/android-arm: '-'
-  esbuild>@esbuild/android-arm64: '-'
-  esbuild>@esbuild/android-x64: '-'
-  esbuild>@esbuild/darwin-arm64: '-'
-  esbuild>@esbuild/darwin-x64: '-'
-  esbuild>@esbuild/freebsd-arm64: '-'
-  esbuild>@esbuild/freebsd-x64: '-'
-  esbuild>@esbuild/linux-arm: '-'
-  esbuild>@esbuild/linux-arm64: '-'
-  esbuild>@esbuild/linux-ia32: '-'
-  esbuild>@esbuild/linux-loong64: '-'
-  esbuild>@esbuild/linux-mips64el: '-'
-  esbuild>@esbuild/linux-ppc64: '-'
-  esbuild>@esbuild/linux-riscv64: '-'
-  esbuild>@esbuild/linux-s390x: '-'
-  esbuild>@esbuild/netbsd-arm64: '-'
-  esbuild>@esbuild/netbsd-x64: '-'
-  esbuild>@esbuild/openbsd-arm64: '-'
-  esbuild>@esbuild/openbsd-x64: '-'
-  esbuild>@esbuild/openharmony-arm64: '-'
-  esbuild>@esbuild/sunos-x64: '-'
-  esbuild>@esbuild/win32-arm64: '-'
-  esbuild>@esbuild/win32-ia32: '-'
-  esbuild>@esbuild/win32-x64: '-'
-  lightningcss>lightningcss-android-arm64: '-'
-  lightningcss>lightningcss-darwin-arm64: '-'
-  lightningcss>lightningcss-darwin-x64: '-'
-  lightningcss>lightningcss-freebsd-x64: '-'
-  lightningcss>lightningcss-linux-arm-gnueabihf: '-'
-  lightningcss>lightningcss-linux-arm64-gnu: '-'
-  lightningcss>lightningcss-linux-arm64-musl: '-'
-  lightningcss>lightningcss-linux-x64-musl: '-'
-  lightningcss>lightningcss-win32-arm64-msvc: '-'
-  lightningcss>lightningcss-win32-x64-msvc: '-'
-  rollup>@rollup/rollup-android-arm-eabi: '-'
-  rollup>@rollup/rollup-android-arm64: '-'
-  rollup>@rollup/rollup-darwin-arm64: '-'
-  rollup>@rollup/rollup-darwin-x64: '-'
-  rollup>@rollup/rollup-freebsd-arm64: '-'
-  rollup>@rollup/rollup-freebsd-x64: '-'
-  rollup>@rollup/rollup-linux-arm-gnueabihf: '-'
-  rollup>@rollup/rollup-linux-arm-musleabihf: '-'
-  rollup>@rollup/rollup-linux-arm64-gnu: '-'
-  rollup>@rollup/rollup-linux-arm64-musl: '-'
-  rollup>@rollup/rollup-linux-loong64-gnu: '-'
-  rollup>@rollup/rollup-linux-loong64-musl: '-'
-  rollup>@rollup/rollup-linux-ppc64-gnu: '-'
-  rollup>@rollup/rollup-linux-ppc64-musl: '-'
-  rollup>@rollup/rollup-linux-riscv64-gnu: '-'
-  rollup>@rollup/rollup-linux-riscv64-musl: '-'
-  rollup>@rollup/rollup-linux-s390x-gnu: '-'
-  rollup>@rollup/rollup-linux-x64-musl: '-'
-  rollup>@rollup/rollup-openbsd-x64: '-'
-  rollup>@rollup/rollup-openharmony-arm64: '-'
-  rollup>@rollup/rollup-win32-arm64-msvc: '-'
-  rollup>@rollup/rollup-win32-ia32-msvc: '-'
-  rollup>@rollup/rollup-win32-x64-gnu: '-'
-  rollup>@rollup/rollup-win32-x64-msvc: '-'
+
+  # ── Parches de seguridad (audit 2026-10-21) ──────────────────────────────
+  # Todos son actualizaciones de PATCH dentro del mismo major: no cambian la
+  # API pública, así que es seguro fijarlos aquí.
+  #
+  # proxy-addr (CRÍTICA): versión < 2.0.8 confunde las direcciones IPv4
+  # mapeadas en IPv6 y permite suplantar la IP real. Como el rate limit de
+  # login se calcula con `ipKeyGenerator(req.ip)`, un atacante podía evadir
+  # el bloqueo por intentos y forzar contraseñas a la fuerza.
+  proxy-addr: ^2.0.8
+  # js-yaml: >= 4.3.0 (DoS de CPU con claves de merge y resolución !!omap).
+  js-yaml: ^4.3.2
+  # fast-uri: >= 3.1.4 (confusión de host y SSRF en la serialización de URL).
+  fast-uri: ^3.1.7
+  # ip-address: >= 10.3.1 (decodificación de octetos con cero inicial).
+  ip-address: ^10.3.1
+  # postcss: >= 8.5.18 (path traversal al cargar source maps anteriores).
+  postcss: ^8.5.18
+  # fast-xml-parser: >= 5.10.1 (DoS por DOCTYPE repetidos).
+  fast-xml-parser: ^5.10.1
+  # browserslist: >= 4.28.7 (fuga de memoria sin evicción de caché).
+  browserslist: ^4.28.7
+  # source-map-js: >= 1.2.2 (DoS por manipulación del event loop).
+  source-map-js: ^1.2.2
+  # vite: >= 7.3.7.
+  vite: ^7.3.7
+  # @grpc/grpc-js: >= 1.14.5 (getAuthContext con contextos no autorizados).
+  '@grpc/grpc-js': ^1.14.5
+  # @fastify/busboy: >= 3.2.1 (DoS al procesar multipart).
+  '@fastify/busboy': ^3.2.1
+  # brace-expansion: hay dos majors en el árbol; cada uno necesita su parche
+  # (2.x >= 2.1.7, 5.x >= 5.0.12). El selector por rango evita bajar de major.
+  'brace-expansion@>=2.0.0 <3.0.0': ^2.1.7
+  'brace-expansion@>=3.0.0': ^5.0.12
+  # nanoid: solo la rama 3.x está afectada (< 3.3.18); la 5.x del árbol es OK.
+  'nanoid@>=3.0.0 <4.0.0': ^3.3.18
+
+  # ── Parches de herramientas de build (no llegan a producción) ───────────
+  # Mismo criterio: parche dentro del major cuando se puede, selector por
+  # rango cuando el árbol tiene varias ramas del mismo paquete.
+  undici: ^7.29.1
+  tar: ^7.5.21
+  markdown-it: ^14.3.3
+  '@xmldom/xmldom': ^0.9.12
 
 # Aprobar scripts de build de dependencias. En CI, pnpm 11 falla (exit 1) si
 # hay scripts de build sin aprobar; esbuild y otros los necesitan de verdad.

@@ -1,7 +1,19 @@
+// Debe ser el PRIMER import: fija la zona horaria del proceso en UTC antes
+// de que nada cree un `Date` (ver lib/timezone.ts).
+import "./lib/timezone";
+
 import app from "./app";
 import { logger } from "./lib/logger";
-import { startMaintenanceTasks, stopMaintenanceTasks } from "./workers/maintenance";
-import { pool } from "@workspace/db";
+import {
+  startMaintenanceTasks,
+  stopMaintenanceTasks,
+} from "./workers/maintenance";
+import { pool, assertDatabaseConfigured } from "@workspace/db";
+
+// Falla rápido si falta DATABASE_URL. Importar el módulo de base de datos no
+// lanza (hay tests unitarios que lo importan sin base de datos), así que la
+// validación es explícita y ocurre aquí, antes de aceptar tráfico.
+assertDatabaseConfigured();
 
 const rawPort = process.env["PORT"];
 

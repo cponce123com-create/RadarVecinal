@@ -21,7 +21,10 @@ export default function useBranding() {
 
     // Aplicar color primario como CSS custom property
     document.documentElement.style.setProperty("--brand-primary", color);
-    document.documentElement.style.setProperty("--brand-primary-rgb", hexToRgb(color));
+    document.documentElement.style.setProperty(
+      "--brand-primary-rgb",
+      hexToRgb(color),
+    );
 
     // Actualizar título
     document.title = brandName;

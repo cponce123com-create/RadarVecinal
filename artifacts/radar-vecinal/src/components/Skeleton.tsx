@@ -17,14 +17,22 @@ export function Skeleton({ className = "" }: { className?: string }) {
 /** Skeleton genérico de página (encabezado + tarjetas) para los Suspense. */
 export function PageSkeleton() {
   return (
-    <div className="w-full max-w-[1180px] mx-auto flex flex-col gap-4" aria-busy="true" aria-label="Cargando">
+    <div
+      className="w-full max-w-[1180px] mx-auto flex flex-col gap-4"
+      aria-busy="true"
+      aria-label="Cargando"
+    >
       <Skeleton className="h-7 w-52" />
       <Skeleton className="h-4 w-72" />
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-1">
-        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20" />)}
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-20" />
+        ))}
       </div>
       <div className="flex flex-col gap-2.5 mt-2">
-        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16" />
+        ))}
       </div>
     </div>
   );

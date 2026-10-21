@@ -24,7 +24,10 @@ export function useGeolocation() {
 
   const request = useCallback(() => {
     if (!state.supported) {
-      setState(s => ({ ...s, error: "Tu dispositivo no soporta geolocalización." }));
+      setState((s) => ({
+        ...s,
+        error: "Tu dispositivo no soporta geolocalización.",
+      }));
       return;
     }
 
@@ -33,29 +36,35 @@ export function useGeolocation() {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
 
-    setState(s => ({ ...s, loading: true, error: null }));
+    setState((s) => ({ ...s, loading: true, error: null }));
 
     // Usar watchPosition en vez de getCurrentPosition para mayor confiabilidad
     watchIdRef.current = navigator.geolocation.watchPosition(
-      pos => {
+      (pos) => {
         setState({
-          position: { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy },
+          position: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          },
           error: null,
           loading: false,
           supported: true,
         });
       },
-      err => {
-        setState(s => ({
+      (err) => {
+        setState((s) => ({
           ...s,
           loading: false,
           error:
-            err.code === 1 ? "Permiso de ubicación denegado. Actívalo en ajustes." :
-            err.code === 2 ? "No se pudo obtener tu ubicación." :
-            "Tiempo agotado al obtener ubicación.",
+            err.code === 1
+              ? "Permiso de ubicación denegado. Actívalo en ajustes."
+              : err.code === 2
+                ? "No se pudo obtener tu ubicación."
+                : "Tiempo agotado al obtener ubicación.",
         }));
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   }, [state.supported]);
 
@@ -77,16 +86,22 @@ export function useGeolocation() {
           navigator.geolocation.clearWatch(watchIdRef.current);
           // Intentar getCurrentPosition como respaldo
           navigator.geolocation.getCurrentPosition(
-            pos => {
+            (pos) => {
               setState({
-                position: { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy },
+                position: {
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  accuracy: pos.coords.accuracy,
+                },
                 error: null,
                 loading: false,
                 supported: true,
               });
             },
-            () => { /* ignorar error del fallback */ },
-            { enableHighAccuracy: false, timeout: 5000, maximumAge: 120000 }
+            () => {
+              /* ignorar error del fallback */
+            },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 120000 },
           );
         }
       }, 8000);

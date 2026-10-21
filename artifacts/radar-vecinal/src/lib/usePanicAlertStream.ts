@@ -20,7 +20,9 @@ export function usePanicAlertStream() {
       eventSourceRef.current.close();
     }
 
-    const es = new EventSource(`/api/panic-alerts/stream?districtId=${currentDistrictId}`);
+    const es = new EventSource(
+      `/api/panic-alerts/stream?districtId=${currentDistrictId}`,
+    );
     eventSourceRef.current = es;
 
     es.onmessage = (event) => {
@@ -47,7 +49,10 @@ export function usePanicAlertStream() {
         toast({
           title: typeMap[data.type] || "⚠️ Alerta de Pánico",
           description: `${data.authorName} — ${data.address || data.sector || ""}`,
-          variant: data.type === "robbery" || data.type === "fire" ? "destructive" as const : "default" as const,
+          variant:
+            data.type === "robbery" || data.type === "fire"
+              ? ("destructive" as const)
+              : ("default" as const),
         });
       } catch {
         // ignore parse errors

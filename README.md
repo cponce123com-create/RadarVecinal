@@ -1,5 +1,3 @@
-
-
 <div align="center">
 
   <img src="./artifacts/radar-vecinal/public/images/radar-bg.png" alt="Radar Vecinal" width="120" style="border-radius: 20px;" />
@@ -37,6 +35,7 @@
 - [🗄️ Base de Datos](#️-base-de-datos)
 - [📱 App Móvil (Android)](#-app-móvil-android)
 - [🌐 Despliegue](#-despliegue)
+- [🔍 Auditoría](#-auditoría)
 - [🤝 Contribución](#-contribución)
 - [📄 Licencia](#-licencia)
 
@@ -46,11 +45,11 @@
 
 **Radar Vecinal** conecta a **vecinos** con su **municipalidad** para mejorar la seguridad ciudadana en tiempo real.
 
-| Vecino reporta | Municipalidad recibe | Comunidad confirma |
-|:---:|:---:|:---:|
-| 📍 Incidencias con GPS | 📊 Dashboard en vivo | ✅ Verificación colaborativa |
-| 🆘 Alertas de pánico | 🔔 Notificaciones push | 🏆 TrustScore por vecino |
-| 👤 Personas extraviadas | 📋 Sistema de asignación | 📈 Estadísticas abiertas |
+|     Vecino reporta      |   Municipalidad recibe   |      Comunidad confirma      |
+| :---------------------: | :----------------------: | :--------------------------: |
+| 📍 Incidencias con GPS  |   📊 Dashboard en vivo   | ✅ Verificación colaborativa |
+|  🆘 Alertas de pánico   |  🔔 Notificaciones push  |   🏆 TrustScore por vecino   |
+| 👤 Personas extraviadas | 📋 Sistema de asignación |   📈 Estadísticas abiertas   |
 
 > **🇵🇪 Hecho para el Perú** — Diseñado específicamente para municipalidades peruanas, cumpliendo con la **Ley N° 29733** (Protección de Datos Personales) y adaptado a la organización territorial por distritos, provincias y departamentos.
 
@@ -60,18 +59,18 @@
 
 <div align="center">
 
-| Funcionalidad | Vecino | Municipalidad | Detalle técnico |
-|:---|---|:---:|:---:|
-| 📍 **Reporte ciudadano** | Reporta incidencias con foto y GPS | Recibe y clasifica | Express + Drizzle + Cloudinary |
-| 🆘 **Alerta de pánico** | Botón de emergencia 1-click | SSE en tiempo real + FCM push | Server-Sent Events + Firebase |
-| 👤 **Personas desaparecidas** | Registro con datos y foto | Difusión y seguimiento | PostgreSQL + Cloudinary |
-| 📊 **Dashboard municipal** | — | Estadísticas por distrito | Drizzle queries agregadas |
-| 🔔 **Notificaciones push** | Sí (Android) | Asignación y updates | Firebase Cloud Messaging |
-| 🧑‍💼 **Roles** | Vecino | Admin / Moderador / Viewer | JWT + refresh tokens |
-| 🏙️ **Multi-tenant** | Solo su distrito | Solo su distrito | Aislamiento por `districtId` |
-| 📱 **App Android** | Capacitor 7 | — | APK nativa con push |
-| 📋 **Mensajería** | Recibe respuestas | Envía mensajes personalizados | Email (SMTP) + App |
-| ✅ **Verificación comunitaria** | Confirma soluciones | Cierra reportes | Confirmación colectiva |
+| Funcionalidad                   | Vecino                             |         Municipalidad         |        Detalle técnico         |
+| :------------------------------ | ---------------------------------- | :---------------------------: | :----------------------------: |
+| 📍 **Reporte ciudadano**        | Reporta incidencias con foto y GPS |      Recibe y clasifica       | Express + Drizzle + Cloudinary |
+| 🆘 **Alerta de pánico**         | Botón de emergencia 1-click        | SSE en tiempo real + FCM push | Server-Sent Events + Firebase  |
+| 👤 **Personas desaparecidas**   | Registro con datos y foto          |    Difusión y seguimiento     |    PostgreSQL + Cloudinary     |
+| 📊 **Dashboard municipal**      | —                                  |   Estadísticas por distrito   |   Drizzle queries agregadas    |
+| 🔔 **Notificaciones push**      | Sí (Android)                       |     Asignación y updates      |    Firebase Cloud Messaging    |
+| 🧑‍💼 **Roles**                    | Vecino                             |  Admin / Moderador / Viewer   |      JWT + refresh tokens      |
+| 🏙️ **Multi-tenant**             | Solo su distrito                   |       Solo su distrito        |  Aislamiento por `districtId`  |
+| 📱 **App Android**              | Capacitor 7                        |               —               |      APK nativa con push       |
+| 📋 **Mensajería**               | Recibe respuestas                  | Envía mensajes personalizados |       Email (SMTP) + App       |
+| ✅ **Verificación comunitaria** | Confirma soluciones                |        Cierra reportes        |     Confirmación colectiva     |
 
 </div>
 
@@ -142,19 +141,19 @@ flowchart LR
 
 <div align="center">
 
-| Capa | Tecnología | Versión |
-|:---|---|:---:|
-| 🌐 **Frontend** | React + Vite + Tailwind CSS + shadcn/ui | React 19 |
-| ⚙️ **Backend** | Express + Pino Logger + Helmet | Express 5 |
-| 🗄️ **Base de Datos** | Neon PostgreSQL + Drizzle ORM | PG 15 |
-| 📱 **Móvil** | Capacitor | Capacitor 7 |
-| 🔐 **Autenticación** | JWT + refresh tokens (bcrypt) | — |
-| ☁️ **Imágenes** | Cloudinary | — |
-| 🔔 **Push** | Firebase Cloud Messaging (firebase-admin) | — |
-| 📧 **Email** | Nodemailer (SMTP) | — |
-| 🧠 **Lenguaje** | TypeScript (strict mode) | TS 5.x |
-| 📦 **Monorepo** | pnpm workspaces | pnpm 9.x |
-| 🚀 **Deploy** | Render (free tier) | — |
+| Capa                 | Tecnología                                |   Versión   |
+| :------------------- | ----------------------------------------- | :---------: |
+| 🌐 **Frontend**      | React + Vite + Tailwind CSS + shadcn/ui   |  React 19   |
+| ⚙️ **Backend**       | Express + Pino Logger + Helmet            |  Express 5  |
+| 🗄️ **Base de Datos** | Neon PostgreSQL + Drizzle ORM             |    PG 15    |
+| 📱 **Móvil**         | Capacitor                                 | Capacitor 7 |
+| 🔐 **Autenticación** | JWT + refresh tokens (bcrypt)             |      —      |
+| ☁️ **Imágenes**      | Cloudinary                                |      —      |
+| 🔔 **Push**          | Firebase Cloud Messaging (firebase-admin) |      —      |
+| 📧 **Email**         | Nodemailer (SMTP)                         |      —      |
+| 🧠 **Lenguaje**      | TypeScript (strict mode)                  |   TS 5.x    |
+| 📦 **Monorepo**      | pnpm workspaces                           |  pnpm 9.x   |
+| 🚀 **Deploy**        | Render (free tier)                        |      —      |
 
 </div>
 
@@ -232,23 +231,23 @@ pnpm --filter @workspace/radar-vecinal run dev
 
 ### Variables de Entorno
 
-| Variable | Obligatoria | Descripción |
-|:---|---|:---|
-| `DATABASE_URL` | ✅ | Conexión Neon PostgreSQL (usar `-pooler` en producción) |
-| `JWT_SECRET` | ✅ | `openssl rand -base64 32` |
-| `SUPER_ADMIN_EMAIL` | ✅ | Email del super administrador **(sin valor por defecto)** |
-| `SUPER_ADMIN_CLAIM_SECRET` | ❌ | Clave para activar el rol superadmin (`openssl rand -base64 32`) |
-| `PORT` | ✅ | Render asigna `10000` automáticamente |
-| `NODE_ENV` | ✅ | `development` o `production` |
-| `CORS_ORIGIN` | ✅ | Orígenes permitidos separados por coma |
-| `CLOUDINARY_CLOUD_NAME` | ✅ | De [Cloudinary Console](https://cloudinary.com/console) |
-| `CLOUDINARY_API_KEY` | ✅ | De Cloudinary Console |
-| `CLOUDINARY_API_SECRET` | ✅ | De Cloudinary Console |
-| `RENIEC_API_TOKEN` | ✅ | Token de [api.decolecta.com](https://api.decolecta.com) |
-| `SEED_KEY` | ✅ | Clave para seed **(solo en desarrollo)** |
-| `FCM_SERVICE_ACCOUNT` | ❌ | JSON de Firebase Admin SDK (para push) |
-| `SMTP_HOST/PORT/USER/PASS/FROM` | ❌ | Configuración SMTP (para emails) |
-| `APP_URL` | ❌ | URL pública para enlaces en emails |
+| Variable                        | Obligatoria | Descripción                                                      |
+| :------------------------------ | ----------- | :--------------------------------------------------------------- |
+| `DATABASE_URL`                  | ✅          | Conexión Neon PostgreSQL (usar `-pooler` en producción)          |
+| `JWT_SECRET`                    | ✅          | `openssl rand -base64 32`                                        |
+| `SUPER_ADMIN_EMAIL`             | ✅          | Email del super administrador **(sin valor por defecto)**        |
+| `SUPER_ADMIN_CLAIM_SECRET`      | ❌          | Clave para activar el rol superadmin (`openssl rand -base64 32`) |
+| `PORT`                          | ✅          | Render asigna `10000` automáticamente                            |
+| `NODE_ENV`                      | ✅          | `development` o `production`                                     |
+| `CORS_ORIGIN`                   | ✅          | Orígenes permitidos separados por coma                           |
+| `CLOUDINARY_CLOUD_NAME`         | ✅          | De [Cloudinary Console](https://cloudinary.com/console)          |
+| `CLOUDINARY_API_KEY`            | ✅          | De Cloudinary Console                                            |
+| `CLOUDINARY_API_SECRET`         | ✅          | De Cloudinary Console                                            |
+| `RENIEC_API_TOKEN`              | ✅          | Token de [api.decolecta.com](https://api.decolecta.com)          |
+| `SEED_KEY`                      | ✅          | Clave para seed **(solo en desarrollo)**                         |
+| `FCM_SERVICE_ACCOUNT`           | ❌          | JSON de Firebase Admin SDK (para push)                           |
+| `SMTP_HOST/PORT/USER/PASS/FROM` | ❌          | Configuración SMTP (para emails)                                 |
+| `APP_URL`                       | ❌          | URL pública para enlaces en emails                               |
 
 ### Comandos Útiles
 
@@ -266,52 +265,52 @@ pnpm --filter @workspace/db run migrate  # Migraciones DB
 
 ### Autenticación
 
-| Método | Ruta | Auth | Descripción |
-|:---:|:---|:---:|:---|
-| `POST` | `/api/auth/register` | ❌ | Registrar vecino |
-| `POST` | `/api/auth/login` | ❌ | Iniciar sesión |
-| `POST` | `/api/auth/refresh` | ❌ | Renovar token JWT |
-| `POST` | `/api/auth/logout` | ✅ | Cerrar sesión |
-| `POST` | `/api/auth/claim-superadmin` | ✅ | Reclamar rol super_admin (requiere `SUPER_ADMIN_CLAIM_SECRET`) |
+| Método | Ruta                         | Auth | Descripción                                                    |
+| :----: | :--------------------------- | :--: | :------------------------------------------------------------- |
+| `POST` | `/api/auth/register`         |  ❌  | Registrar vecino                                               |
+| `POST` | `/api/auth/login`            |  ❌  | Iniciar sesión                                                 |
+| `POST` | `/api/auth/refresh`          |  ❌  | Renovar token JWT                                              |
+| `POST` | `/api/auth/logout`           |  ✅  | Cerrar sesión                                                  |
+| `POST` | `/api/auth/claim-superadmin` |  ✅  | Reclamar rol super_admin (requiere `SUPER_ADMIN_CLAIM_SECRET`) |
 
 ### Reportes
 
-| Método | Ruta | Auth | Descripción |
-|:---:|:---|:---:|:---|
-| `GET` | `/api/reports` | ❌ | Listar reportes (filtrables) |
-| `POST` | `/api/reports` | ❌ | Crear reporte |
-| `GET` | `/api/reports/:id` | ❌ | Detalle del reporte |
-| `PATCH` | `/api/reports/:id` | ✅ | Actualizar reporte (admin) |
-| `POST` | `/api/reports/:id/confirm` | ❌ | Confirmar reporte |
-| `POST` | `/api/reports/:id/vote` | ❌ | Votar reporte |
+| Método  | Ruta                       | Auth | Descripción                  |
+| :-----: | :------------------------- | :--: | :--------------------------- |
+|  `GET`  | `/api/reports`             |  ❌  | Listar reportes (filtrables) |
+| `POST`  | `/api/reports`             |  ❌  | Crear reporte                |
+|  `GET`  | `/api/reports/:id`         |  ❌  | Detalle del reporte          |
+| `PATCH` | `/api/reports/:id`         |  ✅  | Actualizar reporte (admin)   |
+| `POST`  | `/api/reports/:id/confirm` |  ❌  | Confirmar reporte            |
+| `POST`  | `/api/reports/:id/vote`    |  ❌  | Votar reporte                |
 
 ### Alertas de Pánico
 
-| Método | Ruta | Auth | Descripción |
-|:---:|:---|:---:|:---|
-| `GET` | `/api/panic-alerts` | ❌ | Listar alertas activas |
-| `POST` | `/api/panic-alerts` | ❌ | Crear alerta de pánico |
-| `GET` | `/api/panic-alerts/stream` | ❌ | SSE en tiempo real |
-| `PATCH` | `/api/panic-alerts/:id` | ✅ | Actualizar estado (admin) |
+| Método  | Ruta                       | Auth | Descripción               |
+| :-----: | :------------------------- | :--: | :------------------------ |
+|  `GET`  | `/api/panic-alerts`        |  ❌  | Listar alertas activas    |
+| `POST`  | `/api/panic-alerts`        |  ❌  | Crear alerta de pánico    |
+|  `GET`  | `/api/panic-alerts/stream` |  ❌  | SSE en tiempo real        |
+| `PATCH` | `/api/panic-alerts/:id`    |  ✅  | Actualizar estado (admin) |
 
 ### Personas Desaparecidas
 
-| Método | Ruta | Auth | Descripción |
-|:---:|:---|:---:|:---|
-| `GET` | `/api/missing-persons` | ❌ | Listar desaparecidos |
-| `POST` | `/api/missing-persons` | ❌ | Reportar desaparición |
+| Método | Ruta                   | Auth | Descripción           |
+| :----: | :--------------------- | :--: | :-------------------- |
+| `GET`  | `/api/missing-persons` |  ❌  | Listar desaparecidos  |
+| `POST` | `/api/missing-persons` |  ❌  | Reportar desaparición |
 
 ### Consulta RENIEC
 
-| Método | Ruta | Auth | Descripción |
-|:---:|:---|:---:|:---|
-| `GET` | `/api/reniec/lookup/:dni` | 🔒 **Backoffice** | Consultar DNI (limitado: 10/hora) |
+| Método | Ruta                      |       Auth        | Descripción                       |
+| :----: | :------------------------ | :---------------: | :-------------------------------- |
+| `GET`  | `/api/reniec/lookup/:dni` | 🔒 **Backoffice** | Consultar DNI (limitado: 10/hora) |
 
 ### Almacenamiento
 
-| Método | Ruta | Auth | Descripción |
-|:---:|:---|:---:|:---|
-| `POST` | `/api/storage/uploads/request-url` | ✅ | Solicitar URL de subida Cloudinary |
+| Método | Ruta                               | Auth | Descripción                        |
+| :----: | :--------------------------------- | :--: | :--------------------------------- |
+| `POST` | `/api/storage/uploads/request-url` |  ✅  | Solicitar URL de subida Cloudinary |
 
 > 🔒 = Requiere autenticación | 🔒 **Rol específico** = Requiere rol específico
 
@@ -397,12 +396,14 @@ cd android
 ```
 
 > ⚠️ Para distribuir fuera de debug, genera un keystore:
+>
 > ```bash
-> keytool -genkey -v -keystore release.keystore -alias radarvecinal 
+> keytool -genkey -v -keystore release.keystore -alias radarvecinal
 >   -keyalg RSA -keysize 2048 -validity 10000
 > ```
 
 La app recibe **notificaciones push nativas** a través de Firebase Cloud Messaging para:
+
 - 🚨 Alertas de pánico en tu distrito
 - 📋 Mensajes de la municipalidad
 - ✅ Actualizaciones de estado de tus reportes
@@ -413,15 +414,15 @@ La app recibe **notificaciones push nativas** a través de Firebase Cloud Messag
 
 ### Render (recomendado)
 
-| Paso | Acción |
-|:---:|:---|
-| 1 | Crear Web Service en Render conectado a GitHub |
-| 2 | **Build Command:** `./render-build.sh` |
-| 3 | **Start Command:** `cd artifacts/api-server && node --enable-source-maps ./dist/index.mjs` |
-| 4 | Configurar **todas las variables de entorno** del panel |
-| 5 | Crear base de datos **Neon PostgreSQL** |
-| 6 | Ejecutar migraciones: `pnpm --filter @workspace/db run migrate` |
-| 7 | ✅ Verificar health check: `GET /api/health` |
+| Paso | Acción                                                                                     |
+| :--: | :----------------------------------------------------------------------------------------- |
+|  1   | Crear Web Service en Render conectado a GitHub                                             |
+|  2   | **Build Command:** `./render-build.sh`                                                     |
+|  3   | **Start Command:** `cd artifacts/api-server && node --enable-source-maps ./dist/index.mjs` |
+|  4   | Configurar **todas las variables de entorno** del panel                                    |
+|  5   | Crear base de datos **Neon PostgreSQL**                                                    |
+|  6   | Ejecutar migraciones: `pnpm --filter @workspace/db run migrate`                            |
+|  7   | ✅ Verificar health check: `GET /api/health`                                               |
 
 ### Checklist Post-Despliegue
 
@@ -430,8 +431,8 @@ La app recibe **notificaciones push nativas** a través de Firebase Cloud Messag
 curl https://tu-dominio.onrender.com/api/health
 
 # 2. Probar login
-curl -X POST https://tu-dominio.onrender.com/api/auth/login 
-  -H "Content-Type: application/json" 
+curl -X POST https://tu-dominio.onrender.com/api/auth/login
+  -H "Content-Type: application/json"
   -d '{"email":"test@ejemplo.com","password":"..."}'
 
 # 3. Verificar que seed está deshabilitado
@@ -445,6 +446,24 @@ curl https://tu-dominio.onrender.com/api/reniec/lookup/12345678
 # 5. Verificar frontend
 # Abrir https://tu-dominio.onrender.com en el navegador
 ```
+
+---
+
+## 🔍 Auditoría
+
+El proyecto se audita de forma continua. Los informes están en `docs/audit/`:
+
+| Documento                                                 | Contenido                                                     |
+| --------------------------------------------------------- | ------------------------------------------------------------- |
+| [`ITERATION-001.md`](docs/audit/ITERATION-001.md)         | Informe del ciclo actual: hallazgos, evidencia y correcciones |
+| [`QUALITY_SCORECARD.md`](docs/audit/QUALITY_SCORECARD.md) | Puntuación de las 25 áreas con rúbrica y pesos                |
+| [`RISK_REGISTER.md`](docs/audit/RISK_REGISTER.md)         | Riesgos vivos con severidad y mitigación                      |
+| [`BASELINE.md`](docs/audit/BASELINE.md)                   | Línea base medida del proyecto                                |
+| [`INVENTORY.md`](docs/audit/INVENTORY.md)                 | Mapa del repositorio: estructura, contratos, roles, flujos    |
+| [`WORK_PLAN.md`](docs/audit/WORK_PLAN.md)                 | Plan de trabajo por ciclos                                    |
+| [`CONTINUATION.md`](docs/audit/CONTINUATION.md)           | Estado para retomar el trabajo                                |
+
+Los informes históricos están consolidados en [`docs/AUDITORIAS.md`](docs/AUDITORIAS.md).
 
 ---
 

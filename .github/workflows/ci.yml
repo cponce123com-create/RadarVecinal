@@ -3,8 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+  # Sin filtro de rama base: los PR apilados (por ejemplo
+  # feature/audit-cycle-002 -> feature/audit-cycle-001) también tienen que
+  # pasar el CI. Antes solo se ejecutaba contra main y un ciclo apilado podía
+  # llegar a revisión sin ninguna verificación.
   pull_request:
-    branches: [main]
 
 # Solo lectura: ningún job necesita escribir en el repo.
 permissions:

@@ -1,7 +1,7 @@
 # Registro de riesgos — Radar Vecinal
 
 > Riesgos vivos del proyecto, con severidad, evidencia y mitigación.
-> Actualizado al cierre del ciclo 001 (2026-10-21).
+> Actualizado al cierre del ciclo 002 (2026-10-21).
 
 Severidad: 🔴 Crítica · 🟠 Alta · 🟡 Media · 🔵 Baja.
 **Estado:** `ABIERTO` · `MITIGADO` · `CERRADO` · `ACEPTADO` (con justificación)
@@ -13,7 +13,7 @@ Severidad: 🔴 Crítica · 🟠 Alta · 🟡 Media · 🔵 Baja.
 |               |                                                           |
 | ------------- | --------------------------------------------------------- |
 | **Severidad** | 🔴 Crítica                                                |
-| **Estado**    | 🟡 MITIGADO (el esquema de fondo sigue siendo ambiguo)    |
+| **Estado**    | ✅ CERRADO (ciclo 002)                                    |
 | **Área**      | Base de datos · Alertas y emergencias · Servicios en vivo |
 
 **Descripción.** El esquema usa `timestamp without time zone` en las 30 tablas y
@@ -40,35 +40,57 @@ sesión fuera de UTC por fuera del pool (p. ej. `ALTER DATABASE`), el bug
 vuelve. **Mitigación definitiva pendiente:** migrar a `timestamp with time
 zone` (migración 0034).
 
+**Cierre (ciclo 002).** La mitigación definitiva está aplicada: las 51 columnas
+son `timestamp with time zone` y la conversión conserva el instante.
+
+- Migración `0034_timestamptz.sql`, idempotente: recorre `information_schema` y
+  solo convierte lo que sigue sin zona. Segunda ejecución: 0 columnas.
+- Prueba de integridad con una tabla sonda que contenía
+  `2026-10-21 10:00:00`: epoch `1792576800` antes y después. En sesión UTC se lee
+  `10:00+00`, en `America/Lima` `05:00-05` y en `Asia/Tokyo` `19:00+09`: mismo
+  instante, distinto reloj de pared.
+- `revert/0034_timestamptz_down.sql` deja el camino de vuelta y no se aplica
+  solo (`run_all_migrations.js` no entra en subcarpetas).
+- Se mantienen `TZ=UTC` y `-c timezone=UTC` como defensa en profundidad para
+  columnas legacy y para `CURRENT_DATE`/`date_trunc`.
+
 **Ver ALSO:** R-02.
 
 ---
 
 ## R-02 · Migración del esquema a `timestamptz`
 
-|               |               |
-| ------------- | ------------- |
-| **Severidad** | 🟠 Alta       |
-| **Estado**    | 🟠 ABIERTO    |
-| **Área**      | Base de datos |
+|               |                        |
+| ------------- | ---------------------- |
+| **Severidad** | 🟠 Alta                |
+| **Estado**    | ✅ CERRADO (ciclo 002) |
+| **Área**      | Base de datos          |
 
 **Descripción.** 30 tablas con `timestamp without time zone`. Postgres tiene un
 tipo correcto para instantes (`timestamptz`) y el actual obliga a que todas las
 capas coincidan en la zona horaria.
 
-**Mitigación.** El plan de migración (ciclo 002) debe ser reversible y
-verificarse con `EXPLAIN` sobre datos reales. El test `db-timezone.test.ts`
-actúa como red de seguridad mientras tanto.
+**Cierre (ciclo 002).** Aplicada `0034_timestamptz.sql` sobre PostgreSQL 17:
+
+- 51 columnas convertidas; segunda ejecución convierte 0.
+- `drizzle-kit push` contra la base migrada: `No changes detected`.
+- Suite completa en verde tras el cambio (28 suites / 180 tests).
+- La cadena entera de migraciones sobre una base vacía deja 51 columnas
+  `timestamptz` y 29 tablas, y ahora se verifica en el job `migrations` del CI.
+
+**Riesgo residual.** `ALTER TABLE ... TYPE` toma un lock por tabla. Con el
+volumen actual es cuestión de segundos, pero conviene ejecutarlo en ventana de
+baja actividad (ver R-18).
 
 ---
 
 ## R-03 · Recuperación de contraseña rota en Android
 
-|               |                                                              |
-| ------------- | ------------------------------------------------------------ |
-| **Severidad** | 🔴 Crítica                                                   |
-| **Estado**    | 🔴 ABIERTO (rama `claude/production-readiness-audit-3pgip6`) |
-| **Área**      | Autenticación · Android/PWA                                  |
+|               |                             |
+| ------------- | --------------------------- |
+| **Severidad** | 🔴 Crítica                  |
+| **Estado**    | ✅ CERRADO (ciclo 002)      |
+| **Área**      | Autenticación · Android/PWA |
 
 **Descripción.** `PasswordRecovery.tsx`, `ResetPassword.tsx` y `MyReports.tsx`
 usan `fetch("/api/...")` desnudo. En el APK nativo el documento se sirve desde
@@ -84,15 +106,30 @@ refresco automático ante 401.
 `@workspace/api-client-react` (ya resuelve la URL base en Capacitor y renueva
 la sesión ante 401) durante el rebase de la rama.
 
+**Cierre (ciclo 002).**
+
+- Las tres pantallas (`PasswordRecovery`, `ResetPassword`, `MyReports`) usan
+  `customFetch`.
+- `PasswordRecovery` ya no oculta el fallo: un 429 muestra el mensaje del
+  límite, un error HTTP muestra reintento y un fallo de red avisa de que no hay
+  conexión. El caso "correo no registrado" sigue siendo indistinguible del caso
+  "correo registrado" (200 genérico), así que no se abre un oráculo de
+  enumeración.
+- Test `__tests__/lib/api-config-capacitor.test.ts`: con `window.Capacitor`
+  definido, la URL base es la del servidor configurado; sin él, la ruta relativa
+  (4 casos).
+- `MyReports` ya no lee el token a mano: lo adjunta `customFetch` desde
+  `AuthContext`.
+
 ---
 
 ## R-04 · La rama de recuperación de contraseña revierte dos protecciones
 
-|               |               |
-| ------------- | ------------- |
-| **Severidad** | 🔴 Crítica    |
-| **Estado**    | 🔴 ABIERTO    |
-| **Área**      | Autenticación |
+|               |                        |
+| ------------- | ---------------------- |
+| **Severidad** | 🔴 Crítica             |
+| **Estado**    | ✅ CERRADO (ciclo 002) |
+| **Área**      | Autenticación          |
 
 **Descripción.** `claude/production-readiness-audit-3pgip6` está **15 commits
 atrás** de `main`. Su diff neto _elimina_:
@@ -104,6 +141,18 @@ atrás** de `main`. Su diff neto _elimina_:
 
 **Mitigación pendiente.** **No mergear la rama tal cual.** Rebasear el commit
 `531dac12` sobre `main` (el commit en sí es puramente aditivo).
+
+**Cierre (ciclo 002).** Se hizo el equivalente a un rebase: se aplicó el diff de
+`531dac12` sobre la rama del ciclo 001 (que ya contiene `currentUser()`,
+`req.jwtUser`, UTC y el CI arreglado) y se corrigió lo que el código actual
+exigía. Las dos protecciones intactas:
+
+- `SUPER_ADMIN_CLAIM_SECRET` sigue siendo fail-closed (test
+  `superadmin-claim.test.ts` en verde).
+- `refreshToken` se sigue entregando en login y registro (test `auth.test.ts`).
+
+La rama `claude/production-readiness-audit-3pgip6` no se mergea y se puede
+eliminar.
 
 ---
 
@@ -158,7 +207,7 @@ que ninguna devuelve datos de otro distrito.
 |               |                               |
 | ------------- | ----------------------------- |
 | **Severidad** | 🟡 Media                      |
-| **Estado**    | 🟡 ABIERTO                    |
+| **Estado**    | 🟡 MITIGADO (ciclo 002)       |
 | **Área**      | Documentación · Backend y API |
 
 **Descripción.** El contrato tiene 24 paths frente a los ~120 endpoints
@@ -169,6 +218,19 @@ sin tipos generados ni validación.
 conocido es la incompatibilidad entre el zod v3 que usa `lib/api-zod` y la
 salida zod v4 de orval. El salto de orval a 8.22+ (hecho en el ciclo 001)
 puede resolverlo: **verificar antes de regenerar**.
+
+**Avance (ciclo 002).** El bloqueador está resuelto y documentado:
+
+- `lib/api-spec/orval.config.ts` fija `override.zod.version: 3` y
+  `override.query.version: 5` (orval no sabe leer `"zod": "catalog:"` y asumía
+  v4 y react-query v4).
+- `lib/api-client-react/tsconfig.json` incluye `dom.iterable`, que el cliente
+  nuevo necesita para `Headers.entries()`.
+- Se añadieron `/auth/forgot-password`, `/auth/reset-password` y `/reports/mine`
+  con sus esquemas, y se regeneró el cliente sin errores de compilación.
+
+Queda cubrir el resto de endpoints; ya no hay un impedimento técnico, solo
+volumen.
 
 ---
 
@@ -287,14 +349,30 @@ dependencias bloqueante.
 | **Estado**    | ✅ ACEPTADO    |
 | **Área**      | Ciberseguridad |
 
-**Descripción.** Quedan 6 avisos moderados y 1 bajo, todos transitorios
-(`uuid`, `protobufjs`, `qs`, `postcss-selector-parser`, `fast-copy`, `esbuild`).
-Ninguno tiene ruta de explotación en el contexto de esta aplicación: son
-utilidades de parsing que no procesan entrada no confiable en este código.
+**Descripción.** Tras el ciclo 002 quedan **4 avisos moderados y 1 bajo** en
+dependencias de producción:
 
-**Justificación de la aceptación.** El gate de CI bloquea con `high` en
-dependencias de producción (0 actualmente) y publica el informe completo como
-artefacto. Revisar en el siguiente ciclo.
+| Paquete      | Ruta                                 | Versión corregida       |
+| ------------ | ------------------------------------ | ----------------------- |
+| `qs` (×2)    | `express > body-parser > qs`         | `>=6.15.4` / `>=6.16.0` |
+| `uuid`       | `firebase-admin > @google-cloud/...` | `>=11.1.1`              |
+| `protobufjs` | `firebase-admin > @google-cloud/...` | `>=7.6.5`               |
+| `esbuild`    | `vite-plugin-pwa > vite > esbuild`   | `>=0.28.1`              |
+
+`esbuild` es de la cadena de build (no llega al bundle); los otros tres son
+utilidades de parsing dentro de Firebase/Express.
+
+**Justificación de la aceptación.** El gate de CI bloquea con `high` o
+`critical` en dependencias de producción: hoy 0. Los cuatro moderados no tienen
+una ruta de explotación conocida en este código (no procesan entrada no
+confiable de forma directa) y forzar los overrides puede romper la cadena de
+build. Se abordan en el ciclo 003 con verificación completa (tests + ambos
+builds). Si en ese momento alguna queda sin parche compatible, se documenta
+como riesgo aceptado con la justificación concreta.
+
+**Nota.** `pnpm audit --prod --audit-level high` sale con código 0: el pipeline
+no se rompe por estos avisos, pero tampoco se ocultan (el informe completo se
+publica como artefacto en cada ejecución).
 
 ---
 
@@ -350,20 +428,100 @@ con el rol de backoffice.
 
 ---
 
+## R-18 · Lock de tabla al convertir a `timestamptz` en el despliegue
+
+|               |                    |
+| ------------- | ------------------ |
+| **Severidad** | 🟡 Media           |
+| **Estado**    | 🟡 ABIERTO         |
+| **Área**      | CI/CD · Despliegue |
+
+**Descripción.** `0034_timestamptz.sql` ejecuta un `ALTER TABLE ... ALTER COLUMN
+... TYPE timestamptz` por cada una de las 51 columnas. Cada `ALTER` toma un lock
+`ACCESS EXCLUSIVE` sobre su tabla, así que bloquea lecturas y escrituras de esa
+tabla mientras dure. Con el volumen actual (decenas de miles de filas) es
+cuestión de segundos por tabla, pero no está medido sobre producción.
+
+**Mitigación.** Ejecutar el despliegue en ventana de baja actividad y observar
+el tiempo total de `render-build.sh`. La migración es idempotente: si el
+despliegue se corta a mitad, el siguiente pase continúa donde quedó.
+
+**Pendiente.** Medir el tiempo real con el volumen de producción y, si excede
+lo aceptable, convertir por lotes con `lock_timeout` y reintentos.
+
+---
+
+## R-19 · `drizzle-kit push` elimina 32 índices que el esquema no declara
+
+|               |                             |
+| ------------- | --------------------------- |
+| **Severidad** | 🟠 Alta                     |
+| **Estado**    | 🟠 ABIERTO                  |
+| **Área**      | Base de datos · Rendimiento |
+
+**Descripción.** Las migraciones crean 32 índices (migración 0021 y posteriores)
+que el esquema Drizzle no declara. `drizzle-kit push` hace que el esquema sea la
+verdad y **borra lo que no reconoce**.
+
+**Evidencia.** Se compararon dos bases:
+
+- `radarvecinal_mig3`: solo `run_all_migrations.js` → 32 índices presentes.
+- `radarvecinal_mig`: migraciones y después `drizzle-kit push` → esos 32 índices
+  ya no existen (`pg_indexes`, diferencia de 32).
+
+Producción no usa `push` (`render-build.sh` usa `run_all_migrations.js`), y el
+CI lo usa solo sobre una base vacía. El riesgo es operativo: un
+`pnpm --filter @workspace/db run push` contra una base real degradaría el
+rendimiento en silencio.
+
+**Mitigación pendiente (ciclo 003).** Declarar los índices en el esquema
+(`index()`/`uniqueIndex()` con los mismos nombres) **o** añadir un guardia que
+impida `push` sobre una base con tablas. Mientras tanto: no ejecutar `push`
+contra producción.
+
+---
+
+## R-20 · El journal de Drizzle conoce 3 de 37 migraciones
+
+|               |                         |
+| ------------- | ----------------------- |
+| **Severidad** | 🟡 Media                |
+| **Estado**    | 🟡 MITIGADO (ciclo 002) |
+| **Área**      | Base de datos · CI/CD   |
+
+**Descripción.** `lib/db/migrations/meta/_journal.json` solo registra
+`0000`–`0002`; las otras 34 se añadieron a mano. El comando documentado
+`pnpm --filter @workspace/db run migrate` usa el migrator de Drizzle, que
+**ignora en silencio** los `.sql` que no están en el journal: podía terminar con
+«Migrations applied successfully» habiendo aplicado 3 de 37. Además, el script
+dependía de `tsx`, que no estaba declarado y hacía que fallara al arrancar.
+
+**Mitigación aplicada (ciclo 002).**
+
+- `migrate.ts` comprueba el journal antes de migrar y aborta con la lista de
+  archivos que faltan, indicando que se use `run_all_migrations.js`.
+- `tsx` añadido a las devDependencies de `@workspace/db`.
+- Verificado: el comando sale con código 1 y enumera las 34 migraciones que el
+  journal desconoce.
+
+**Pendiente.** Regenerar el journal (o retirar el runner de Drizzle y dejar
+`run_all_migrations.js` como único camino). Producción ya usa el segundo.
+
+---
+
 ## Resumen
 
-| Severidad  | Total |                    Abiertos |       Cerrados | Aceptados | Mitigados |
-| ---------- | ----: | --------------------------: | -------------: | --------: | --------: |
-| 🔴 Crítica |     4 |              2 (R-03, R-04) |       1 (R-13) |         0 |  1 (R-01) |
-| 🟠 Alta    |     6 | 4 (R-02, R-05, R-06, R-10*) | 2 (R-12, R-16) |         0 |         0 |
-| 🟡 Media   |     5 |  4 (R-07, R-09, R-10, R-11) |       1 (R-15) |         0 |         0 |
-| 🔵 Baja    |     1 |                           0 |              0 |  1 (R-14) |         0 |
-
-\* R-10 está clasificado como Media en su ficha.
+| Severidad  | Total |                         Abiertos |                   Cerrados | Aceptados |      Mitigados |
+| ---------- | ----: | -------------------------------: | -------------------------: | --------: | -------------: |
+| 🔴 Crítica |     4 |                                0 | 4 (R-01, R-03, R-04, R-13) |         0 |              0 |
+| 🟠 Alta    |     6 |             3 (R-05, R-06, R-19) |       3 (R-02, R-12, R-16) |         0 |              0 |
+| 🟡 Media   |     9 | 5 (R-09, R-10, R-11, R-17, R-18) |             2 (R-08, R-15) |         0 | 2 (R-07, R-20) |
+| 🔵 Baja    |     1 |                                0 |                          0 |  1 (R-14) |              0 |
 
 **Regla aplicada:** ninguna vulnerabilidad crítica o alta puede quedar abierta
-para declarar el objetivo global cumplido. Los dos críticos abiertos (R-03,
-R-04) son el foco del ciclo 002.
+para declarar el objetivo global cumplido. Tras el ciclo 002 no queda ninguna
+crítica abierta. Las altas abiertas son R-05 (token en `localStorage`), R-06
+(aislamiento multi-tenant por disciplina) y R-19 (`push` borra índices).
 
 ---
 

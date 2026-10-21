@@ -45,19 +45,19 @@ export const pool = new Pool({
   idleTimeoutMillis: 30000, // cerrar conexiones inactivas después de 30s
   connectionTimeoutMillis: 10000, // fallar rápido si no hay conexión disponible
   // ── Zona horaria de la sesión SIEMPRE en UTC ─────────────────────────────
-  // El esquema usa `timestamp without time zone` (sin zona) en todas las
-  // tablas. Hay dos formas de escribir un instante en esa columna y discrepban
-  // si la sesión no está en UTC:
-  //   · `defaultNow()` / `now()` → hora local de la SESIÓN de Postgres.
-  //   · Drizzle (`timestamp()` con mode "date") → `toISOString()`, es decir UTC.
-  // Con la sesión en hora local, comparar una columna con un `Date` de la app
-  // compara dos instantes distintos por el offset y el filtro siempre falla.
-  // Bug real observado: con la sesión en America/Bogota, `GET /api/live`
-  // devolvía 0 emisores aunque existieran filas válidas, y cada ping del
-  // dispositivo creaba una transmisión duplicada (el filtro de "transmisión
-  // activa" no encontraba la anterior).
-  // Fijar la sesión en UTC hace que ambas vías escriban el mismo instante y
-  // que `now()` sea comparable con los `Date` de la aplicación.
+  // Desde la migración 0034 todas las columnas de fecha son `timestamptz`, así
+  // que Postgres guarda el instante absoluto y las comparaciones ya no dependen
+  // de la zona de la sesión. El ajuste se mantiene como defensa en profundidad:
+  //   · Una columna `timestamp without time zone` que se añada por error
+  //     seguiría escribiéndose en UTC, porque `now()` usa la hora de la sesión.
+  //   · `CURRENT_DATE`, `date_trunc('day', ...)` y los `::text` de las consultas
+  //     de estadísticas siguen produciendo días UTC, que es lo que asume la app.
+  //
+  // Bug histórico que motivó el ajuste (docs/audit/ITERATION-001.md): con la
+  // sesión en America/Bogota, `GET /api/live` devolvía 0 emisores aunque
+  // existieran filas válidas, y cada ping del dispositivo creaba una
+  // transmisión duplicada porque el filtro de "transmisión activa" comparaba
+  // hora local contra UTC.
   options: "-c timezone=UTC",
 });
 export const db = drizzle(pool, { schema });

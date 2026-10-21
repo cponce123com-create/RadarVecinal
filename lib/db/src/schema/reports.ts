@@ -99,7 +99,9 @@ export const districtsTable = pgTable("districts", {
   // Se fija desde el panel (pegar id) o por el comando /vincular <código>.
   telegramChatId: text("telegram_chat_id"),
   telegramLinkCode: text("telegram_link_code"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── M-03/M-05: M-13: Todos los usuarios ahora referencian districts ──────────
@@ -112,7 +114,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone"),
   firstName: text("first_name").notNull().default(""),
   lastName: text("last_name").notNull().default(""),
-  bannedAt: timestamp("banned_at", { mode: "string" }),
+  bannedAt: timestamp("banned_at", { mode: "string", withTimezone: true }),
   banReason: text("ban_reason"),
   // Auto-referencia: se anota el tipo de retorno (AnyPgColumn) para romper la
   // inferencia circular y satisfacer noImplicitAny (patrón oficial de Drizzle).
@@ -134,7 +136,7 @@ export const usersTable = pgTable("users", {
   reportsCount: integer("reports_count").notNull().default(0),
   // FASE 5: Sistema de strikes y reputación
   trustScore: integer("trust_score").notNull().default(50),
-  suspendedUntil: timestamp("suspended_until"),
+  suspendedUntil: timestamp("suspended_until", { withTimezone: true }),
   // VecinoId: identificador publico de 6 digitos para anonimizar vecinos
   vecinoId: integer("vecino_id").unique(),
   // displayName: nombre real que se muestra en respuestas a reportes (visores/municipales)
@@ -143,8 +145,10 @@ export const usersTable = pgTable("users", {
   alias: text("alias"),
   // Item 4: Progressive login blocking
   loginAttempts: integer("login_attempts").notNull().default(0),
-  lockedUntil: timestamp("locked_until"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const reportsTable = pgTable("reports", {
@@ -186,10 +190,14 @@ export const reportsTable = pgTable("reports", {
   panicAlertId: integer("panic_alert_id").references(
     (): AnyPgColumn => panicAlertsTable.id,
   ),
-  deletedAt: timestamp("deleted_at", { mode: "string" }),
+  deletedAt: timestamp("deleted_at", { mode: "string", withTimezone: true }),
   deletedBy: text("deleted_by"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── M-03: panic_alerts ahora tiene districtId ───────────────────────────────
@@ -207,16 +215,18 @@ export const panicAlertsTable = pgTable("panic_alerts", {
   isActive: boolean("is_active").notNull().default(true),
   // Migración 0023: ciclo de vida (estado, resolución, expiración, reporte enlazado).
   status: panicAlertStatusEnum("status").default("active"),
-  resolvedAt: timestamp("resolved_at"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   resolvedById: integer("resolved_by_id").references(
     (): AnyPgColumn => usersTable.id,
   ),
   resolutionNote: text("resolution_note"),
-  expiresAt: timestamp("expires_at"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
   linkedReportId: integer("linked_report_id").references(
     (): AnyPgColumn => reportsTable.id,
   ),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── M-03: missing_persons ahora tiene districtId ────────────────────────────
@@ -232,7 +242,7 @@ export const missingPersonsTable = pgTable("missing_persons", {
   lastSeenLatitude: real("last_seen_latitude").notNull(),
   lastSeenLongitude: real("last_seen_longitude").notNull(),
   lastSeenAddress: text("last_seen_address").notNull(),
-  lastSeenAt: timestamp("last_seen_at").notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
   contactInfo: text("contact_info").notNull(),
   status: missingPersonStatusEnum("status").notNull().default("active"),
   reportedBy: text("reported_by").notNull(),
@@ -241,9 +251,11 @@ export const missingPersonsTable = pgTable("missing_persons", {
   reportedById: integer("reported_by_id").references(
     (): AnyPgColumn => usersTable.id,
   ),
-  deletedAt: timestamp("deleted_at", { mode: "string" }),
+  deletedAt: timestamp("deleted_at", { mode: "string", withTimezone: true }),
   deletedBy: text("deleted_by"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Servicios en vivo: rastreo GPS de camión recolector y vendedores ────────
@@ -287,9 +299,13 @@ export const liveProvidersTable = pgTable("live_providers", {
     (): AnyPgColumn => liveDevicesTable.id,
   ),
   verified: boolean("verified").notNull().default(false),
-  startedAt: timestamp("started_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   // Cada ping actualiza `updatedAt`; sirve de "última vez visto" (lastSeen).
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Dispositivos oficiales de rastreo (registrados desde el panel admin) ─────
@@ -310,7 +326,9 @@ export const liveDevicesTable = pgTable("live_devices", {
   createdById: integer("created_by_id").references(
     (): AnyPgColumn => usersTable.id,
   ),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Ruta recorrida por una transmisión (breadcrumbs) ────────────────────────
@@ -327,7 +345,9 @@ export const liveTracksTable = pgTable("live_tracks", {
     .references(() => districtsTable.id),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
-  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Clips de voz para los avisos ("Vecino, la tamalera está cerca") ─────────
@@ -346,7 +366,9 @@ export const liveVoiceClipsTable = pgTable("live_voice_clips", {
   updatedById: integer("updated_by_id").references(
     (): AnyPgColumn => usersTable.id,
   ),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Suscripción de proximidad: aviso push cuando un servicio se acerca a casa ─
@@ -366,8 +388,12 @@ export const proximitySubscriptionsTable = pgTable("proximity_subscriptions", {
   enabled: boolean("enabled").notNull().default(true),
   // Último aviso por tipo (epoch ms) para no repetir: { recolector: 172... }.
   cooldowns: jsonb("cooldowns").notNull().default({}),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── M-03: ad_slots ahora tiene districtId ───────────────────────────────────
@@ -382,7 +408,9 @@ export const adSlotsTable = pgTable("ad_slots", {
   targetUrl: text("target_url").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   sector: text("sector"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const notificationTypeEnum = pgEnum("notification_type", [
@@ -406,7 +434,9 @@ export const notificationsTable = pgTable("notifications", {
   referenceId: text("reference_id"),
   referenceType: text("reference_type"),
   isRead: boolean("is_read").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Report Messages (hilo de comunicación vecino ↔ admin) ────────────────────
@@ -428,8 +458,10 @@ export const reportMessagesTable = pgTable("report_messages", {
   adminName: text("admin_name"),
   contactPhone: text("contact_phone"),
   contactEmail: text("contact_email"),
-  readAt: timestamp("read_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Licencias para municipalidades (solo super_admin crea) ───────────────────
@@ -443,9 +475,11 @@ export const licensesTable = pgTable("licenses", {
   districtId: integer("district_id").references(() => districtsTable.id),
   municipalUserId: integer("municipal_user_id").references(() => usersTable.id),
   createdBy: integer("created_by").references(() => usersTable.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  activatedAt: timestamp("activated_at"),
-  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(false),
   maxViewers: integer("max_viewers").notNull().default(10),
 });
@@ -482,7 +516,9 @@ export const categoriesTable = pgTable("categories", {
   color: text("color").notNull().default("#6b7280"),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Nuevas: Departamentos municipales (asignación de reportes) ──────────────
@@ -495,7 +531,9 @@ export const departmentsTable = pgTable("departments", {
   slug: text("slug").notNull(),
   description: text("description").notNull().default(""),
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Nuevas: Auditoría de cambios (timeline público + accountability) ────────
@@ -511,7 +549,9 @@ export const auditLogTable = pgTable("audit_log", {
   newValue: text("new_value"),
   changedBy: text("changed_by"), // email o nombre de quien hizo el cambio
   changedById: integer("changed_by_id"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Nuevas: Suscripciones a categorías/sectores (push FCM selectivo) ────────
@@ -525,8 +565,12 @@ export const subscriptionsTable = pgTable("subscriptions", {
   categories: text("categories").notNull().default("[]"), // JSON array of slugs
   sectors: text("sectors").notNull().default("[]"), // JSON array of sector names
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // Mantener compatibilidad con insertSchemas existentes más los nuevos
@@ -558,7 +602,9 @@ export const votesTable = pgTable("votes", {
     .references(() => reportsTable.id),
   userId: integer("user_id"),
   userIp: text("user_ip"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Recursos comunitarios por distrito ──────────────────────────────────────
@@ -574,7 +620,9 @@ export const districtResourcesTable = pgTable("district_resources", {
   url: text("url"),
   description: text("description").default(""),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const insertVoteSchema = createInsertSchema(votesTable).omit({
@@ -605,7 +653,9 @@ export const resolutionConfirmationsTable = pgTable(
     userIp: text("user_ip"),
     // "validity" = el reporte es real · "resolution" = la solución es real
     kind: text("kind").notNull().default("validity"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
 );
 
@@ -632,7 +682,9 @@ export const civicEducationTopicsTable = pgTable("civic_education_topics", {
   xpReward: integer("xp_reward").notNull().default(50),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const userEducationProgressTable = pgTable("user_education_progress", {
@@ -644,8 +696,10 @@ export const userEducationProgressTable = pgTable("user_education_progress", {
   completed: boolean("completed").notNull().default(false),
   score: integer("score").notNull().default(0),
   xpEarned: integer("xp_earned").notNull().default(0),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const insertCivicTopicSchema = createInsertSchema(
@@ -659,9 +713,11 @@ export const refreshTokensTable = pgTable("refresh_tokens", {
     .notNull()
     .references(() => usersTable.id),
   tokenHash: text("token_hash").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   revoked: boolean("revoked").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── FASE 5: Strikes por reportes falsos ─────────────────────────────────────
@@ -677,9 +733,11 @@ export const userStrikesTable = pgTable("user_strikes", {
   adminId: integer("admin_id")
     .notNull()
     .references(() => usersTable.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   activo: boolean("activo").notNull().default(true),
-  expiresAt: timestamp("expires_at"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
 });
 
 // ── FASE 5: Community flags (vecinos reportan reportes falsos) ───────────────
@@ -691,7 +749,9 @@ export const communityFlagsTable = pgTable("community_flags", {
   userId: integer("user_id")
     .notNull()
     .references(() => usersTable.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── Puntos estáticos (acumulan reportes en una misma ubicación) ──────────────
@@ -708,13 +768,21 @@ export const staticPointsTable = pgTable("static_points", {
   address: text("address").default(""),
   sector: text("sector").notNull(),
   reportCount: integer("report_count").notNull().default(0),
-  firstReportedAt: timestamp("first_reported_at").notNull().defaultNow(),
-  lastReportedAt: timestamp("last_reported_at").notNull().defaultNow(),
+  firstReportedAt: timestamp("first_reported_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastReportedAt: timestamp("last_reported_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   resolutionReports: integer("resolution_reports").notNull().default(0),
   isResolved: boolean("is_resolved").notNull().default(false),
-  resolvedAt: timestamp("resolved_at", { mode: "string" }),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 // ── CONSENTIMIENTO DE DATOS (Ley N° 29733 — Protección de Datos Personales) ──
@@ -732,7 +800,9 @@ export const userConsentsTable = pgTable("user_consents", {
     .references(() => usersTable.id),
   type: consentTypeEnum("type").notNull(),
   version: text("version").notNull(), // ej. "2026-07-v1"
-  acceptedAt: timestamp("accepted_at").notNull().defaultNow(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   ipAddress: text("ip_address"), // evidencia; se conserva por interés legítimo
   userAgent: text("user_agent"),
 });

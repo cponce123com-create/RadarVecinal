@@ -1,3 +1,7 @@
+// Debe ser el PRIMER import: fija la zona horaria del proceso en UTC antes
+// de que nada cree un `Date` (ver lib/timezone.ts).
+import "./lib/timezone";
+
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -121,12 +125,12 @@ function authAwareRateLimit(
     legacyHeaders: false,
     message: { error: message },
     keyGenerator: (req) => {
-      const jwtUser = (req as any).jwtUser;
+      const jwtUser = req.jwtUser;
       if (jwtUser?.sub) return `user_${jwtUser.sub}`;
       return ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? "");
     },
     max: (req) => {
-      const jwtUser = (req as any).jwtUser;
+      const jwtUser = req.jwtUser;
       return jwtUser?.sub ? authMax : anonMax;
     },
   });

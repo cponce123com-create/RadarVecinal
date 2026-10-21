@@ -99,6 +99,14 @@ export const districtsTable = pgTable("districts", {
   // Se fija desde el panel (pegar id) o por el comando /vincular <código>.
   telegramChatId: text("telegram_chat_id"),
   telegramLinkCode: text("telegram_link_code"),
+  // Cobranding por distrito (migración 0008). Tienen que estar declaradas aquí:
+  // `GET /api/districts` hace `db.select()` sin lista de columnas y Drizzle solo
+  // devuelve las declaradas. Al faltar, `useBranding` recibía `undefined` y el
+  // theming del distrito caía siempre a los valores por defecto: la función
+  // existía pero estaba muerta.
+  brandName: text("brand_name").notNull().default(""),
+  logoUrl: text("logo_url"),
+  primaryColor: text("primary_color").notNull().default("#3b82f6"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
